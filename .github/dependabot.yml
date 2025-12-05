@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    # only security updates will be opened automatically
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: "hosting-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

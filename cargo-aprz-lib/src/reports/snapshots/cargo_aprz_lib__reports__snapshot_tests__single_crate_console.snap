@@ -1,0 +1,27 @@
+---
+source: cargo-aprz-lib/src/reports/mod.rs
+expression: console_output
+---
+Evaluation Result: ACCEPTABLE
+Reasons          :
+  - Excellent coverage
+  - Active development
+  - Well maintained
+
+Metadata
+  crate.name     : comprehensive-crate
+  crate.version  : 2.0.0
+  crate.keywords : test, comprehensive, snapshot
+
+Stability
+  stability.crate_created_at : 2023-06-01
+
+Usage
+  usage.total_downloads : 9876543
+
+Community
+  community.repo_stars : 12345
+
+Trustworthiness
+  trust.code_coverage_percentage : 99.99
+  trust.ci_workflows             : true

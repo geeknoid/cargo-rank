@@ -1,0 +1,80 @@
+[package]
+name = "cargo-aprz-lib"
+description = "Internal library for cargo-aprz"
+keywords = ["cargo", "dependencies", "analysis"]
+categories = ["development-tools"]
+readme = "./README.md"
+exclude = ["tests/fixtures/*.tar.gz", "tests/fixtures/*.zst", "tests/fixtures/*.svg"]
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_System_IO", "Win32_System_Ioctl", "Win32_Security"] }
+
+[dependencies]
+bytes.workspace = true
+camino.workspace = true
+cargo_metadata.workspace = true
+cel-interpreter.workspace = true
+chrono.workspace = true
+clap.workspace = true
+compact_str.workspace = true
+csv.workspace = true
+directories.workspace = true
+env_logger.workspace = true
+flate2.workspace = true
+fs4.workspace = true
+futures.workspace = true
+futures-util.workspace = true
+humantime-serde.workspace = true
+indicatif.workspace = true
+log.workspace = true
+mmap-rs.workspace = true
+ohno.workspace = true
+owo-colors.workspace = true
+pastey.workspace = true
+ra_ap_syntax.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+rust_xlsxwriter.workspace = true
+rustdoc-types-v50.workspace = true
+rustdoc-types-v51.workspace = true
+rustdoc-types-v52.workspace = true
+rustdoc-types-v53.workspace = true
+rustdoc-types-v54.workspace = true
+rustdoc-types-v55.workspace = true
+rustdoc-types-v56.workspace = true
+rustdoc-types-v57.workspace = true
+rustsec.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+strsim.workspace = true
+strum.workspace = true
+tar.workspace = true
+terminal_size.workspace = true
+tokio.workspace = true
+toml.workspace = true
+url.workspace = true
+vlen.workspace = true
+walkdir.workspace = true
+zstd.workspace = true
+
+[build-dependencies]
+camino.workspace = true
+ohno.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+wiremock.workspace = true
+
+[lints]
+workspace = true

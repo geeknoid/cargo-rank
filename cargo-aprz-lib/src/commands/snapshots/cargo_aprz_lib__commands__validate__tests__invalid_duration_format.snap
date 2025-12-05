@@ -1,0 +1,9 @@
+---
+source: cargo-aprz-lib/src/commands/validate.rs
+expression: snapshot_content
+---
+TOML parse error at line 2, column 20
+  |
+2 | crates_cache_ttl = "not a valid duration"
+  |                    ^^^^^^^^^^^^^^^^^^^^^^
+invalid value: string "not a valid duration", expected a duration

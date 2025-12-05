@@ -1,0 +1,5 @@
+---
+source: cargo-aprz-lib/src/commands/validate.rs
+expression: snapshot_content
+---
+Undeclared reference to 'this_metric_does_not_exist'

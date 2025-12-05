@@ -1,0 +1,70 @@
+---
+source: cargo-aprz-lib/src/reports/mod.rs
+expression: output
+---
+Evaluation Result: [1m[32mACCEPTABLE[39m[0m
+Reasons          :
+  - High stars and good coverage
+
+[1mMetadata[0m
+  crate.name     : tokio
+  crate.version  : 1.35.0
+  crate.keywords : async, runtime
+
+[1mStability[0m
+  stability.crate_created_at : 2023-01-15
+
+[1mUsage[0m
+  usage.total_downloads : 50000000
+
+[1mCommunity[0m
+  community.repo_stars : 20000
+
+[1mTrustworthiness[0m
+  trust.code_coverage_percentage : 85.50
+  trust.ci_workflows             : true
+
+═══════════════════════════════════════
+
+Evaluation Result: [1m[31mNOT ACCEPTABLE[39m[0m
+Reasons          :
+  - Low star count
+
+[1mMetadata[0m
+  crate.name     : serde
+  crate.version  : 1.0.195
+  crate.keywords : serialization
+
+[1mStability[0m
+  stability.crate_created_at : 2023-01-15
+
+[1mUsage[0m
+  usage.total_downloads : 100000000
+
+[1mCommunity[0m
+  community.repo_stars : 8000
+
+[1mTrustworthiness[0m
+  trust.code_coverage_percentage : 92.30
+  trust.ci_workflows             : true
+
+═══════════════════════════════════════
+
+
+[1mMetadata[0m
+  crate.name     : anyhow
+  crate.version  : 1.0.75
+  crate.keywords : error, handling
+
+[1mStability[0m
+  stability.crate_created_at : 2023-01-15
+
+[1mUsage[0m
+  usage.total_downloads : 30000000
+
+[1mCommunity[0m
+  community.repo_stars : 4500
+
+[1mTrustworthiness[0m
+  trust.code_coverage_percentage : 78.90
+  trust.ci_workflows             : false

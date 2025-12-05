@@ -1,0 +1,151 @@
+[workspace]
+members = ["cargo-aprz", "cargo-aprz-lib"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/geeknoid/cargo-aprz"
+rust-version = "1.93"
+homepage = "https://github.com/geeknoid/cargo-aprz"
+
+[workspace.lints.rust]
+ambiguous_negative_literals = "warn"
+missing_debug_implementations = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+trivial_numeric_casts = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+
+# Allow cfg attributes for coverage builds and custom feature flags
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly,all_tables,all_fields)'] }
+
+[workspace.lints.clippy]
+cargo = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+
+# Explicitly enabled lints from the `restriction` group.
+alloc_instead_of_core = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+assertions_on_result_states = "warn"
+as_underscore = "warn"
+as_pointer_underscore = "warn"
+clone_on_ref_ptr = "warn"
+deref_by_slicing = "warn"
+disallowed_script_idents = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+filetype_is_file = "warn"
+fn_to_numeric_cast_any = "warn"
+get_unwrap = "warn"
+if_then_some_else_none = "warn"
+infinite_loop = "warn"
+map_err_ignore = "warn"
+missing_asserts_for_indexing = "warn"
+multiple_unsafe_ops_per_block = "warn"
+mutex_atomic = "warn"
+mutex_integer = "warn"
+needless_raw_strings = "warn"
+panic = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_type_annotations = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_and_then = "warn"
+semicolon_outside_block = "warn"
+std_instead_of_core = "warn"
+string_lit_chars_any = "warn"
+string_slice = "warn"
+suspicious_xor_used_as_pow = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unused_result_ok = "warn"
+unwrap_in_result = "warn"
+unwrap_used = "warn"
+
+# Explicitly necessary
+multiple_crate_versions = "allow"
+
+# Not needed for a tool
+missing-errors-doc = "allow"
+missing-panics-doc = "allow"
+
+[workspace.dependencies]
+bytes = { version = "1.11.1", default-features = false }
+camino = { version = "1.2.1", default-features = false }
+cargo-aprz-lib = { version = "0.1.0", path = "cargo-aprz-lib" }
+cargo_metadata = { version = "0.23.1", default-features = false }
+cel-interpreter = { version = "0.10.0", default-features = false, features = ["chrono"] }
+chrono = { version = "0.4.42", default-features = false, features = ["serde", "clock", "std", "now"] }
+clap = { version = "4.5.49", default-features = false, features = ["std", "derive", "color", "help", "error-context", "usage", "suggestions", "env", "wrap_help"] }
+compact_str = { version = "0.9.0", default-features = false, features = ["std", "serde"] }
+csv = { version = "1.2.2", default-features = false }
+directories = { version = "6.0.0", default-features = false }
+env_logger = { version = "0.11", default-features = false }
+flate2 = { version = "1.0.26", default-features = false, features = ["zlib-rs"] }
+fs4 = { version = "0.13.1", default-features = false, features = ["sync"] }
+futures = { version = "0.3.31", default-features = false }
+futures-util = { version = "0.3", default-features = false }
+humantime-serde = { version = "1.1", default-features = false }
+indicatif = { version = "0.18.3", default-features = false }
+insta = { version = "1.42.1", default-features = false }
+itertools = { version = "0.14", default-features = false, features = ["use_std"] }
+log = { version = "0.4", default-features = false }
+mmap-rs = { version = "0.7.0", default-features = false }
+ohno = { version = "0.3.0", default-features = false, features = ["app-err"] }
+owo-colors = { version = "4.1", default-features = false }
+pastey = { version = "0.2.1", default-features = false }
+ra_ap_syntax = { version = "0.0.318", default-features = false }
+regex = { version = "1.12.2", default-features = false, features = ["std", "unicode-perl"] }
+reqwest = { version = "0.13.1", default-features = false, features = ["json", "rustls", "stream"] }
+rust_xlsxwriter = { version = "0.93.0", default-features = false, features = ["zlib"] }
+rustdoc-types-v50 = { package = "rustdoc-types", version = "0.50.0", default-features = false }
+rustdoc-types-v51 = { package = "rustdoc-types", version = "0.51.0", default-features = false }
+rustdoc-types-v52 = { package = "rustdoc-types", version = "0.52.0", default-features = false }
+rustdoc-types-v53 = { package = "rustdoc-types", version = "0.53.0", default-features = false }
+rustdoc-types-v54 = { package = "rustdoc-types", version = "0.54.0", default-features = false }
+rustdoc-types-v55 = { package = "rustdoc-types", version = "0.55.0", default-features = false }
+rustdoc-types-v56 = { package = "rustdoc-types", version = "0.56.0", default-features = false }
+rustdoc-types-v57 = { package = "rustdoc-types", version = "0.57.0", default-features = false }
+rustsec = { version = "0.32.0", default-features = true }
+semver = { version = "1.0.27", default-features = false, features = ["serde"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "1.0.145", default-features = false, features = ["std"] }
+strsim = { version = "0.11", default-features = false }
+strum = { version = "0.27.2", default-features = false, features = ["derive"] }
+tar = { version = "0.4.38", default-features = false }
+tempfile = { version = "3", default-features = false }
+terminal_size = { version = "0.4", default-features = false }
+tokio = { version = "1.48.0", default-features = false, features = ["macros", "rt-multi-thread", "sync", "process", "time"] }
+toml = { version = "0.9.8", default-features = false, features = ["parse", "serde", "display"] }
+url = { version = "2.5.4", default-features = false }
+vlen = { version = "0.3.0", default-features = false }
+walkdir = { version = "2.5", default-features = false }
+windows = { version = "0.62.2", default-features = false }
+wiremock = { version = "0.6", default-features = false }
+zstd = { version = "0.13", default-features = false }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

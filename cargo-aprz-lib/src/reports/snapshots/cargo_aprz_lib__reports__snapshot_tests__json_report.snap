@@ -1,0 +1,70 @@
+---
+source: cargo-aprz-lib/src/reports/mod.rs
+expression: output
+---
+{
+  "crates": [
+    {
+      "evaluation": {
+        "reasons": [
+          "High stars and good coverage"
+        ],
+        "result": "ACCEPTABLE"
+      },
+      "metrics": {
+        "community.repo_stars": 20000,
+        "crate.keywords": [
+          "async",
+          "runtime"
+        ],
+        "crate.name": "tokio",
+        "crate.version": "1.35.0",
+        "stability.crate_created_at": "2023-01-15",
+        "trust.ci_workflows": true,
+        "trust.code_coverage_percentage": 85.5,
+        "usage.total_downloads": 50000000
+      },
+      "name": "tokio",
+      "version": "1.35.0"
+    },
+    {
+      "evaluation": {
+        "reasons": [
+          "Low star count"
+        ],
+        "result": "NOT ACCEPTABLE"
+      },
+      "metrics": {
+        "community.repo_stars": 8000,
+        "crate.keywords": [
+          "serialization"
+        ],
+        "crate.name": "serde",
+        "crate.version": "1.0.195",
+        "stability.crate_created_at": "2023-01-15",
+        "trust.ci_workflows": true,
+        "trust.code_coverage_percentage": 92.3,
+        "usage.total_downloads": 100000000
+      },
+      "name": "serde",
+      "version": "1.0.195"
+    },
+    {
+      "metrics": {
+        "community.repo_stars": 4500,
+        "crate.keywords": [
+          "error",
+          "handling"
+        ],
+        "crate.name": "anyhow",
+        "crate.version": "1.0.75",
+        "stability.crate_created_at": "2023-01-15",
+        "trust.ci_workflows": false,
+        "trust.code_coverage_percentage": 78.9,
+        "usage.total_downloads": 30000000
+      },
+      "name": "anyhow",
+      "version": "1.0.75"
+    }
+  ]
+}

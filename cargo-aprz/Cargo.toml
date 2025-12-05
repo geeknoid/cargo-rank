@@ -1,0 +1,20 @@
+[package]
+name = "cargo-aprz"
+description = "Appraise the quality of Rust dependencies"
+keywords = ["cargo", "cargo-plugin", "dependencies"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "../README.md"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+cargo-aprz-lib.workspace = true
+ohno.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

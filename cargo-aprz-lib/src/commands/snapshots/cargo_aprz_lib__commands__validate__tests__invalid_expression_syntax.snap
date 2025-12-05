@@ -1,0 +1,11 @@
+---
+source: cargo-aprz-lib/src/commands/validate.rs
+expression: snapshot_content
+---
+TOML parse error at line 2, column 1
+  |
+2 | [[deny_if_any]]
+  | ^^^^^^^^^^^^^^^
+Could not parse expression 'invalid_syntax': ERROR: <input>:1:6: Syntax error: mismatched input 'is' expecting {<EOF>, '==', '!=', 'in', '<', '<=', '>=', '>', '&&', '||', '[', '.', '-', '?', '+', '*', '/', '%'}
+| this is not a valid CEL expression !!!
+| .....^

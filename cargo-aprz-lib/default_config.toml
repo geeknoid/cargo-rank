@@ -1,0 +1,46 @@
+# cargo-aprz Configuration File
+# =============================
+#
+# This file controls how cargo-aprz behaves. In particular, this is where
+# you define expressions to evaluate the relative quality of crate dependencies.
+#
+# Visit https://github.com/geeknoid/cargo-aprz for more information
+
+# ----------------------------------------------------------------------------
+# Expressions
+# ----------------------------------------------------------------------------
+
+# Expressions that if ANY evaluate to true, the crate is denied
+deny_if_any = []
+
+# Expressions that if ANY evaluate to true, the crate is accepted
+accept_if_any = []
+
+# Expressions that must ALL evaluate to true for the crate to be accepted
+accept_if_all = []
+
+# ----------------------------------------------------------------------------
+# Cache Configuration
+#
+# Control how long cached data is retained before being refreshed
+# Durations can be specified using human-readable formats like:
+# - "1 week", "2 weeks", etc.
+# - "7 days", "30 days", etc.
+# - "24 hours", "48 hours", etc.
+# - Or combinations: "1 week 2 days"
+# ----------------------------------------------------------------------------
+
+# Duration to keep crates.io cache data before re-downloading
+crates_cache_ttl = "1 week"
+
+# Duration to keep hosting (GitHub/GitLab) cache data before re-fetching
+hosting_cache_ttl = "1 week"
+
+# Duration to keep cached codebase before re-fetching
+codebase_cache_ttl = "1 week"
+
+# Duration to keep cached coverage data before re-fetching
+coverage_cache_ttl = "1 week"
+
+# Duration to keep the advisory database cached before re-downloading
+advisories_cache_ttl = "1 week"

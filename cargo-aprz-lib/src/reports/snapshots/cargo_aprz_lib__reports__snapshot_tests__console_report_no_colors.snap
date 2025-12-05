@@ -1,0 +1,70 @@
+---
+source: cargo-aprz-lib/src/reports/mod.rs
+expression: output
+---
+Evaluation Result: ACCEPTABLE
+Reasons          :
+  - High stars and good coverage
+
+Metadata
+  crate.name     : tokio
+  crate.version  : 1.35.0
+  crate.keywords : async, runtime
+
+Stability
+  stability.crate_created_at : 2023-01-15
+
+Usage
+  usage.total_downloads : 50000000
+
+Community
+  community.repo_stars : 20000
+
+Trustworthiness
+  trust.code_coverage_percentage : 85.50
+  trust.ci_workflows             : true
+
+═══════════════════════════════════════
+
+Evaluation Result: NOT ACCEPTABLE
+Reasons          :
+  - Low star count
+
+Metadata
+  crate.name     : serde
+  crate.version  : 1.0.195
+  crate.keywords : serialization
+
+Stability
+  stability.crate_created_at : 2023-01-15
+
+Usage
+  usage.total_downloads : 100000000
+
+Community
+  community.repo_stars : 8000
+
+Trustworthiness
+  trust.code_coverage_percentage : 92.30
+  trust.ci_workflows             : true
+
+═══════════════════════════════════════
+
+
+Metadata
+  crate.name     : anyhow
+  crate.version  : 1.0.75
+  crate.keywords : error, handling
+
+Stability
+  stability.crate_created_at : 2023-01-15
+
+Usage
+  usage.total_downloads : 30000000
+
+Community
+  community.repo_stars : 4500
+
+Trustworthiness
+  trust.code_coverage_percentage : 78.90
+  trust.ci_workflows             : false
