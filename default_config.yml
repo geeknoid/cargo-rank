@@ -1,0 +1,1127 @@
+# ============================================================================
+# cargo-rank Configuration File
+# ============================================================================
+#
+# This file controls how cargo-rank evaluates whether Rust crates are
+# suitable as dependencies for your project.
+#
+# Visit https://github.com/geeknoid/cargo-rank for more information
+#
+# ----------------------------------------------------------------------------
+# How It Works
+# ----------------------------------------------------------------------------
+#
+# 1. METRICS COLLECTION: cargo-rank gathers data about each crate from
+#    crates.io and GitHub (downloads, owners, commits, issues, etc.)
+#
+# 2. POLICY EVALUATION: Each section below defines policies that evaluate
+#    metrics. When a metric meets a policy's criteria, points are awarded.
+#
+# 3. SCORE AGGREGATION: Points from all policies are summed to create scores:
+#    - Category scores (Community, Documentation, Usage, etc.)
+#    - Overall score (0-100)
+#    - Scores determine color coding: green (excellent), orange (acceptable), red (needs attention)
+#
+# ----------------------------------------------------------------------------
+# Key Concepts
+# ----------------------------------------------------------------------------
+#
+# DEPENDENCY TYPES:
+#   - "standard": Regular runtime dependencies
+#   - "dev": Development dependencies (only used for testing/development)
+#   - "build": Build-time dependencies (only used during compilation)
+#
+#   You can specify multiple types: "standard, dev" or just one: "standard"
+#   Different types can have different policies (dev/build deps may be less critical)
+#
+# POINTS:
+#   - Points are awarded when a metric meets the policy's criteria
+#   - More points = better quality indicator
+#   - Total points across all policies determine the final score
+#   - Set to 0.0 to make a policy mandatory without affecting score
+#
+# EMPTY ARRAYS []:
+#   - Empty arrays mean no policies are defined for that metric
+#   - The metric won't affect scoring (neither positive nor negative)
+#   - Add policies to empty sections to enable evaluation of those metrics
+#
+# ----------------------------------------------------------------------------
+# Metric Scaling
+# ----------------------------------------------------------------------------
+# Advanced: Multiply the weight of specific metrics to emphasize them in scoring.
+# Format: { "metric_name": multiplier }
+# Example: { "crate_age": 2.0, "crate_license": 1.5 }
+# Leave empty {} for default behavior (all metrics have equal weight).
+
+metric_scaling:
+  age: 0.80
+  min_version: 0.60
+  release_count: 0.70
+  overall_download_count: 0.60
+  one_month_download_count: 0.55
+  overall_owner_count: 0.40
+  user_owner_count: 0.90
+  team_owner_count: 0.90
+  direct_dependency_count: 0.50
+  dependent_count: 0.70
+  doc_coverage_percentage: 0.75
+  broken_doc_link_count: 0.40
+  code_coverage_percentage: 0.90
+  fully_safe_code: 0.70
+  transitive_dependency_count: 0.50
+  example_count: 0.60
+  repo_star_count: 0.45
+  repo_fork_count: 0.40
+  repo_subscriber_count: 0.35
+  repo_contributor_count: 0.60
+  commit_activity: 0.65
+  open_issue_count: 0.25
+  closed_issue_count: 0.35
+  issue_responsiveness: 0.40
+  open_pull_request_count: 0.25
+  closed_pull_request_count: 0.40
+  pull_request_responsiveness: 0.50
+
+# ----------------------------------------------------------------------------
+# Overall Scoring Bands
+# ----------------------------------------------------------------------------
+# Define two threshold values that divide scores into three quality bands:
+#   [0]: Lower threshold - separates "bad" from "good"
+#   [1]: Upper threshold - separates "good" from "excellent"
+#
+# Format: [good_threshold, excellent_threshold]
+# Default: [50.0, 80.0] - balanced standards suitable for most projects
+#   - Scores < 50.0: Bad (needs attention)
+#   - Scores 50.0-79.9: Good (acceptable quality)
+#   - Scores >= 80.0: Excellent (high quality)
+
+overall_scoring_bands: [50.0, 80.0]
+
+# ----------------------------------------------------------------------------
+# Category Scoring Bands
+# ----------------------------------------------------------------------------
+# Define per-category threshold values for more granular scoring control.
+# Each category can have its own set of thresholds [good_threshold, excellent_threshold]
+# that divide scores into three quality bands: bad, good, and excellent.
+#
+# Categories are ranked by importance, with tailored thresholds:
+#
+# CRITICAL CATEGORIES (highest standards):
+#   - trustworthiness: [65.0, 90.0] - Security, licenses, unsafe codebase
+#   - stability: [60.0, 90.0]       - Maturity, version stability
+#   - ownership: [55.0, 85.0]       - Maintainer count, bus factor
+#
+# IMPORTANT CATEGORIES (moderate-high standards):
+#   - documentation: [50.0, 80.0]   - Docs coverage, examples
+#   - activity: [45.0, 75.0]        - Recent commits, responsiveness
+#   - usage: [45.0, 75.0]           - Downloads, dependents
+#
+# NICE-TO-HAVE CATEGORIES (lower standards):
+#   - community: [40.0, 70.0]       - Stars, forks, contributors
+#   - cost: [40.0, 70.0]            - Dependency count, compile time
+#
+# Defaults below provide sensible starting points for most projects.
+# Override specific categories to adjust standards for your needs.
+
+category_scoring_bands:
+  trustworthiness: [65.0, 90.0]  # Critical: security and legal compliance
+  stability: [60.0, 90.0]         # Very important: maturity and reliability
+  ownership: [55.0, 85.0]         # Important: maintainer sustainability
+  documentation: [50.0, 80.0]     # Important: usability and learning curve
+  activity: [45.0, 75.0]          # Moderate: recent maintenance (mature crates may be stable)
+  usage: [45.0, 75.0]             # Moderate: adoption signal
+  community: [40.0, 70.0]         # Nice-to-have: engagement and support
+  cost: [40.0, 70.0]              # Nice-to-have: build impact
+
+# ----------------------------------------------------------------------------
+# Colors for Scoring Bands
+# ----------------------------------------------------------------------------
+# Define RGB color values for visualizing dependency scores in reports.
+# Colors can be specified as:
+#   - Hex strings: "#FF0000", "#F00" (with or without #)
+#   - Named colors: "red", "orange", "green" (SVG/CSS3 color names)
+#   - RGB structs: { red: 255, green: 0, blue: 0 }
+#
+# Default colors:
+#   [0] Bad score color (red zone): "red"
+#   [1] Good score color (orange zone): "orange"
+#   [2] Excellent score color (green zone): "green"
+#
+# You can customize these for different color schemes or accessibility needs.
+# Examples with named colors:
+#   Classic: ["crimson", "darkorange", "limegreen"]
+#   Traffic light: ["red", "yellow", "green"]
+#
+# Examples with hex colors:
+#   Softer palette: ["#E57373", "#FFD54F", "#81C784"]
+#   Colorblind-friendly: ["#CC6600", "#CCCC33", "#3399FF"]
+#   Dark theme: ["#B71C1C", "#F57C00", "#388E3C"]
+#
+# Mix and match formats:
+#   ["#DC143C", "orange", "limegreen"]
+
+colors_for_scoring_bands: ["red", "orange", "green"]
+
+# ============================================================================
+# CRATE METRICS - Information from crates.io
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# license - License Requirements
+# ----------------------------------------------------------------------------
+# Award points when a dependency uses an acceptable license.
+# Licenses are checked against SPDX expressions (e.g., "MIT OR Apache-2.0")
+#
+# Fields:
+#   - dependency_types: Which dependency types this policy applies to
+#   - licenses: Comma-separated list of acceptable license names (case-insensitive)
+#   - points: Points awarded when license matches
+#
+# Example: Require OSI-approved licenses for production dependencies
+#   - dependency_types: "standard"
+#     licenses: "apache, bsd, mit, unlicense, mpl"
+#     points: 0.0  # Mandatory but doesn't add to score
+
+license:
+  - dependency_types: "standard"
+    licenses: "apache, bsd, mit, unlicense"
+    points: 100.0
+
+# ----------------------------------------------------------------------------
+# age - Crate Maturity
+# ----------------------------------------------------------------------------
+# Award points when a crate has been published for a minimum number of days.
+# Older crates are generally more stable and battle-tested.
+#
+# Fields:
+#   - dependency_types: Which dependency types this policy applies to
+#   - min_days: Minimum age in days
+#   - points: Points awarded when age >= min_days
+#
+# Tip: You can define multiple tiers (e.g., 1 year = 9 points, 6 months = 6 points)
+#      Dependencies earn points for ALL policies they satisfy
+
+age:
+  - dependency_types: "standard"
+    min_days: 365
+    points: 100.0
+  - dependency_types: "build, dev"
+    min_days: 365
+    points: 62.5
+  - dependency_types: "standard"
+    min_days: 180
+    points: 62.5
+  - dependency_types: "build, dev"
+    min_days: 180
+    points: 37.5
+
+# ----------------------------------------------------------------------------
+# min_version - Version Stability
+# ----------------------------------------------------------------------------
+# Award points when a crate has reached a minimum major version number.
+# Version 1.0.0+ typically indicates a stable API.
+#
+# Fields:
+#   - dependency_types: Which dependency types this policy applies to
+#   - min_major_version: Minimum major version (0, 1, 2, etc.)
+#   - points: Points awarded when major version >= min_major_version
+
+min_version:
+  - dependency_types: "standard"
+    min_major_version: 1
+    points: 100.0
+  - dependency_types: "build, dev"
+    min_major_version: 1
+    points: 66.67
+
+# ----------------------------------------------------------------------------
+# release_count - Release Activity
+# ----------------------------------------------------------------------------
+# Award points when a crate has published a minimum number of releases
+# within a specified time period. Active maintenance is a quality indicator.
+#
+# Fields:
+#   - dependency_types: Which dependency types this policy applies to
+#   - min_count: Minimum number of releases
+#   - max_days: Within this many days (looking backward from now)
+#   - points: Points awarded when releases >= min_count in last max_days
+
+release_count:
+  - dependency_types: "standard"
+    min_count: 1
+    max_days: 180
+    points: 100.0
+  - dependency_types: "build, dev"
+    min_count: 1
+    max_days: 180
+    points: 57.14
+
+# ----------------------------------------------------------------------------
+# overall_download_count - Total Downloads
+# ----------------------------------------------------------------------------
+# Award points based on total download count since publication.
+# High download counts suggest widespread use and trust over time.
+
+overall_download_count:
+  - dependency_types: "standard"
+    min_count: 10000000  # 10M+ downloads = very popular
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 1000000   # 1M+ downloads = established
+    points: 58.33
+  - dependency_types: "build, dev"
+    min_count: 1000000
+    points: 41.67
+
+# ----------------------------------------------------------------------------
+# one_month_download_count - Recent Popularity
+# ----------------------------------------------------------------------------
+# Award points based on downloads in the last month.
+# Recent downloads indicate active use and ongoing relevance.
+
+one_month_download_count:
+  - dependency_types: "standard"
+    min_count: 5000
+    points: 100.0
+  - dependency_types: "build, dev"
+    min_count: 5000
+    points: 63.64
+
+# ----------------------------------------------------------------------------
+# overall_owner_count - Total Owners
+# ----------------------------------------------------------------------------
+# Award points based on total number of crate owners (users + teams).
+# Multiple maintainers reduce bus factor. Note: Also covered by separate
+# user and team owner metrics, so this provides less signal.
+
+overall_owner_count:
+  - dependency_types: "standard"
+    min_count: 3  # At least 3 total maintainers
+    points: 100.0
+  - dependency_types: "build, dev"
+    min_count: 2
+    points: 75.0
+
+# ----------------------------------------------------------------------------
+# user_owner_count - Individual Maintainers
+# ----------------------------------------------------------------------------
+# Award points when a crate has multiple individual user owners.
+# Multiple maintainers reduce bus factor and improve sustainability.
+
+user_owner_count:
+  - dependency_types: "standard"
+    min_count: 2
+    points: 94.44
+  - dependency_types: "build, dev"
+    min_count: 2
+    points: 100.0
+
+# ----------------------------------------------------------------------------
+# team_owner_count - Team Ownership
+# ----------------------------------------------------------------------------
+# Award points when a crate is owned by organizational teams.
+# Team ownership often indicates organizational backing and support.
+
+team_owner_count:
+  - dependency_types: "standard"
+    min_count: 1
+    points: 94.44
+  - dependency_types: "build, dev"
+    min_count: 1
+    points: 100.0
+
+# ----------------------------------------------------------------------------
+# direct_dependency_count - Dependency Bloat
+# ----------------------------------------------------------------------------
+# Award points when a crate has few direct dependencies.
+# Fewer dependencies reduce supply chain risk and compilation time.
+
+direct_dependency_count:
+  - dependency_types: "standard"
+    max_count: 15   # Very lean
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 30   # Moderate dependency count
+    points: 50.0
+  - dependency_types: "build, dev"
+    max_count: 20
+    points: 60.0
+
+# ----------------------------------------------------------------------------
+# dependent_count - Ecosystem Trust
+# ----------------------------------------------------------------------------
+# Award points when many other crates depend on this one.
+# High dependent counts indicate ecosystem trust and widespread use.
+
+dependent_count:
+  - dependency_types: "standard"
+    min_count: 500   # Very widely depended upon
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 100   # Good adoption
+    points: 64.29
+  - dependency_types: "standard"
+    min_count: 10    # Some adoption
+    points: 35.71
+  - dependency_types: "build, dev"
+    min_count: 50
+    points: 50.0
+
+# ============================================================================
+# CODE METRICS - Information from docs.rs and codebase analysis
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# doc_coverage_percentage - Documentation Coverage
+# ----------------------------------------------------------------------------
+# Award points based on percentage of items with documentation.
+# High documentation coverage helps with maintainability and usage.
+
+doc_coverage_percentage:
+  - dependency_types: "standard"
+    min_percentage: 80  # Excellent documentation
+    points: 100.0
+  - dependency_types: "standard"
+    min_percentage: 60  # Good documentation
+    points: 66.67
+  - dependency_types: "build, dev"
+    min_percentage: 50
+    points: 53.33
+
+# ----------------------------------------------------------------------------
+# broken_doc_link_count - Documentation Quality
+# ----------------------------------------------------------------------------
+# Award points when documentation has few or no broken links.
+# Broken links indicate poor maintenance or outdated documentation.
+
+broken_doc_link_count:
+  - dependency_types: "standard"
+    max_count: 0   # No broken links
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 2   # Very few broken links
+    points: 50.0
+  - dependency_types: "build, dev"
+    max_count: 5
+    points: 50.0
+
+# ----------------------------------------------------------------------------
+# code_coverage_percentage - Test Coverage
+# ----------------------------------------------------------------------------
+# Award points based on test codebase coverage percentage.
+# High coverage indicates thorough testing and quality assurance.
+
+code_coverage_percentage:
+  - dependency_types: "standard"
+    min_percentage: 80  # Excellent coverage
+    points: 100.0
+  - dependency_types: "standard"
+    min_percentage: 60  # Good coverage
+    points: 66.67
+  - dependency_types: "build, dev"
+    min_percentage: 50
+    points: 50.0
+
+# ----------------------------------------------------------------------------
+# fully_safe_code - Memory Safety
+# ----------------------------------------------------------------------------
+# Award points when a crate contains no unsafe codebase blocks.
+# Safe codebase reduces security risks and memory safety issues.
+# Note: Some crates legitimately need unsafe for FFI or performance.
+
+fully_safe_code:
+  - dependency_types: "standard"
+    points: 100.0
+  - dependency_types: "build, dev"
+    points: 64.29
+
+# ----------------------------------------------------------------------------
+# transitive_dependency_count - Deep Dependency Tree
+# ----------------------------------------------------------------------------
+# Award points when total transitive dependencies are low.
+# Fewer transitive deps reduce supply chain complexity and compile time.
+
+transitive_dependency_count:
+  - dependency_types: "standard"
+    max_count: 50    # Very lean dependency tree
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 100   # Moderate tree size
+    points: 50.0
+  - dependency_types: "build, dev"
+    max_count: 75
+    points: 60.0
+
+# ----------------------------------------------------------------------------
+# example_count - Usage Examples
+# ----------------------------------------------------------------------------
+# Award points when a crate provides usage examples.
+# Examples improve usability and reduce integration time.
+
+example_count:
+  - dependency_types: "standard"
+    min_count: 5   # Many examples
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 2   # Some examples
+    points: 58.33
+  - dependency_types: "build, dev"
+    min_count: 1
+    points: 41.67
+
+# ============================================================================
+# REPOSITORY METRICS - Information from GitHub/GitLab
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# repo_star_count - Community Interest
+# ----------------------------------------------------------------------------
+# Award points based on repository star count.
+# Stars indicate community interest and adoption.
+
+repo_star_count:
+  - dependency_types: "standard"
+    min_count: 1000   # Very popular
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 500    # Popular
+    points: 66.67
+  - dependency_types: "standard"
+    min_count: 100    # Some interest
+    points: 33.33
+  - dependency_types: "build, dev"
+    min_count: 200
+    points: 55.56
+
+# ----------------------------------------------------------------------------
+# repo_fork_count - Community Engagement
+# ----------------------------------------------------------------------------
+# Award points based on repository fork count.
+# Forks indicate active community participation and contribution.
+
+repo_fork_count:
+  - dependency_types: "standard"
+    min_count: 100   # Very active
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 50    # Active
+    points: 62.5
+  - dependency_types: "build, dev"
+    min_count: 20
+    points: 50.0
+
+# ----------------------------------------------------------------------------
+# repo_subscriber_count - Project Watchers
+# ----------------------------------------------------------------------------
+# Award points based on repository subscriber/watcher count.
+# Subscribers track project development and show sustained interest.
+
+repo_subscriber_count:
+  - dependency_types: "standard"
+    min_count: 50    # Highly engaged audience
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 20    # Engaged audience
+    points: 62.86
+  - dependency_types: "build, dev"
+    min_count: 10
+    points: 51.43
+
+# ----------------------------------------------------------------------------
+# repo_contributor_count - Development Team Size
+# ----------------------------------------------------------------------------
+# Award points based on number of contributors to the repository.
+# More contributors indicate broader community involvement and reduce bus factor.
+
+repo_contributor_count:
+  - dependency_types: "standard"
+    min_count: 10
+    points: 83.33
+  - dependency_types: "build, dev"
+    min_count: 10
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 5
+    points: 50.0
+  - dependency_types: "build, dev"
+    min_count: 5
+    points: 58.33
+
+# ----------------------------------------------------------------------------
+# commit_activity - Recent Development Activity
+# ----------------------------------------------------------------------------
+# Award points based on number of commits within a time period.
+# Regular commits indicate active maintenance and ongoing development.
+#
+# Fields:
+#   - dependency_types: Which dependency types this policy applies to
+#   - min_count: Minimum number of commits
+#   - max_days: Within this many days (looking backward from now)
+#   - points: Points awarded when commits >= min_count in last max_days
+
+commit_activity:
+  - dependency_types: "standard"
+    min_count: 4
+    max_days: 90
+    points: 100.0
+  - dependency_types: "build, dev"
+    min_count: 4
+    max_days: 90
+    points: 61.54
+  - dependency_types: "standard"
+    min_count: 1
+    max_days: 90
+    points: 46.15
+  - dependency_types: "build, dev"
+    min_count: 1
+    max_days: 90
+    points: 30.77
+
+# ----------------------------------------------------------------------------
+# open_issue_count - Issue Backlog
+# ----------------------------------------------------------------------------
+# Award points when open issue count is below a threshold.
+# Too many open issues may indicate maintenance challenges, but context
+# matters (popular projects naturally have more issues).
+
+open_issue_count:
+  - dependency_types: "standard"
+    max_count: 100   # Manageable backlog
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 250   # Moderate backlog
+    points: 40.0
+  - dependency_types: "build, dev"
+    max_count: 50
+    points: 80.0
+
+# ----------------------------------------------------------------------------
+# closed_issue_count - Issue Resolution
+# ----------------------------------------------------------------------------
+# Award points based on number of closed issues.
+# Closed issues show active problem resolution and maintenance history.
+
+closed_issue_count:
+  - dependency_types: "standard"
+    min_count: 200   # Extensive history
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 50    # Good history
+    points: 62.86
+  - dependency_types: "build, dev"
+    min_count: 25
+    points: 51.43
+
+# ----------------------------------------------------------------------------
+# issue_responsiveness - Issue Response Time
+# ----------------------------------------------------------------------------
+# Award points when issues are responded to quickly.
+# Fast response times indicate active maintainership.
+#
+# Fields:
+#   - dependency_types: Which dependency types this policy applies to
+#   - max_average_days: Maximum average response time
+#   - max_p50_days: Maximum median (50th percentile) response time
+#   - max_p75_days: Maximum 75th percentile response time
+#   - max_p90_days: Maximum 90th percentile response time
+#   - max_p95_days: Maximum 95th percentile response time
+#   - points: Points awarded when ALL thresholds are satisfied
+#
+# Percentiles explained:
+#   - p50 (median): Half of issues are responded to within this time
+#   - p75: 75% of issues are responded to within this time
+#   - p90: 90% of issues are responded to within this time
+#   - p95: 95% of issues are responded to within this time
+
+issue_responsiveness:
+  - dependency_types: "standard"
+    max_average_days: 30
+    max_p50_days: 30
+    max_p75_days: 60
+    max_p90_days: 120
+    max_p95_days: 180
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_average_days: 30
+    max_p50_days: 30
+    max_p75_days: 60
+    max_p90_days: 120
+    max_p95_days: 180
+    points: 100.0
+  - dependency_types: "standard"
+    max_average_days: 90
+    max_p50_days: 90
+    max_p75_days: 180
+    max_p90_days: 365
+    max_p95_days: 730
+    points: 50.0
+  - dependency_types: "build, dev"
+    max_average_days: 90
+    max_p50_days: 90
+    max_p75_days: 180
+    max_p90_days: 365
+    max_p95_days: 730
+    points: 50.0
+
+# ----------------------------------------------------------------------------
+# open_pull_request_count - PR Backlog
+# ----------------------------------------------------------------------------
+# Award points when open pull request count is below a threshold.
+# Too many open PRs may indicate bottlenecks in codebase review or maintainer
+# capacity issues.
+
+open_pull_request_count:
+  - dependency_types: "standard"
+    max_count: 30    # Well-managed PR queue
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 75    # Moderate backlog
+    points: 40.0
+  - dependency_types: "build, dev"
+    max_count: 20
+    points: 80.0
+
+# ----------------------------------------------------------------------------
+# closed_pull_request_count - PR Throughput
+# ----------------------------------------------------------------------------
+# Award points based on number of closed pull requests.
+# Closed PRs show active contribution acceptance and review process.
+
+closed_pull_request_count:
+  - dependency_types: "standard"
+    min_count: 100   # High throughput
+    points: 100.0
+  - dependency_types: "standard"
+    min_count: 25    # Good throughput
+    points: 62.5
+  - dependency_types: "build, dev"
+    min_count: 15
+    points: 50.0
+
+# ----------------------------------------------------------------------------
+# pull_request_responsiveness - PR Response Time
+# ----------------------------------------------------------------------------
+# Award points when pull requests receive timely responses.
+# Fast PR responses encourage contributions and indicate active maintenance.
+#
+# Fields are the same as issue_responsiveness (see above).
+# Typically, PR response times should be faster than issue response times
+# to encourage contributor engagement.
+
+pull_request_responsiveness:
+  - dependency_types: "standard"
+    max_average_days: 7
+    max_p50_days: 7
+    max_p75_days: 14
+    max_p90_days: 30
+    max_p95_days: 60
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_average_days: 7
+    max_p50_days: 7
+    max_p75_days: 14
+    max_p90_days: 30
+    max_p95_days: 60
+    points: 80.0
+  - dependency_types: "standard"
+    max_average_days: 10
+    max_p50_days: 10
+    max_p75_days: 15
+    max_p90_days: 45
+    max_p95_days: 90
+    points: 70.0
+  - dependency_types: "build, dev"
+    max_average_days: 10
+    max_p50_days: 10
+    max_p75_days: 15
+    max_p90_days: 45
+    max_p95_days: 90
+    points: 50.0
+  - dependency_types: "standard"
+    max_average_days: 15
+    max_p50_days: 15
+    max_p75_days: 30
+    max_p90_days: 60
+    max_p95_days: 120
+    points: 2.0
+  - dependency_types: "build, dev"
+    max_average_days: 15
+    max_p50_days: 15
+    max_p75_days: 30
+    max_p90_days: 60
+    max_p95_days: 120
+    points: 2.0
+
+# ----------------------------------------------------------------------------
+# vulnerability_count - Total Vulnerabilities (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version has no or few security vulnerabilities.
+# Any vulnerability in a dependency is a serious concern.
+
+vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0  # No vulnerabilities
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 100.0
+
+# ----------------------------------------------------------------------------
+# low_vulnerability_count - Low Severity Vulnerabilities (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version has few low severity vulnerabilities.
+
+low_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0  # No low severity vulnerabilities
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 80.0
+
+# ----------------------------------------------------------------------------
+# medium_vulnerability_count - Medium Severity Vulnerabilities (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version has no medium severity vulnerabilities.
+
+medium_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0  # No medium severity vulnerabilities
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 80.0
+
+# ----------------------------------------------------------------------------
+# high_vulnerability_count - High Severity Vulnerabilities (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version has no high severity vulnerabilities.
+# High severity issues should block usage.
+
+high_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0  # No high severity vulnerabilities
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 100.0
+
+# ----------------------------------------------------------------------------
+# critical_vulnerability_count - Critical Vulnerabilities (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version has no critical vulnerabilities.
+# Critical vulnerabilities should absolutely block usage.
+
+critical_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0  # No critical vulnerabilities
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 100.0
+
+# ----------------------------------------------------------------------------
+# warning_count - Total Warnings (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version has few advisory warnings.
+# Warnings include unmaintained, unsound, and notice advisories.
+
+warning_count:
+  - dependency_types: "standard"
+    max_count: 0  # No warnings
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 80.0
+
+# ----------------------------------------------------------------------------
+# notice_warning_count - Notice Warnings (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version has no notice warnings.
+
+notice_warning_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 60.0
+
+# ----------------------------------------------------------------------------
+# unmaintained_warning_count - Unmaintained Warnings (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version is not flagged as unmaintained.
+
+unmaintained_warning_count:
+  - dependency_types: "standard"
+    max_count: 0  # Not unmaintained
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 80.0
+
+# ----------------------------------------------------------------------------
+# unsound_warning_count - Unsound Warnings (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version has no unsoundness warnings.
+
+unsound_warning_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 70.0
+
+# ----------------------------------------------------------------------------
+# yanked_warning_count - Yanked Warnings (Current Version)
+# ----------------------------------------------------------------------------
+# Award points when the current version is not yanked.
+
+yanked_warning_count:
+  - dependency_types: "standard"
+    max_count: 0  # Not yanked
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 80.0
+
+# ----------------------------------------------------------------------------
+# historical_vulnerability_count - Historical Vulnerabilities (All Versions)
+# ----------------------------------------------------------------------------
+# Track the total number of vulnerabilities ever reported for this crate.
+# A history of vulnerabilities may indicate security practices.
+
+historical_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0  # No historical vulnerabilities
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 2  # Few historical issues acceptable
+    points: 60.0
+  - dependency_types: "build, dev"
+    max_count: 5
+    points: 40.0
+
+# ----------------------------------------------------------------------------
+# historical_low_vulnerability_count - Historical Low Severity (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_low_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 3
+    points: 50.0
+  - dependency_types: "build, dev"
+    max_count: 5
+    points: 30.0
+
+# ----------------------------------------------------------------------------
+# historical_medium_vulnerability_count - Historical Medium Severity (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_medium_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 2
+    points: 40.0
+  - dependency_types: "build, dev"
+    max_count: 3
+    points: 30.0
+
+# ----------------------------------------------------------------------------
+# historical_high_vulnerability_count - Historical High Severity (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_high_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 1
+    points: 30.0
+  - dependency_types: "build, dev"
+    max_count: 2
+    points: 20.0
+
+# ----------------------------------------------------------------------------
+# historical_critical_vulnerability_count - Historical Critical (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_critical_vulnerability_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 80.0
+
+# ----------------------------------------------------------------------------
+# historical_warning_count - Historical Warnings (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_warning_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 2
+    points: 50.0
+  - dependency_types: "build, dev"
+    max_count: 3
+    points: 40.0
+
+# ----------------------------------------------------------------------------
+# historical_notice_warning_count - Historical Notices (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_notice_warning_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 2
+    points: 50.0
+
+# ----------------------------------------------------------------------------
+# historical_unmaintained_warning_count - Historical Unmaintained (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_unmaintained_warning_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 0
+    points: 70.0
+
+# ----------------------------------------------------------------------------
+# historical_unsound_warning_count - Historical Unsound (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_unsound_warning_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "build, dev"
+    max_count: 1
+    points: 50.0
+
+# ----------------------------------------------------------------------------
+# historical_yanked_warning_count - Historical Yanked (All Versions)
+# ----------------------------------------------------------------------------
+
+historical_yanked_warning_count:
+  - dependency_types: "standard"
+    max_count: 0
+    points: 100.0
+  - dependency_types: "standard"
+    max_count: 2
+    points: 60.0
+  - dependency_types: "build, dev"
+    max_count: 3
+    points: 50.0
+
+# ============================================================================
+# CUSTOMIZATION TIPS
+# ============================================================================
+#
+# Common Customization Scenarios:
+#
+# 1. STRICTER LICENSE REQUIREMENTS
+#    Add more restrictive license policies or fail on non-compliant licenses:
+#      crate_license:
+#        - dependency_types: "standard"
+#          licenses: "mit, apache-2.0"  # Only allow MIT or Apache
+#          points: 0.0
+#
+# 2. PRIORITIZE SECURITY
+#    Enable policies for unsafe codebase and dependency count limits:
+#      code_all_safe:
+#        - dependency_types: "standard"
+#          is_safe: true
+#          points: 15.0
+#      crate_direct_dependency_count:
+#        - dependency_types: "standard"
+#          max_count: 15
+#          points: 10.0
+#
+# 3. REQUIRE ACTIVE MAINTENANCE
+#    Increase points for recent releases and commit activity:
+#      crate_release_count:
+#        - dependency_types: "standard"
+#          min_count: 2
+#          max_days: 90
+#          points: 20.0
+#
+# 4. DIFFERENT STANDARDS FOR DEV/BUILD DEPENDENCIES
+#    Dev and build dependencies often have lower quality requirements
+#    since they don't ship with your product. Adjust points accordingly:
+#      - Give dev/build deps higher points (easier to reach green threshold)
+#      - Or disable certain metrics entirely for dev/build deps
+#
+# 5. ADJUST SCORING THRESHOLDS
+#    Change what scores count as "good" vs "needs attention":
+#      overall_scoring_bands: [60.0, 90.0]  # Raise the bar
+#
+# 6. EMPHASIZE SPECIFIC METRICS
+#    Use metric_scaling to give more weight to certain metrics:
+#      metric_scaling:
+#        crate_license: 2.0         # Double the points from license policies
+#        repo_commit_activity: 1.5  # 50% more points from commit activity policies
+#
+# 7. ENABLE ADDITIONAL METRICS
+#    Many metrics are disabled by default (empty arrays). Add policies to enable them:
+#      code_documentation_percentage:
+#        - dependency_types: "standard"
+#          min_percentage: 75.0
+#          points: 8.0
+#      repo_star_count:
+#        - dependency_types: "standard"
+#          min_count: 100
+#          points: 5.0
+#
+# 8. CUSTOMIZE PER-CATEGORY THRESHOLDS AND COLORS
+#    Use category-specific thresholds for fine-grained control:
+#      category_scoring_bands:
+#        stability: [70.0, 95.0]      # Higher bar for stability
+#        activity: [45.0, 75.0]       # Moderate bar for activity
+#        documentation: [60.0, 90.0]  # High expectations for docs
+#
+#    Customize colors with named colors (easiest):
+#      colors_for_scoring_bands: ["crimson", "gold", "limegreen"]
+#
+#    Or use hex codes for precise control:
+#      colors_for_scoring_bands: ["#E57373", "#FFD54F", "#81C784"]  # Softer palette
+#
+#    Colorblind-friendly palette:
+#      colors_for_scoring_bands: ["#CC6600", "#CCCC33", "#3399FF"]  # Blue/orange/yellow
+#
+#    Traffic light style:
+#      colors_for_scoring_bands: ["red", "yellow", "green"]
+#
+# ----------------------------------------------------------------------------
+# Configuration File Formats
+# ----------------------------------------------------------------------------
+#
+# You can save configurations in multiple formats:
+#   - rank.yml or rank.yaml (YAML format, supports comments)
+#   - rank.toml (TOML format)
+#   - rank.json (JSON format)
+#
+# Place the file in your workspace root or specify with --config flag.
+#
+# ----------------------------------------------------------------------------
+# Getting Help
+# ----------------------------------------------------------------------------
+#
+# For more information:
+#   - Run: cargo rank --help
+#   - Run: cargo rank init-config to create a custom config file
+#   - Visit: https://github.com/geeknoid/cargo-rank
+#
+# ============================================================================
