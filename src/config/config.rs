@@ -1,3 +1,4 @@
+use crate::Result;
 use crate::config::Color;
 use crate::config::policies::{
     AgePolicy, AgedCountPolicy, BooleanPolicy, LicensePolicy, MaxCountPolicy, MinCountPolicy, PercentagePolicy, ResponsivenessPolicy,
@@ -5,8 +6,8 @@ use crate::config::policies::{
 };
 use crate::config::policy::Policy;
 use crate::metrics::{Metric, MetricCategory};
-use anyhow::{Context, Result, anyhow};
 use camino::{Utf8Path, Utf8PathBuf};
+use ohno::{IntoAppError, app_err};
 use palette::Srgb;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -267,7 +268,7 @@ impl Config {
     /// Returns an error if the file cannot be read or parsed
     pub fn load(workspace_root: &Utf8Path, config_path: Option<&Utf8PathBuf>) -> Result<(Self, Vec<String>)> {
         let (final_path, text) = if let Some(path) = config_path {
-            let text = fs::read_to_string(path).with_context(|| format!("reading cargo-rank configuration from {path}"))?;
+            let text = fs::read_to_string(path).into_app_err_with(|| format!("reading cargo-rank configuration from {path}"))?;
             (path.clone(), text)
         } else {
             let candidates = [
@@ -285,7 +286,7 @@ impl Config {
                         break;
                     }
                     Err(e) if e.kind() == io::ErrorKind::NotFound => {}
-                    Err(e) => return Err(e).with_context(|| format!("reading cargo-rank configuration from {path}")),
+                    Err(e) => return Err(e).into_app_err_with(|| format!("reading cargo-rank configuration from {path}")),
                 }
             }
 
@@ -297,10 +298,10 @@ impl Config {
 
         let extension = final_path.extension().unwrap_or_default();
         let config: Self = match extension {
-            "toml" => toml::from_str(&text).with_context(|| format!("parsing TOML configuration from {final_path}"))?,
-            "yml" | "yaml" => serde_yaml::from_str(&text).with_context(|| format!("parsing YAML configuration from {final_path}"))?,
-            "json" => serde_json::from_str(&text).with_context(|| format!("parsing JSON configuration from {final_path}"))?,
-            _ => return Err(anyhow!("unsupported configuration file extension: {extension}")),
+            "toml" => toml::from_str(&text).into_app_err_with(|| format!("parsing TOML configuration from {final_path}"))?,
+            "yml" | "yaml" => serde_yaml::from_str(&text).into_app_err_with(|| format!("parsing YAML configuration from {final_path}"))?,
+            "json" => serde_json::from_str(&text).into_app_err_with(|| format!("parsing JSON configuration from {final_path}"))?,
+            _ => return Err(app_err!("unsupported configuration file extension: {extension}")),
         };
 
         let mut warnings = Vec::new();
@@ -316,18 +317,16 @@ impl Config {
     pub fn save(&self, output_path: &Utf8Path) -> Result<()> {
         let extension = output_path.extension().unwrap_or_default();
         let text = match extension {
-            "toml" => {
-                toml::to_string_pretty(self).with_context(|| format!("serializing configuration to TOML for saving to {output_path}"))?
-            }
-            "yml" | "yaml" => {
-                serde_yaml::to_string(self).with_context(|| format!("serializing configuration to YAML for saving to {output_path}"))?
-            }
+            "toml" => toml::to_string_pretty(self)
+                .into_app_err_with(|| format!("serializing configuration to TOML for saving to {output_path}"))?,
+            "yml" | "yaml" => serde_yaml::to_string(self)
+                .into_app_err_with(|| format!("serializing configuration to YAML for saving to {output_path}"))?,
             "json" => serde_json::to_string_pretty(self)
-                .with_context(|| format!("serializing configuration to JSON for saving to {output_path}"))?,
-            _ => return Err(anyhow!("unsupported configuration file extension: {extension}")),
+                .into_app_err_with(|| format!("serializing configuration to JSON for saving to {output_path}"))?,
+            _ => return Err(app_err!("unsupported configuration file extension: {extension}")),
         };
 
-        fs::write(output_path, text).with_context(|| format!("writing configuration to {output_path}"))?;
+        fs::write(output_path, text).into_app_err_with(|| format!("writing configuration to {output_path}"))?;
         Ok(())
     }
 
@@ -360,14 +359,14 @@ impl Config {
                     .as_i64()
                     .map(|i| Value::Integer(toml_edit::Formatted::new(i)))
                     .or_else(|| n.as_f64().map(|f| Value::Float(toml_edit::Formatted::new(f))))
-                    .ok_or_else(|| anyhow!("unsupported number type")),
+                    .ok_or_else(|| app_err!("unsupported number type")),
                 serde_yaml::Value::String(s) => Ok(Value::String(toml_edit::Formatted::new(s.clone()))),
-                _ => Err(anyhow!("not a simple value type")),
+                _ => Err(app_err!("not a simple value type")),
             }
         }
 
         // Parse the YAML to get the actual data
-        let yaml_value = serde_yaml::from_str(yaml_content).context("parsing YAML content")?;
+        let yaml_value = serde_yaml::from_str(yaml_content).into_app_err("parsing YAML content")?;
 
         // Create a new TOML document
         let mut doc = DocumentMut::new();
@@ -391,7 +390,7 @@ impl Config {
                 // This looks like a key-value line
                 let key = trimmed
                     .get(..key_end)
-                    .ok_or_else(|| anyhow!("invalid key index"))?
+                    .ok_or_else(|| app_err!("invalid key index"))?
                     .trim()
                     .to_string();
                 if !current_comments.is_empty() {
@@ -522,11 +521,11 @@ impl Config {
 
         if matches!(extension, "yml" | "yaml") {
             // For YAML, write the raw default content with comments preserved
-            fs::write(output_path, DEFAULT_CONFIG_YAML).with_context(|| format!("writing default configuration to {output_path}"))?;
+            fs::write(output_path, DEFAULT_CONFIG_YAML).into_app_err_with(|| format!("writing default configuration to {output_path}"))?;
         } else if extension == "toml" {
             // For TOML, convert from YAML while preserving comments
             let toml_content = Self::convert_yaml_to_toml_with_comments(DEFAULT_CONFIG_YAML)?;
-            fs::write(output_path, toml_content).with_context(|| format!("writing default configuration to {output_path}"))?;
+            fs::write(output_path, toml_content).into_app_err_with(|| format!("writing default configuration to {output_path}"))?;
         } else {
             // For other formats, fall back to regular serialization
             self.save(output_path)?;

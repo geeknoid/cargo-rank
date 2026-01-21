@@ -1,12 +1,14 @@
 use super::DocsData;
+use crate::Result;
 use crate::facts::ProviderResult;
 use crate::facts::cache_doc;
 use crate::facts::crate_spec::CrateSpec;
 use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::request_tracker::RequestTracker;
-use anyhow::{Context, Result};
 use futures::stream::TryStreamExt;
 use futures_util::future::join_all;
+use ohno::EnrichableExt;
+use ohno::IntoAppError;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -17,7 +19,7 @@ pub(super) const LOG_TARGET: &str = "      docs";
 /// Error type for documentation download operations
 enum DownloadError {
     NotFound,
-    Other(anyhow::Error),
+    Other(ohno::AppError),
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +81,7 @@ impl Provider {
                 return ProviderResult::CrateNotFound;
             }
             Err(DownloadError::Other(e)) => {
-                return ProviderResult::Error(Arc::new(e.context(format!("could not download docs for {spec}"))));
+                return ProviderResult::Error(Arc::new(e.enrich(format!("could not download docs for {spec}"))));
             }
         };
 
@@ -102,7 +104,7 @@ impl Provider {
                 data
             }
             Err(e) => {
-                return ProviderResult::Error(Arc::new(e.context(format!("could not calculate documentation metrics for {spec}"))));
+                return ProviderResult::Error(Arc::new(e.enrich(format!("could not calculate documentation metrics for {spec}"))));
             }
         };
 
@@ -142,7 +144,7 @@ impl Provider {
             }
             let body = response.text().await.unwrap_or_else(|_| String::from("<unable to read body>"));
             log::debug!(target: LOG_TARGET, "Response body (first 500 chars): {}", body.chars().take(500).collect::<String>());
-            return Err(DownloadError::Other(anyhow::anyhow!(
+            return Err(DownloadError::Other(ohno::app_err!(
                 "could not download docs for {spec}: HTTP {status}"
             )));
         }
@@ -154,7 +156,7 @@ impl Provider {
         let temp_file = temp_dir.join(format!("{safe_name}@{safe_version}.zst"));
 
         let mut file = tokio::fs::File::create(&temp_file).await.map_err(|e| {
-            DownloadError::Other(anyhow::Error::new(e).context(format!("could not create temp file '{}'", temp_file.display())))
+            DownloadError::Other(ohno::AppError::new(e).enrich(format!("could not create temp file '{}'", temp_file.display())))
         })?;
 
         let mut stream = response.bytes_stream();
@@ -163,16 +165,16 @@ impl Provider {
         while let Some(chunk) = stream
             .try_next()
             .await
-            .map_err(|e| DownloadError::Other(anyhow::Error::new(e).context("could not read response chunk")))?
+            .map_err(|e| DownloadError::Other(ohno::AppError::new(e).enrich("could not read response chunk")))?
         {
             total_bytes += chunk.len();
             file.write_all(&chunk).await.map_err(|e| {
-                DownloadError::Other(anyhow::Error::new(e).context(format!("could not write to temp file '{}'", temp_file.display())))
+                DownloadError::Other(ohno::AppError::new(e).enrich(format!("could not write to temp file '{}'", temp_file.display())))
             })?;
         }
 
         file.flush().await.map_err(|e| {
-            DownloadError::Other(anyhow::Error::new(e).context(format!("could not flush temp file '{}'", temp_file.display())))
+            DownloadError::Other(ohno::AppError::new(e).enrich(format!("could not flush temp file '{}'", temp_file.display())))
         })?;
 
         log::debug!(target: LOG_TARGET, "Downloaded {total_bytes} bytes for {spec} to temp file: '{}'", temp_file.display());
@@ -182,9 +184,9 @@ impl Provider {
     fn calculate_docs_metrics(zst_path: impl AsRef<Path>, crate_spec: &CrateSpec) -> Result<DocsData> {
         let path = zst_path.as_ref();
         log::debug!(target: LOG_TARGET, "Opening .zst file for {crate_spec}: {}", path.display());
-        let file = fs::File::open(path).with_context(|| format!("could not open file '{}' for {crate_spec}", path.display()))?;
+        let file = fs::File::open(path).into_app_err_with(|| format!("could not open file '{}' for {crate_spec}", path.display()))?;
 
-        let decoder = zstd::Decoder::new(file).with_context(|| format!("could not create zstd decoder for {crate_spec}"))?;
+        let decoder = zstd::Decoder::new(file).into_app_err_with(|| format!("could not create zstd decoder for {crate_spec}"))?;
 
         super::calc_metrics::calculate_docs_metrics(decoder, crate_spec)
     }

@@ -1,8 +1,9 @@
 //! Generic serialization and deserialization utilities for cache documents.
 
-use anyhow::{Context, Result};
+use crate::Result;
 use chrono::{DateTime, Utc};
 use core::time::Duration;
+use ohno::IntoAppError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
@@ -20,9 +21,9 @@ where
     let ctx = context.as_ref();
     let should_log = !ctx.is_empty();
 
-    let file = File::open(path).with_context(|| format!("unable to open file '{}'", path.display()))?;
+    let file = File::open(path).into_app_err_with(|| format!("unable to open file '{}'", path.display()))?;
     let reader = BufReader::new(file);
-    let data = serde_json::from_reader(reader).with_context(|| format!("unable to parse file '{}'", path.display()))?;
+    let data = serde_json::from_reader(reader).into_app_err_with(|| format!("unable to parse file '{}'", path.display()))?;
 
     if should_log {
         log::debug!(target: LOG_TARGET, "Cache hit for {ctx}");
@@ -101,10 +102,10 @@ where
     let path = path.as_ref();
 
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).with_context(|| format!("unable to create directory '{}'", parent.display()))?;
+        fs::create_dir_all(parent).into_app_err_with(|| format!("unable to create directory '{}'", parent.display()))?;
     }
 
-    let file = File::create(path).with_context(|| format!("unable to create cache file '{}'", path.display()))?;
+    let file = File::create(path).into_app_err_with(|| format!("unable to create cache file '{}'", path.display()))?;
     let mut writer = BufWriter::new(file);
 
     // Use pretty formatting in debug mode for easier inspection, compact in release for smaller files
@@ -113,10 +114,10 @@ where
     #[cfg(not(debug_assertions))]
     let result = serde_json::to_writer(&mut writer, data);
 
-    result.with_context(|| format!("unable to write cache file '{}'", path.display()))?;
+    result.into_app_err_with(|| format!("unable to write cache file '{}'", path.display()))?;
     writer
         .flush()
-        .with_context(|| format!("unable to flush cache file '{}'", path.display()))?;
+        .into_app_err_with(|| format!("unable to flush cache file '{}'", path.display()))?;
     Ok(())
 }
 

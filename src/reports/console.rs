@@ -1,9 +1,9 @@
+use crate::Result;
 use crate::config::Config;
 use crate::facts::{CrateFacts, ProviderResult};
 use crate::metrics::{Metric, MetricCategory};
 use crate::misc::ColorMode;
 use crate::ranking::{PolicyOutcome, RankingOutcome};
-use anyhow::Result;
 use core::cmp::Ordering;
 use core::fmt::{self, Write};
 use owo_colors::OwoColorize;

@@ -1,5 +1,6 @@
-use anyhow::{Context, Result, bail};
+use crate::Result;
 use chrono::{DateTime, Utc};
+use ohno::{IntoAppError, app_err, bail};
 use semver::Version;
 use std::io::Write;
 use url::Url;
@@ -40,7 +41,7 @@ impl<'a, W: Write> RowWriter<'a, W> {
     #[inline]
     pub fn write_u64(&mut self, value: u64) -> Result<()> {
         let mut buf = [0u8; 17];
-        let bytes_written = vlen::encode(&mut buf[..], value).map_err(|e| anyhow::anyhow!("unable to encode vlen u64: {e}"))?;
+        let bytes_written = vlen::encode(&mut buf[..], value).map_err(|e| app_err!("unable to encode vlen u64: {e}"))?;
         self.buffer.extend_from_slice(&buf[..bytes_written]);
         Ok(())
     }
@@ -88,13 +89,13 @@ impl<'a, W: Write> RowWriter<'a, W> {
     }
 
     pub fn write_str_as_u64(&mut self, s: &str) -> Result<()> {
-        let value = s.parse().with_context(|| format!("unable to parse u64 from '{s}'"))?;
+        let value = s.parse::<u64>().into_app_err_with(|| format!("unable to parse u64 from '{s}'"))?;
         self.write_u64(value)
     }
 
     #[cfg(all_fields)]
     pub fn write_str_as_byte(&mut self, s: &str) -> Result<()> {
-        let value = s.parse().with_context(|| format!("unable to parse u8 from '{s}'"))?;
+        let value = s.parse().into_app_err_with(|| format!("unable to parse u8 from '{s}'"))?;
         self.write_byte(value);
         Ok(())
     }
@@ -127,7 +128,7 @@ impl<'a, W: Write> RowWriter<'a, W> {
         }
 
         // Both attempts failed, return error
-        anyhow::bail!("unable to parse URL from '{s}'");
+        bail!("unable to parse URL from '{s}'");
     }
 
     pub fn write_optional_str_as_u64(&mut self, s: &str) -> Result<()> {
@@ -136,7 +137,7 @@ impl<'a, W: Write> RowWriter<'a, W> {
             return Ok(());
         }
 
-        let v = s.parse().with_context(|| format!("unable to parse u64 from '{s}'"))?;
+        let v = s.parse::<u64>().into_app_err_with(|| format!("unable to parse u64 from '{s}'"))?;
         self.write_optional_u64(Some(v))
     }
 
@@ -152,7 +153,7 @@ impl<'a, W: Write> RowWriter<'a, W> {
     }
 
     pub fn write_str_as_version(&mut self, s: &str) -> Result<()> {
-        let version = Version::parse(s).map_err(|e| anyhow::anyhow!("unable to parse version '{s}': {e}"))?;
+        let version = Version::parse(s).map_err(|e| app_err!("unable to parse version '{s}': {e}"))?;
         self.write_u64(version.major)?;
         self.write_u64(version.minor)?;
         self.write_u64(version.patch)?;
@@ -178,7 +179,7 @@ impl<'a, W: Write> RowWriter<'a, W> {
 fn parse_pg_timestamp(s: &str) -> Result<u64> {
     let dt = DateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f%#z")
         .or_else(|_| DateTime::parse_from_rfc3339(s))
-        .with_context(|| format!("unable to parse timestamp '{s}'"))?
+        .into_app_err_with(|| format!("unable to parse timestamp '{s}'"))?
         .with_timezone(&Utc);
     Ok(dt.timestamp().cast_unsigned())
 }
@@ -186,7 +187,7 @@ fn parse_pg_timestamp(s: &str) -> Result<u64> {
 fn parse_pg_date(s: &str) -> Result<u64> {
     Ok(u64::from(
         chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
-            .with_context(|| format!("unable to parse date '{s}'"))?
+            .into_app_err_with(|| format!("unable to parse date '{s}'"))?
             .to_epoch_days()
             .cast_unsigned(),
     ))
@@ -196,7 +197,7 @@ fn parse_pg_array(s: &str) -> Result<Vec<String>> {
     let inner = s
         .strip_prefix('{')
         .and_then(|s| s.strip_suffix('}'))
-        .ok_or_else(|| anyhow::anyhow!("invalid PostgreSQL array format: expected '{{...}}', got '{s}'"))?;
+        .ok_or_else(|| app_err!("invalid PostgreSQL array format: expected '{{...}}', got '{s}'"))?;
     if inner.is_empty() {
         Ok(Vec::new())
     } else {

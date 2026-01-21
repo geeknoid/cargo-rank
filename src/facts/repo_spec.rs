@@ -1,5 +1,6 @@
-use anyhow::{Result, bail};
+use crate::Result;
 use core::fmt::{Display, Formatter};
+use ohno::bail;
 use url::Url;
 
 #[derive(Debug, PartialEq, Eq, Hash)]

@@ -7,11 +7,11 @@ use super::tables::{
     CategoriesTableIndex, CategoryId, CrateId, CratesTableIndex, KeywordId, KeywordsTableIndex, Table, TableMgr, TeamId, TeamsTableIndex,
     UserId, UsersTableIndex, VersionId, VersionsTableIndex,
 };
+use crate::Result;
 use crate::facts::CrateRef;
 use crate::facts::ProviderResult;
 use crate::facts::crate_spec::CrateSpec;
 use crate::facts::progress_reporter::ProgressReporter;
-use anyhow::Result;
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use core::fmt::Debug;
 use core::time::Duration;

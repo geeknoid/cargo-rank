@@ -1,7 +1,7 @@
 use crate::facts::CrateSpec;
-use anyhow::{Context, Result};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use core::str::FromStr;
+use ohno::IntoAppError;
 use semver::Version;
 use std::sync::Arc;
 
@@ -52,12 +52,13 @@ impl CrateRef {
 }
 
 impl FromStr for CrateRef {
-    type Err = anyhow::Error;
+    type Err = Box<dyn std::error::Error + Send + Sync>;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some((name, version_str)) = s.split_once('@') {
-            let version =
-                Version::parse(version_str).with_context(|| format!("invalid version '{version_str}' in crate specifier '{s}'"))?;
+            let version = Version::parse(version_str)
+                .into_app_err_with(|| format!("invalid version '{version_str}' in crate specifier '{s}'"))
+                .map_err(|e| e.into_std_error())?;
             Ok(Self::new(name, Some(version)))
         } else {
             Ok(Self::new(s, None))

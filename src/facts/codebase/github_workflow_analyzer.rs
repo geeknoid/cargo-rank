@@ -1,7 +1,8 @@
 //! Detector for CI tool usage in GitHub Actions CI workflows.
 
 use super::provider::LOG_TARGET;
-use anyhow::{Context, Result};
+use crate::Result;
+use ohno::IntoAppError;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -29,7 +30,7 @@ pub fn sniff_github_workflows(repo_path: impl AsRef<Path>) -> Result<GitHubWorkf
     let mut file_count = 0;
 
     for entry_result in walkdir::WalkDir::new(&workflows_dir).follow_links(false) {
-        let entry = entry_result.context("could not walk workflows directory")?;
+        let entry = entry_result.into_app_err("could not walk workflows directory")?;
 
         // Skip directories
         if entry.file_type().is_dir() {
@@ -53,7 +54,8 @@ pub fn sniff_github_workflows(repo_path: impl AsRef<Path>) -> Result<GitHubWorkf
             break;
         }
 
-        let file = fs::File::open(entry.path()).with_context(|| format!("could not open workflow file '{}'", entry.path().display()))?;
+        let file =
+            fs::File::open(entry.path()).into_app_err_with(|| format!("could not open workflow file '{}'", entry.path().display()))?;
         let reader = BufReader::new(file);
 
         for line in reader.lines().map_while(Result::ok) {

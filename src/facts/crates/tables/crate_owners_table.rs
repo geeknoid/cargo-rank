@@ -1,7 +1,8 @@
 use super::{CrateId, TeamId, UserId, define_rows, define_table};
-use anyhow::{Result, bail};
+use crate::Result;
 #[cfg(all_fields)]
 use chrono::{DateTime, Utc};
+use ohno::bail;
 
 define_rows! {
     CrateOwnerRow {

@@ -1,3 +1,4 @@
+use crate::Result;
 use crate::facts::cache_doc;
 use crate::facts::cache_lock::{CacheLockGuard, acquire_cache_lock};
 use crate::facts::crate_facts::CrateFacts;
@@ -6,10 +7,10 @@ use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::progress_reporter::ProgressReporter;
 use crate::facts::request_tracker::RequestTracker;
 use crate::facts::{CrateOverallData, CrateRef, CrateVersionData, ProviderResult};
-use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use core::ptr::{addr_of, addr_of_mut};
 use core::time::Duration;
+use ohno::IntoAppError;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -176,13 +177,13 @@ impl Collector {
         let facts = match cache_doc::load::<CrateFacts>(&cache_path, format!("facts for {crate_spec}")) {
             Ok(facts) => facts,
             Err(e) => {
-                if let Some(io_err) = e.downcast_ref::<std::io::Error>()
+                if let Some(io_err) = e.source().and_then(|e| e.downcast_ref::<std::io::Error>())
                     && io_err.kind() == std::io::ErrorKind::NotFound
                 {
                     return Ok(None);
                 }
 
-                return Err(e).with_context(|| format!("Could not load '{crate_spec}' data from fact cache"));
+                return Err(e).into_app_err_with(|| format!("Could not load '{crate_spec}' data from fact cache"));
             }
         };
 
@@ -300,7 +301,7 @@ fn create_cache_dir(base_path: impl AsRef<Path>, name: impl AsRef<str>) -> Resul
     let cache_path = base_path.as_ref().join(name_str);
     let needs_creation = !cache_path.exists();
 
-    fs::create_dir_all(&cache_path).with_context(|| format!("unable to create `{name_str}` cache directory"))?;
+    fs::create_dir_all(&cache_path).into_app_err_with(|| format!("unable to create `{name_str}` cache directory"))?;
 
     // Disable NTFS compression on crates directory for better memory-mapped file performance
     #[cfg(windows)]

@@ -1,14 +1,15 @@
 use super::CoverageData;
+use crate::Result;
 use crate::facts::ProviderResult;
 use crate::facts::cache_doc;
 use crate::facts::crate_spec::{self, CrateSpec};
 use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::repo_spec::RepoSpec;
 use crate::facts::request_tracker::RequestTracker;
-use anyhow::Result;
 use chrono::Utc;
 use core::time::Duration;
 use futures_util::future::join_all;
+use ohno::EnrichableExt;
 use regex::Regex;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
@@ -95,7 +96,7 @@ impl Provider {
             }
             Err(e) => {
                 return ProviderResult::Error(Arc::new(
-                    e.context(format!("could not fetch coverage for repository '{repo_spec}'")),
+                    e.enrich_with(|| format!("could not fetch coverage for repository '{repo_spec}'")),
                 ));
             }
         };
@@ -177,7 +178,7 @@ pub async fn get_code_coverage(client: &reqwest::Client, repo_spec: &RepoSpec) -
 
         let coverage = percent_str.parse::<f64>().map_err(|e| {
             log::debug!(target: LOG_TARGET, "Could not parse coverage percentage '{percent_str}'");
-            anyhow::anyhow!("could not parse coverage percentage '{percent_str}': {e}")
+            ohno::app_err!("could not parse coverage percentage '{percent_str}': {e}")
         })?;
 
         return Ok(Some(coverage));

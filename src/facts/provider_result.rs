@@ -16,24 +16,24 @@ pub enum ProviderResult<T> {
     /// An error occurred during the operation for this crate.
     /// The error message is serialized as a string.
     #[serde(serialize_with = "serialize_error", deserialize_with = "deserialize_error")]
-    Error(Arc<anyhow::Error>),
+    Error(Arc<ohno::AppError>),
 }
 
-/// Serialize Arc<anyhow::Error> as a string
-fn serialize_error<S>(error: &Arc<anyhow::Error>, serializer: S) -> Result<S::Ok, S::Error>
+/// Serialize Arc<ohno::AppError> as a string
+fn serialize_error<S>(error: &Arc<ohno::AppError>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     serializer.serialize_str(&format!("{error}"))
 }
 
-/// Deserialize a string back into Arc<anyhow::Error>
-fn deserialize_error<'de, D>(deserializer: D) -> Result<Arc<anyhow::Error>, D::Error>
+/// Deserialize a string back into Arc<ohno::AppError>
+fn deserialize_error<'de, D>(deserializer: D) -> Result<Arc<ohno::AppError>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     let error_str = String::deserialize(deserializer)?;
-    Ok(Arc::new(anyhow::anyhow!("{error_str}")))
+    Ok(Arc::new(ohno::app_err!("{error_str}")))
 }
 
 impl<T: Clone> ProviderResult<T> {
@@ -48,12 +48,12 @@ impl<T: Clone> ProviderResult<T> {
     /// # Errors
     ///
     /// Returns an error if the result is not `Found`.
-    pub fn into_result(self) -> anyhow::Result<T> {
+    pub fn into_result(self) -> crate::Result<T> {
         match self {
             Self::Found(data) => Ok(data),
-            Self::CrateNotFound => anyhow::bail!("crate not found"),
-            Self::VersionNotFound => anyhow::bail!("version not found"),
-            Self::Error(e) => Err(anyhow::anyhow!("{e}")),
+            Self::CrateNotFound => Err(ohno::app_err!("crate not found")),
+            Self::VersionNotFound => Err(ohno::app_err!("version not found")),
+            Self::Error(e) => Err(ohno::app_err!("{e}")),
         }
     }
 

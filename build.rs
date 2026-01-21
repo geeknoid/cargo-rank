@@ -7,7 +7,9 @@
 #![allow(dead_code, reason = "Some items may be unused in this build script context")]
 #![allow(unused_imports, reason = "Some items may be unused in this build script context")]
 
-use anyhow::{Context, Result};
+use ohno::{AppError, IntoAppError};
+
+type Result<T, E = ohno::AppError> = core::result::Result<T, E>;
 use camino::Utf8PathBuf;
 use std::env;
 use std::process;
@@ -47,11 +49,12 @@ fn main() {
 }
 
 fn inner_main() -> Result<Vec<String>> {
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").context("CARGO_MANIFEST_DIR should be set during build")?;
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").into_app_err("CARGO_MANIFEST_DIR should be set during build")?;
     let workspace_root = Utf8PathBuf::from(&manifest_dir);
     let config_path = workspace_root.join("default_config.yml");
 
-    let (_config, warnings) = config::Config::load(&workspace_root, Some(&config_path)).context("unable to load default_config.yml")?;
+    let (_config, warnings) =
+        config::Config::load(&workspace_root, Some(&config_path)).into_app_err("unable to load default_config.yml")?;
 
     Ok(warnings)
 }

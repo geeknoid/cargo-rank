@@ -1,6 +1,7 @@
 use super::provider::LOG_TARGET;
-use anyhow::{Context, Result, bail};
+use crate::Result;
 use core::time::Duration;
+use ohno::{IntoAppError, bail};
 use std::fs;
 use std::path::Path;
 use tokio::process::Command;
@@ -19,11 +20,11 @@ pub async fn get_repo(repo_path: &Path, repo_url: &Url) -> Result<()> {
 }
 
 async fn get_repo_core(repo_path: &Path, repo_url: &Url) -> Result<()> {
-    let path_str = repo_path.to_str().context("invalid UTF-8 in repository path")?;
+    let path_str = repo_path.to_str().into_app_err("invalid UTF-8 in repository path")?;
 
     if !repo_path.exists() {
         if let Some(parent) = repo_path.parent() {
-            fs::create_dir_all(parent).with_context(|| format!("could not create directory '{}'", parent.display()))?;
+            fs::create_dir_all(parent).into_app_err_with(|| format!("could not create directory '{}'", parent.display()))?;
         }
 
         return clone_repo(path_str, repo_url).await;
@@ -32,7 +33,8 @@ async fn get_repo_core(repo_path: &Path, repo_url: &Url) -> Result<()> {
     // Verify it's a valid git repository before attempting update
     if !repo_path.join(".git").exists() {
         log::warn!(target: LOG_TARGET, "Cached repository path '{path_str}' exists but .git directory missing, re-cloning");
-        fs::remove_dir_all(repo_path).with_context(|| format!("could not remove potentially corrupt cached repository '{path_str}'"))?;
+        fs::remove_dir_all(repo_path)
+            .into_app_err_with(|| format!("could not remove potentially corrupt cached repository '{path_str}'"))?;
         return clone_repo(path_str, repo_url).await;
     }
 
@@ -47,7 +49,7 @@ async fn get_repo_core(repo_path: &Path, repo_url: &Url) -> Result<()> {
         // Fetch failed - repository might be corrupted, try re-clone
         let stderr = String::from_utf8_lossy(&output.stderr);
         log::warn!(target: LOG_TARGET, "Git fetch failed ({}), removing and re-cloning", stderr.trim());
-        fs::remove_dir_all(path_str).with_context(|| format!("could not remove stale cached repository '{path_str}'"))?;
+        fs::remove_dir_all(path_str).into_app_err_with(|| format!("could not remove stale cached repository '{path_str}'"))?;
         return clone_repo(path_str, repo_url).await;
     }
 
@@ -77,11 +79,11 @@ async fn run_git_with_timeout(args: &[&str]) -> Result<std::process::Output> {
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .context("could not spawn git command")?;
+        .into_app_err("could not spawn git command")?;
 
     match tokio::time::timeout(GIT_TIMEOUT, child.wait_with_output()).await {
         Ok(Ok(output)) => Ok(output),
-        Ok(Err(e)) => Err(e).context(format!("'git {}' failed to run", args.join(" "))),
+        Ok(Err(e)) => Err(e).into_app_err_with(|| format!("'git {}' failed to run", args.join(" "))),
         Err(_) => {
             bail!("'git {}' timed out after {} seconds", args.join(" "), GIT_TIMEOUT.as_secs());
         }

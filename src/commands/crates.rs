@@ -1,5 +1,5 @@
 use super::common::{Common, CommonArgs};
-use anyhow::Result;
+use cargo_rank::Result;
 use cargo_rank::facts::CrateRef;
 use cargo_rank::misc::DependencyType;
 use clap::Parser;

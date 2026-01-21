@@ -1,12 +1,12 @@
 //! Excel report generation.
 
+use crate::Result;
 use crate::config::Config;
 use crate::facts::OwnerKind;
 use crate::facts::{CrateFacts, ProviderResult};
 use crate::ranking::PolicyOutcome;
 use crate::ranking::RankingOutcome;
 use crate::ranking::extract_reasons;
-use anyhow::Result;
 use rust_xlsxwriter::{Format, Workbook};
 use std::io::Write;
 

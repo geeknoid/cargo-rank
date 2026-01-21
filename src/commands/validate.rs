@@ -1,5 +1,5 @@
-use anyhow::Result;
 use camino::Utf8PathBuf;
+use cargo_rank::Result;
 use cargo_rank::config::Config;
 use clap::Parser;
 

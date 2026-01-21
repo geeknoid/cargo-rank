@@ -6,13 +6,14 @@ use super::{
 #[cfg(all_tables)]
 use super::{DefaultVersionsTable, MetadataTable, ReservedCrateNamesTable};
 
+use crate::Result;
 use crate::facts::progress_reporter::ProgressReporter;
-use anyhow::{Context, Result, bail};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use core::time::Duration;
 use flate2::bufread::GzDecoder;
 use futures_util::StreamExt;
+use ohno::{IntoAppError, app_err, bail};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufRead, Error as IoError, Read};
@@ -82,7 +83,7 @@ macro_rules! define_tables {
 
                     $(#[$meta])*
                     let table = <$type>::open(&tables_root, max_ttl)
-                        .context(concat!("unable to open ", stringify!($field), " table"))?;
+                        .into_app_err(concat!("unable to open ", stringify!($field), " table"))?;
                     $(#[$meta])*
                     let $field = Arc::new(table);
 
@@ -122,7 +123,7 @@ macro_rules! define_tables {
 
                     $(#[$meta])*
                     let file = files.get(<$type>::TABLE_NAME)
-                        .with_context(|| format!("missing file for table {}", <$type>::TABLE_NAME))?;
+                        .into_app_err_with(|| format!("missing file for table {}", <$type>::TABLE_NAME))?;
 
                     $(#[$meta])*
                     let mmap_start = Instant::now();
@@ -130,7 +131,7 @@ macro_rules! define_tables {
                     // SAFETY: We have read-only access to the file for the duration of the mmap
                     let mmap = unsafe {
                         memmap2::Mmap::map(file)
-                            .with_context(|| format!("unable to memory-map {}", <$type>::TABLE_NAME))?
+                            .into_app_err_with(|| format!("unable to memory-map {}", <$type>::TABLE_NAME))?
                     };
                     $(#[$meta])*
                     log::debug!(target: LOG_TARGET, "Finished mapping '{}' in {:.3}s", <$type>::TABLE_NAME, mmap_start.elapsed().as_secs_f64());
@@ -139,7 +140,7 @@ macro_rules! define_tables {
                     let open_start = Instant::now();
                     $(#[$meta])*
                     let table = <$type>::open_with(mmap, max_ttl)
-                        .context(concat!("unable to open ", stringify!($field), " table"))?;
+                        .into_app_err(concat!("unable to open ", stringify!($field), " table"))?;
                     $(#[$meta])*
                     log::debug!(target: LOG_TARGET, "Finished validating {} in {:.3}s", <$type>::TABLE_NAME, open_start.elapsed().as_secs_f64());
 
@@ -181,12 +182,12 @@ macro_rules! define_tables {
                         if e.raw_os_error() == Some(32) {
                             any_locked = true;
                         } else {
-                            return Err(e).with_context(|| format!("unable to remove {}", table_path.display()));
+                            return Err(e).into_app_err_with(|| format!("unable to remove {}", table_path.display()));
                         }
 
                         #[cfg(not(windows))]
                         {
-                            return Err(e).with_context(|| format!("unable to remove {}", table_path.display()));
+                            return Err(e).into_app_err_with(|| format!("unable to remove {}", table_path.display()));
                         }
                     }
                 }
@@ -274,7 +275,7 @@ impl TableMgr {
 
         match prep_tables(source, tables_root, max_ttl, progress).await {
             Ok(table_mgr) => Ok(table_mgr),
-            Err(e) => Err(e.context("could not prepare crates.io tables")),
+            Err(e) => Err(e).into_app_err_with(|| "could not prepare crates.io tables"),
         }
     }
 
@@ -310,7 +311,7 @@ impl TableMgr {
 
             // If we've already waited MAX_WAIT_MS, give up
             if elapsed_ms >= MAX_WAIT_MS {
-                return Err(anyhow::anyhow!(
+                return Err(app_err!(
                     "unable to remove all table files in {}: some files remain locked after {}ms of retrying",
                     tables_root.display(),
                     elapsed_ms,
@@ -353,12 +354,12 @@ async fn prep_tables(source: &Url, tables_root: impl AsRef<Path>, max_ttl: Durat
     let client = reqwest::Client::builder()
         .user_agent("cargo-rank")
         .build()
-        .context("unable to create HTTP client")?;
+        .into_app_err("unable to create HTTP client")?;
     let response = client
         .get(source.clone())
         .send()
         .await
-        .context("unable to start downloading crates.io database dump")?;
+        .into_app_err("unable to start downloading crates.io database dump")?;
 
     if !response.status().is_success() {
         bail!("unable to download crates.io database dump: HTTP {}", response.status());
@@ -399,7 +400,7 @@ async fn prep_tables(source: &Url, tables_root: impl AsRef<Path>, max_ttl: Durat
                 }
             }
             Err(e) => {
-                let _ = tx.send(Err(anyhow::Error::new(e))).await;
+                let _ = tx.send(Err(ohno::app_err!("download failed: {e}"))).await;
                 break;
             }
         }
@@ -473,7 +474,7 @@ impl BufRead for ChannelReader {
                     self.current_chunk = Some(chunk);
                     self.position = 0;
                 }
-                Some(Err(e)) => return Err(IoError::other(e)),
+                Some(Err(e)) => return Err(IoError::other(e.into_std_error())),
                 None => return Ok(&[]),
             }
         }

@@ -1,9 +1,10 @@
 use super::common::{Common, CommonArgs};
-use anyhow::{Context, Result, bail};
 use cargo_metadata::{CargoOpt, DependencyKind, Package, PackageId};
+use cargo_rank::Result;
 use cargo_rank::facts::CrateRef;
 use cargo_rank::misc::DependencyType;
 use clap::Parser;
+use ohno::{IntoAppError, bail};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Parser, Debug)]
@@ -52,7 +53,7 @@ pub async fn process_dependencies(args: &DepsArgs) -> Result<()> {
         }
     }
 
-    let metadata = common.metadata_cmd.exec().context("unable to retrieve workspace metadata")?;
+    let metadata = common.metadata_cmd.exec().into_app_err("unable to retrieve workspace metadata")?;
     let all_packages: HashMap<_, _> = metadata.packages.iter().map(|p| (&p.id, p)).collect();
 
     // Validate package names if specified

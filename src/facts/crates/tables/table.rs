@@ -1,10 +1,11 @@
 use super::RowIter;
 use super::{RowReader, RowWriter};
-use anyhow::{Context, Result};
+use crate::Result;
 use chrono::{DateTime, TimeZone, Utc};
 use core::time::Duration;
 use csv::{Reader, StringRecord};
 use memmap2::Mmap;
+use ohno::IntoAppError;
 use serde::de::Deserialize;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Read as IoRead, Seek, SeekFrom, Write};
@@ -39,10 +40,10 @@ pub trait Table: Sized {
 
     fn open(tables_root: impl AsRef<Path>, max_ttl: Duration) -> Result<Self> {
         let path = tables_root.as_ref().join(Self::TABLE_NAME);
-        let file = File::open(&path).with_context(|| format!("unable to open table file: {}", path.display()))?;
+        let file = File::open(&path).into_app_err_with(|| format!("unable to open table file: {}", path.display()))?;
 
         // SAFETY: We have read-only access to the file for the duration of the mmap
-        let mmap = unsafe { Mmap::map(&file).context("unable to memory-map table file")? };
+        let mmap = unsafe { Mmap::map(&file).into_app_err("unable to memory-map table file")? };
 
         Self::open_with(mmap, max_ttl)
     }
@@ -58,7 +59,7 @@ pub trait Table: Sized {
             .create(true)
             .truncate(true)
             .open(&path)
-            .with_context(|| format!("unable to create table file: {}", path.display()))?;
+            .into_app_err_with(|| format!("unable to create table file: {}", path.display()))?;
 
         // Use a 1MB buffer for better performance with large tables
         let mut buf_writer = BufWriter::with_capacity(1024 * 1024, file);
@@ -80,7 +81,7 @@ pub trait Table: Sized {
         let count = row_writer.row_count();
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .context("System time before UNIX epoch")?
+            .into_app_err("System time before UNIX epoch")?
             .as_secs();
 
         // padding to ensure vlen never tries to read past EOF
@@ -157,13 +158,13 @@ macro_rules! define_table {
                 const CSV_NAME: &'static str = concat!(stringify!($name_snake), ".csv");
                 const TABLE_NAME: &'static str = concat!(stringify!($name_snake), ".table");
 
-                fn write_row($csv_param: &Self::CsvRow<'_>, $writer: &mut super::RowWriter<impl std::io::Write>) -> anyhow::Result<()>
+                fn write_row($csv_param: &Self::CsvRow<'_>, $writer: &mut super::RowWriter<impl std::io::Write>) -> crate::Result<()>
                     $write_body
 
                 fn read_row<'a>($reader: &mut super::RowReader<'a>) -> Self::Row<'a>
                     $read_body
 
-                fn open_with(mmap: memmap2::Mmap, max_ttl: core::time::Duration) -> anyhow::Result<Self> {
+                fn open_with(mmap: memmap2::Mmap, max_ttl: core::time::Duration) -> crate::Result<Self> {
                     let (count, timestamp) = super::validate_table_header(&mmap, max_ttl)?;
                     Ok(Self { mmap, count, timestamp })
                 }
@@ -268,7 +269,7 @@ pub(crate) use define_rows;
 pub(crate) use define_table;
 
 pub fn validate_table_header(mmap: &Mmap, max_ttl: Duration) -> Result<(u64, DateTime<Utc>)> {
-    use anyhow::bail;
+    use ohno::bail;
 
     if mmap.len() < TABLE_HEADER_SIZE {
         bail!("invalid table: file too short (need at least 24 bytes for header)");
@@ -301,9 +302,9 @@ pub fn validate_table_header(mmap: &Mmap, max_ttl: Duration) -> Result<(u64, Dat
     }
 
     let dt = Utc
-        .timestamp_opt(i64::try_from(table_timestamp).context("timestamp out of range for i64")?, 0)
+        .timestamp_opt(i64::try_from(table_timestamp).into_app_err("timestamp out of range for i64")?, 0)
         .single()
-        .ok_or_else(|| anyhow::anyhow!("invalid or out-of-range timestamp"))?;
+        .into_app_err("invalid or out-of-range timestamp")?;
 
     Ok((count, dt))
 }

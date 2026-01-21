@@ -1,3 +1,4 @@
+use crate::Result;
 use crate::facts::ProviderResult;
 use crate::facts::cache_doc;
 use crate::facts::crate_spec::{self, CrateSpec};
@@ -5,11 +6,11 @@ use crate::facts::hosting::{AgeStats, HostingData, IssueStats};
 use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::repo_spec::RepoSpec;
 use crate::facts::request_tracker::RequestTracker;
-use anyhow::{Context, Result};
 use chrono::Utc;
 use core::time::Duration;
 use futures_util::future::join_all;
 use octocrab::{Octocrab, models::issues::Issue};
+use ohno::{EnrichableExt, IntoAppError};
 use reqwest::Client;
 use reqwest::header::LINK;
 use std::path::{Path, PathBuf};
@@ -195,7 +196,7 @@ impl Provider {
         let repo_data = match repo_res {
             Ok(data) => data,
             Err(e) => {
-                if let Some(octocrab::Error::GitHub { source, .. }) = e.downcast_ref::<octocrab::Error>()
+                if let Some(octocrab::Error::GitHub { source, .. }) = e.source().and_then(|e| e.downcast_ref::<octocrab::Error>())
                     && source.status_code.as_u16() == 404
                 {
                     log::info!(target: LOG_TARGET, "Repository '{repo_spec}' not found (404)");
@@ -203,7 +204,7 @@ impl Provider {
                 }
                 log::info!(target: LOG_TARGET, "Failed to fetch repo info for '{repo_spec}': {e:#}");
                 return ProviderResult::Error(Arc::new(
-                    e.context(format!("could not fetch repo info for repository '{repo_spec}'")),
+                    e.enrich_with(|| format!("could not fetch repo info for repository '{repo_spec}'")),
                 ));
             }
         };
@@ -213,7 +214,7 @@ impl Provider {
             Err(e) => {
                 log::info!(target: LOG_TARGET, "Failed to fetch issues/PRs for '{repo_spec}': {e:#}");
                 return ProviderResult::Error(Arc::new(
-                    e.context(format!("could not fetch issues and pull request info for repository '{repo_spec}'")),
+                    e.enrich_with(|| format!("could not fetch issues and pull request info for repository '{repo_spec}'")),
                 ));
             }
         };
@@ -223,7 +224,7 @@ impl Provider {
             Err(e) => {
                 log::info!(target: LOG_TARGET, "Failed to fetch contributors for '{repo_spec}': {e:#}");
                 return ProviderResult::Error(Arc::new(
-                    e.context(format!("could not fetch contributor count for repository '{repo_spec}'")),
+                    e.enrich_with(|| format!("could not fetch contributor count for repository '{repo_spec}'")),
                 ));
             }
         };
@@ -233,7 +234,7 @@ impl Provider {
             Err(e) => {
                 log::info!(target: LOG_TARGET, "Failed to fetch commits for '{repo_spec}': {e:#}");
                 return ProviderResult::Error(Arc::new(
-                    e.context(format!("could not fetch commit count for repository '{repo_spec}'")),
+                    e.enrich_with(|| format!("could not fetch commit count for repository '{repo_spec}'")),
                 ));
             }
         };
@@ -284,11 +285,11 @@ impl Provider {
         let bytes = resp
             .bytes()
             .await
-            .with_context(|| format!("could not read response body from '{url}'"))?;
+            .into_app_err_with(|| format!("could not read response body from '{url}'"))?;
 
         log::debug!(target: LOG_TARGET, "Fetched response from '{url}'");
 
-        Self::count_json_array_elements(&bytes).with_context(|| format!("could not count items in JSON response from '{url}'"))
+        Self::count_json_array_elements(&bytes).into_app_err_with(|| format!("could not count items in JSON response from '{url}'"))
     }
 
     /// Count elements in a JSON array without allocating parsed values.
@@ -297,7 +298,7 @@ impl Provider {
     fn count_json_array_elements(json: &[u8]) -> Result<u64> {
         use serde::de::IgnoredAny;
 
-        let array: Vec<IgnoredAny> = serde_json::from_slice(json).context("malformed JSON while counting array elements")?;
+        let array: Vec<IgnoredAny> = serde_json::from_slice(json).into_app_err("malformed JSON while counting array elements")?;
 
         Ok(array.len() as u64)
     }

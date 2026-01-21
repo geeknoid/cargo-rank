@@ -1,11 +1,12 @@
 use super::AdvisoryData;
+use crate::Result;
 use crate::facts::ProviderResult;
 use crate::facts::cache_doc;
 use crate::facts::crate_spec::CrateSpec;
 use crate::facts::progress_reporter::ProgressReporter;
-use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use core::time::Duration;
+use ohno::IntoAppError;
 use rustsec::{
     database::Database,
     repository::git::{DEFAULT_URL, Repository},
@@ -43,7 +44,7 @@ impl Provider {
             } else {
                 download_db(&repo_path, progress)
                     .await
-                    .context("unable to download the advisory database")?;
+                    .into_app_err("unable to download the advisory database")?;
                 let timestamp = Utc::now();
                 cache_doc::save(&LastSynced { timestamp }, &sync_path)?;
                 timestamp

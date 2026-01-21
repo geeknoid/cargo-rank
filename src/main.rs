@@ -672,7 +672,7 @@
 //! - Remove duplicate policies
 //! - Use `--validate-config` to check before running full analysis
 
-use anyhow::Result;
+use cargo_rank::Result;
 use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Effects};
 use clap::{Parser, Subcommand};

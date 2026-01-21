@@ -1,8 +1,8 @@
 //! Common processing logic shared between crates and deps commands.
 
-use anyhow::{Context, Result, bail};
 use camino::Utf8PathBuf;
 use cargo_metadata::MetadataCommand;
+use cargo_rank::Result;
 use cargo_rank::config::Config;
 use cargo_rank::facts::ProgressReporter;
 use cargo_rank::facts::{Collector, CrateFacts, CrateRef, ProviderResult};
@@ -14,6 +14,7 @@ use clap::Args;
 use clap::ValueEnum;
 use core::time::Duration;
 use directories::BaseDirs;
+use ohno::{IntoAppError, bail};
 use std::fs;
 
 /// Log level for diagnostic output
@@ -104,7 +105,7 @@ impl Common {
         let _ = metadata_cmd.manifest_path(&args.manifest_path);
 
         // Execute metadata command once and use it for both cache and config paths
-        let metadata = metadata_cmd.exec().context("unable to retrieve workspace metadata")?;
+        let metadata = metadata_cmd.exec().into_app_err("unable to retrieve workspace metadata")?;
 
         // Use workspace_root for config base path
         let config_base_path = metadata.workspace_root;
@@ -117,7 +118,7 @@ impl Common {
             cache_path.as_std_path().to_path_buf()
         } else {
             BaseDirs::new()
-                .context("Failed to determine cache directory")?
+                .into_app_err("Failed to determine cache directory")?
                 .cache_dir()
                 .join("cargo-rank")
         };

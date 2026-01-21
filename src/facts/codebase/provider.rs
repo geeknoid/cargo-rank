@@ -1,4 +1,5 @@
 use super::{CodebaseData, git, source_file_analyzer};
+use crate::Result;
 use crate::facts::ProviderResult;
 use crate::facts::cache_doc;
 use crate::facts::codebase::github_workflow_analyzer::{GitHubWorkflowInfo, sniff_github_workflows};
@@ -6,11 +7,11 @@ use crate::facts::crate_spec::{self, CrateSpec};
 use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::repo_spec::RepoSpec;
 use crate::facts::request_tracker::RequestTracker;
-use anyhow::{Context, Result};
 use cargo_metadata::{Metadata, MetadataCommand, PackageId, TargetKind};
 use chrono::Utc;
 use core::time::Duration;
 use futures_util::future::join_all;
+use ohno::IntoAppError;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -168,20 +169,20 @@ impl Provider {
 
         match git_result {
             Err(_) => {
-                return Err(anyhow::anyhow!(
+                return Err(ohno::app_err!(
                     "git operation timed out after {} seconds for repository '{repo}'",
                     GIT_REPO_TIMEOUT.as_secs(),
                 ));
             }
             Ok(Err(e)) => {
-                return Err(e.context(format!("could not sync repository '{repo}'")));
+                return Err(ohno::app_err!("could not sync repository '{repo}': {e}"));
             }
             Ok(Ok(())) => {}
         }
 
         let root_manifest = repo_path.join("Cargo.toml");
         if !root_manifest.exists() {
-            return Err(anyhow::anyhow!("could not find Cargo.toml in root of repository '{repo}'"));
+            return Err(ohno::app_err!("could not find Cargo.toml in root of repository '{repo}'"));
         }
 
         log::debug!(target: LOG_TARGET, "Running cargo metadata for repository '{repo}'");
@@ -194,17 +195,17 @@ impl Provider {
         let metadata = match timeout_result {
             Err(_) => {
                 let timeout_secs = METADATA_TIMEOUT.as_secs();
-                return Err(anyhow::anyhow!(
+                return Err(ohno::app_err!(
                     "cargo metadata timed out after {timeout_secs} seconds for repository '{repo}' - workspace may be too large or Cargo.toml is corrupted"
                 ));
             }
             Ok(join_result) => match join_result {
                 Ok(Ok(metadata)) => metadata,
                 Ok(Err(e)) => {
-                    return Err(anyhow::Error::from(e).context(format!("cargo metadata failed for repository '{repo}'")));
+                    return Err(ohno::app_err!("cargo metadata failed for repository '{repo}': {e}"));
                 }
                 Err(e) => {
-                    return Err(anyhow::Error::new(e).context(format!("cargo metadata task panicked for repository '{repo}'")));
+                    return Err(ohno::app_err!("cargo metadata task panicked for repository '{repo}': {e}"));
                 }
             },
         };
@@ -217,7 +218,7 @@ impl Provider {
         {
             Ok(info) => info,
             Err(e) => {
-                return Err(anyhow::anyhow!("could not analyze GitHub workflows in repository '{repo}': {e}",));
+                return Err(ohno::app_err!("could not analyze GitHub workflows in repository '{repo}': {e}"));
             }
         };
 
@@ -250,7 +251,7 @@ impl Provider {
         let Some(crate_path) = package.manifest_path.parent() else {
             return (
                 crate_spec,
-                ProviderResult::Error(Arc::new(anyhow::anyhow!("package manifest has no parent directory"))),
+                ProviderResult::Error(Arc::new(ohno::app_err!("package manifest has no parent directory"))),
             );
         };
 
@@ -278,9 +279,9 @@ impl Provider {
         if let Err(e) = Self::analyze_source_files(crate_path.as_std_path(), &mut codebase_data).await {
             return (
                 crate_spec,
-                ProviderResult::Error(Arc::new(
-                    e.context(format!("could not analyze source files for crate '{crate_name}'")),
-                )),
+                ProviderResult::Error(Arc::new(ohno::app_err!(
+                    "could not analyze source files for crate '{crate_name}': {e}"
+                ))),
             );
         }
 
@@ -290,9 +291,9 @@ impl Provider {
             let crate_name = crate_name.clone();
             move || match cache_doc::save(&codebase_data, &data_path) {
                 Ok(()) => ProviderResult::Found(codebase_data),
-                Err(e) => ProviderResult::Error(Arc::new(
-                    e.context(format!("could not save codebase cache for crate '{crate_name}'")),
-                )),
+                Err(e) => ProviderResult::Error(Arc::new(ohno::app_err!(
+                    "could not save codebase cache for crate '{crate_name}': {e}"
+                ))),
             }
         })
         .await
@@ -372,13 +373,13 @@ impl Provider {
         // Analyze files in parallel with semaphore limiting concurrency
         let num_workers = std::thread::available_parallelism().map(core::num::NonZero::get).unwrap_or(4);
         let semaphore = Arc::new(Semaphore::new(num_workers));
-        let mut analysis_tasks: Vec<JoinHandle<Result<_, anyhow::Error>>> = Vec::with_capacity(file_paths.len());
+        let mut analysis_tasks: Vec<JoinHandle<Result<_>>> = Vec::with_capacity(file_paths.len());
         for path in file_paths {
             let permit_res = Arc::clone(&semaphore).acquire_owned().await;
 
             let task = spawn_blocking(move || {
                 let _permit = permit_res.expect("Semaphore closed");
-                let content = fs::read_to_string(&path).with_context(|| format!("could not read source file '{}'", path.display()))?;
+                let content = fs::read_to_string(&path).into_app_err_with(|| format!("could not read source file '{}'", path.display()))?;
                 Ok(source_file_analyzer::analyze_source_file(&content))
             });
 

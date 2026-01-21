@@ -1,5 +1,6 @@
 use super::{CrateId, VersionId, define_rows, define_table};
-use anyhow::{Result, bail};
+use crate::Result;
+use ohno::bail;
 use serde::Deserialize;
 
 define_rows! {

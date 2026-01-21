@@ -1,5 +1,6 @@
-use anyhow::{Context, Result};
+use crate::Result;
 use fs4::fs_std::FileExt;
+use ohno::IntoAppError;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 
@@ -30,18 +31,18 @@ pub async fn acquire_cache_lock(cache_dir: &Path) -> Result<CacheLockGuard> {
         .create(true)
         .truncate(false)
         .open(&lock_path)
-        .with_context(|| format!("Failed to open cache lock file at '{}'", lock_path.display()))?;
+        .into_app_err_with(|| format!("Failed to open cache lock file at '{}'", lock_path.display()))?;
 
     // Block until we can acquire the lock
     // This needs to run in a blocking task since it may block for an extended time
     let file = tokio::task::spawn_blocking(move || {
         file.lock_exclusive()
-            .with_context(|| format!("Failed to acquire exclusive lock on cache at '{}'", lock_path.display()))?;
+            .into_app_err_with(|| format!("Failed to acquire exclusive lock on cache at '{}'", lock_path.display()))?;
         log::debug!(target: LOG_TARGET, "Acquired cache lock at '{}'", lock_path.display());
-        Ok::<_, anyhow::Error>(file)
+        Ok::<_, ohno::AppError>(file)
     })
     .await
-    .context("Lock task panicked")??;
+    .into_app_err("Lock task panicked")??;
 
     Ok(CacheLockGuard(file))
 }
