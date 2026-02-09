@@ -49,4 +49,6 @@ pub use docs::DocMetricState;
 pub use progress::Progress;
 pub use provider_result::ProviderResult;
 pub use repo_spec::RepoSpec;
+
+#[cfg(any(debug_assertions, test))]
 pub use request_tracker::RequestTracker;

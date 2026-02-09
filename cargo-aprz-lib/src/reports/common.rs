@@ -46,7 +46,11 @@ pub fn is_categories_metric(metric_name: &str) -> bool {
 ///
 /// Takes a comma-separated string and returns a formatted string with # prefix for each item.
 /// Example: "rust, cli, tool" becomes "#rust, #cli, #tool"
+/// Returns an empty string if the input is empty.
 pub fn format_keywords_or_categories_with_prefix(value: &str) -> String {
+    if value.is_empty() {
+        return String::new();
+    }
     let items: Vec<String> = value.split(',').map(|item| format!("#{}", item.trim())).collect();
     items.join(", ")
 }
@@ -179,7 +183,11 @@ mod tests {
         assert_eq!(format_keywords_or_categories_with_prefix("rust, cli, tool"), "#rust, #cli, #tool");
         assert_eq!(format_keywords_or_categories_with_prefix("rust,cli,tool"), "#rust, #cli, #tool");
         assert_eq!(format_keywords_or_categories_with_prefix("  rust  ,  cli  "), "#rust, #cli");
-        assert_eq!(format_keywords_or_categories_with_prefix(""), "#");
+    }
+
+    #[test]
+    fn test_format_keywords_or_categories_with_prefix_empty_input() {
+        assert_eq!(format_keywords_or_categories_with_prefix(""), "");
     }
 
     #[test]

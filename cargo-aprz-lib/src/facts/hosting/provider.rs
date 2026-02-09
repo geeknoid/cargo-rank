@@ -596,9 +596,11 @@ fn percentile(sorted_data: &[f64], percentile: f64) -> f64 {
     }
 
     #[expect(clippy::cast_possible_truncation, reason = "index calculation")]
-    #[expect(clippy::cast_sign_loss, reason = "index is positive")]
+    #[expect(clippy::cast_sign_loss, reason = "value is clamped to non-negative range")]
     #[expect(clippy::cast_precision_loss, reason = "index fits in usize")]
-    let idx = (percentile / 100.0 * (sorted_data.len() - 1) as f64).round() as usize;
+    let idx = (percentile / 100.0 * (sorted_data.len() - 1) as f64)
+        .round()
+        .clamp(0.0, (sorted_data.len() - 1) as f64) as usize;
     sorted_data[idx]
 }
 

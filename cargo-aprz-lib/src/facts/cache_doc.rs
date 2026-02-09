@@ -129,7 +129,6 @@ where
 mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
-    use std::env;
 
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     struct TestData {
@@ -140,8 +139,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_save_and_load_json() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_json.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("data.json");
 
         let original = TestData {
             name: "test".to_string(),
@@ -159,9 +158,6 @@ mod tests {
 
         // Verify data matches
         assert_eq!(original, loaded);
-
-        // Clean up
-        let _ = fs::remove_file(&file_path);
     }
 
     #[test]
@@ -175,8 +171,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_load_invalid_json() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_invalid.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("invalid.json");
 
         // Write invalid JSON
         fs::write(&file_path, "not valid json").unwrap();
@@ -184,9 +180,6 @@ mod tests {
         let result: Result<TestData> = load(&file_path, "test data");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("unable to parse"));
-
-        // Clean up
-        let _ = fs::remove_file(&file_path);
     }
 
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -198,8 +191,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_load_with_ttl_fresh_cache() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_ttl_fresh.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("fresh.json");
 
         let data = TimestampedData {
             name: "test".to_string(),
@@ -214,16 +207,13 @@ mod tests {
         assert!(loaded.is_some());
         let loaded = loaded.unwrap();
         assert_eq!(loaded.name, "test");
-
-        // Clean up
-        let _ = fs::remove_file(&file_path);
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_load_with_ttl_expired_cache() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_ttl_expired.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("expired.json");
 
         // Create data with old timestamp (2 hours ago)
         let data = TimestampedData {
@@ -238,16 +228,13 @@ mod tests {
 
         // Should be None because cache is expired
         assert!(loaded.is_none());
-
-        // Clean up
-        let _ = fs::remove_file(&file_path);
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_load_with_ttl_future_timestamp() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_ttl_future.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("future.json");
 
         // Create data with future timestamp (clock skew simulation)
         let data = TimestampedData {
@@ -264,16 +251,13 @@ mod tests {
         assert!(loaded.is_some());
         let loaded = loaded.unwrap();
         assert_eq!(loaded.name, "test");
-
-        // Clean up
-        let _ = fs::remove_file(&file_path);
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_load_with_ttl_nonexistent_file() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_ttl_nonexistent.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("nonexistent.json");
 
         let ttl = Duration::from_secs(3600);
         let loaded = load_with_ttl::<TimestampedData, _>(&file_path, ttl, |d| d.timestamp, Utc::now(), "test data");
@@ -284,8 +268,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_load_with_ttl_invalid_json() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_ttl_invalid.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("invalid.json");
 
         fs::write(&file_path, "not valid json").unwrap();
 
@@ -293,16 +277,13 @@ mod tests {
         let loaded = load_with_ttl::<TimestampedData, _>(&file_path, ttl, |d| d.timestamp, Utc::now(), "test data");
 
         assert!(loaded.is_none());
-
-        // Clean up
-        let _ = fs::remove_file(&file_path);
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_load_with_ttl_exactly_at_ttl_boundary() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_ttl_boundary.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("boundary.json");
 
         // Create data with timestamp exactly at TTL boundary
         let ttl_seconds = 3600;
@@ -318,16 +299,13 @@ mod tests {
 
         // At boundary, should be expired (age >= ttl)
         assert!(loaded.is_none());
-
-        // Clean up
-        let _ = fs::remove_file(&file_path);
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_save_creates_parent_directories() {
-        let temp_dir = env::temp_dir();
-        let nested_path = temp_dir.join("cargo_aprz_test_nested").join("subdir").join("data.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let nested_path = temp_dir.path().join("nested").join("subdir").join("data.json");
 
         let data = TestData {
             name: "nested".to_string(),
@@ -341,16 +319,13 @@ mod tests {
         let loaded: TestData = load(&nested_path, "nested test").unwrap();
         assert_eq!(loaded.name, "nested");
         assert_eq!(loaded.value, 123);
-
-        // Clean up
-        let _ = fs::remove_dir_all(temp_dir.join("cargo_aprz_test_nested"));
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_save_overwrites_existing_file() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("cargo_aprz_test_overwrite.json");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("overwrite.json");
 
         let data1 = TestData {
             name: "first".to_string(),
@@ -369,8 +344,5 @@ mod tests {
         let loaded: TestData = load(&file_path, "overwrite test").unwrap();
         assert_eq!(loaded.name, "second");
         assert_eq!(loaded.value, 2);
-
-        // Clean up
-        let _ = fs::remove_file(&file_path);
     }
 }

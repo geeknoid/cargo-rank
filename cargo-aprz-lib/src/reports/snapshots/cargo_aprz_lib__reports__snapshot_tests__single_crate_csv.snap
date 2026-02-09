@@ -2,14 +2,14 @@
 source: cargo-aprz-lib/src/reports/mod.rs
 expression: csv_output
 ---
-Metric,"comprehensive-crate v2.0.0"
+Metric,comprehensive-crate v2.0.0
 Status,ACCEPTABLE
-Reasons,"Excellent coverage; Active development; Well maintained"
-"crate.name","comprehensive-crate"
-"crate.version","2.0.0"
-"crate.keywords","test, comprehensive, snapshot"
-"stability.crate_created_at","2023-06-01"
-"usage.total_downloads","9876543"
-"community.repo_stars","12345"
-"trust.code_coverage_percentage","99.99"
-"trust.ci_workflows","true"
+Reasons,Excellent coverage; Active development; Well maintained
+crate.name,comprehensive-crate
+crate.version,2.0.0
+crate.keywords,"test, comprehensive, snapshot"
+stability.crate_created_at,2023-06-01
+usage.total_downloads,9876543
+community.repo_stars,12345
+trust.code_coverage_percentage,99.99
+trust.ci_workflows,true

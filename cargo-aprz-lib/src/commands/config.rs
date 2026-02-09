@@ -63,7 +63,7 @@ const fn default_coverage_cache_ttl() -> Duration {
 }
 
 const fn default_advisories_cache_ttl() -> Duration {
-    Duration::from_secs(7 * 24 * 60 * 60) // 7 days
+    Duration::from_hours(24 * 7)
 }
 
 impl Config {

@@ -15,7 +15,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
     // Write header row
     write!(writer, "Metric")?;
     for crate_info in crates {
-        write!(writer, ",\"{} v{}\"", escape_csv(&crate_info.name), crate_info.version)?;
+        write!(writer, ",{}", escape_csv(&format!("{} v{}", crate_info.name, crate_info.version)))?;
     }
     writeln!(writer)?;
 
@@ -37,7 +37,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
         for crate_info in crates {
             if let Some(eval) = &crate_info.evaluation {
                 let reasons = eval.reasons.join("; ");
-                write!(writer, ",\"{}\"", escape_csv(&reasons))?;
+                write!(writer, ",{}", escape_csv(&reasons))?;
             } else {
                 write!(writer, ",")?;
             }
@@ -50,14 +50,14 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
         if let Some(category_metrics) = metrics_by_category.get(&category) {
             // Write each metric in this category
             for metric_name in category_metrics {
-                write!(writer, "\"{}\"", escape_csv(metric_name))?;
+                write!(writer, "{}", escape_csv(metric_name))?;
 
                 // Write values for each crate
                 for crate_info in crates {
                     if let Some(metric) = crate_info.metrics.iter().find(|m| m.name() == *metric_name)
                         && let Some(ref value) = metric.value
                     {
-                        write!(writer, ",\"{}\"", escape_csv(&common::format_metric_value(value)))?;
+                        write!(writer, ",{}", escape_csv(&common::format_metric_value(value)))?;
                     } else {
                         write!(writer, ",")?;
                     }
@@ -70,9 +70,15 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
     Ok(())
 }
 
+/// Escape a value for RFC compliant CSV output.
+///
+/// Wraps the value in double quotes if it contains commas, newlines, or double quotes.
+/// Internal double quotes are doubled per the RFC.
 fn escape_csv(s: &str) -> Cow<'_, str> {
     if s.contains('"') {
-        Cow::Owned(s.replace('"', "\"\""))
+        Cow::Owned(format!("\"{}\"", s.replace('"', "\"\"")))
+    } else if s.contains(',') || s.contains('\n') || s.contains('\r') {
+        Cow::Owned(format!("\"{s}\""))
     } else {
         Cow::Borrowed(s)
     }
@@ -109,18 +115,30 @@ mod tests {
     }
 
     #[test]
-    fn test_escape_csv_no_quotes() {
+    fn test_escape_csv_no_special_chars() {
         let result = escape_csv("hello world");
         assert_eq!(result, "hello world");
-        // Should be borrowed, not owned
         assert!(matches!(result, Cow::Borrowed(_)));
     }
 
     #[test]
     fn test_escape_csv_with_quotes() {
         let result = escape_csv("hello \"world\"");
-        assert_eq!(result, "hello \"\"world\"\"");
-        // Should be owned when escaping is needed
+        assert_eq!(result, "\"hello \"\"world\"\"\"");
+        assert!(matches!(result, Cow::Owned(_)));
+    }
+
+    #[test]
+    fn test_escape_csv_with_comma() {
+        let result = escape_csv("hello,world");
+        assert_eq!(result, "\"hello,world\"");
+        assert!(matches!(result, Cow::Owned(_)));
+    }
+
+    #[test]
+    fn test_escape_csv_with_newline() {
+        let result = escape_csv("hello\nworld");
+        assert_eq!(result, "\"hello\nworld\"");
         assert!(matches!(result, Cow::Owned(_)));
     }
 
@@ -148,7 +166,7 @@ mod tests {
         let result = generate(&crates, &mut output);
         result.unwrap();
         // Should have header with crate name and version
-        assert!(output.starts_with("Metric,\"test_crate v1.2.3\""));
+        assert!(output.starts_with("Metric,test_crate v1.2.3"));
         // Should not have Status or Reasons rows
         assert!(!output.contains("Status,"));
         assert!(!output.contains("Reasons,"));
@@ -165,7 +183,7 @@ mod tests {
         let result = generate(&crates, &mut output);
         result.unwrap();
         assert!(output.contains("Status,ACCEPTABLE"));
-        assert!(output.contains("Reasons,\"Good; Quality\""));
+        assert!(output.contains("Reasons,Good; Quality"));
     }
 
     #[test]

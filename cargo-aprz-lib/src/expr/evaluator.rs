@@ -14,15 +14,18 @@ use std::sync::Arc;
 /// Evaluate expressions against metrics and determine acceptance status
 ///
 /// # Evaluation order:
+///
 /// 1. First, check `deny_if_any` expressions - if ANY is true, crate is DENIED
 /// 2. Then, check `accept_if_any` expressions - if ANY is true, crate is ACCEPTED
 /// 3. Finally, check `accept_if_all` expressions - if ALL are true, crate is ACCEPTED
-/// 4. Otherwise, returns ACCEPTED with reason "No evaluation expressions defined"
+/// 4. If no expressions defined, returns ACCEPTED
 ///
 /// # Returns
+///
 /// `Ok(EvaluationOutcome)` with the acceptance status and reasons, or `Err(AppError)` if evaluation fails
 ///
 /// # Errors
+///
 /// Returns an error if expression evaluation fails or returns a non-boolean value
 pub fn evaluate(
     deny_if_any: &[Expression],
@@ -76,7 +79,7 @@ pub fn evaluate(
     }
 
     if deny_if_any.is_empty() && accept_if_any.is_empty() && accept_if_all.is_empty() {
-        return Ok(EvaluationOutcome::new(false, vec!["No evaluation expressions defined".to_string()]));
+        return Ok(EvaluationOutcome::new(true, vec![]));
     }
 
     let mut reasons = Vec::new();
@@ -202,8 +205,8 @@ mod tests {
             test_timestamp(),
         )
         .unwrap();
-        assert!(!outcome.accepted);
-        assert_eq!(outcome.reasons, vec!["No evaluation expressions defined"]);
+        assert!(outcome.accepted);
+        assert!(outcome.reasons.is_empty());
     }
 
     #[test]

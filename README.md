@@ -126,12 +126,12 @@ cargo aprz crates tokio serde@1.0.1
 When you run `cargo-aprz deps`, it will appraise the quality of the dependencies of the Rust project in the current directory.
 
 ```bash
-cargo aprz deps --dependency-type standard
+cargo aprz deps --dependency-types standard
 ````
 
 ### Dependency Types
 
-The `--dependency-type` option accepts a comma-separate list of dependency types to include in the appraisal. Possible valuea are:
+The `--dependency-types` option accepts a comma-separated list of dependency types to include in the appraisal. Possible values are:
 
 - `standard`: Only include the standard dependencies of the project.
 - `dev`: Only include the development dependencies of the project.
@@ -155,14 +155,14 @@ results in very low rate limits. If `cargo-aprz` detects it is being throttled b
 to try the operation again.
 
 When using the `deps` command on a large project, it's likely you'll hit these rate limits, which can make the process take hours to complete fully.
-In such a case, you can provider a GitHub ro Codebarg token on the command-line or through environment variables, which gives you substantially higher
+In such a case, you can provide a GitHub or Codebarg token on the command-line or through environment variables, which gives you substantially higher
 rate limits.
 
 ```bash
 cargo aprz deps --github-token <GITHUB_TOKEN> --codeberg-token <CODEBERG_TOKEN>
 ```
 
-You can also just set the GITHUB_TOKEN and CODEBERG_TOKEN environment variables, which `cargo-aprz` will automatically pick up.
+You can also set the `GITHUB_TOKEN` and `CODEBERG_TOKEN` environment variables, which `cargo-aprz` will automatically pick up.
 
 ## Reports
 

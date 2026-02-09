@@ -95,10 +95,6 @@ pub struct CommonArgs {
     #[arg(long, help_heading = "Report Output")]
     pub console: bool,
 
-    /// Evaluate crates using configured expressions to determine acceptance status
-    #[arg(long)]
-    pub eval: bool,
-
     /// Exit with status code 1 if any crate evaluation returns "not acceptable"
     #[arg(long)]
     pub check: bool,
@@ -110,7 +106,6 @@ pub struct Common<'a, H: super::Host> {
     pub metadata_cmd: MetadataCommand,
     host: &'a mut H,
     color: ColorMode,
-    eval: bool,
     check: bool,
     console: bool,
     html: Option<Utf8PathBuf>,
@@ -183,7 +178,6 @@ impl<'a, H: super::Host> Common<'a, H> {
             metadata_cmd,
             host,
             color: args.color,
-            eval: args.eval || args.check,
             check: args.check,
             console: args.console,
             html: args.html.clone(),
@@ -286,7 +280,11 @@ impl<'a, H: super::Host> Common<'a, H> {
         }
 
         // Flatten crate facts into metrics and optionally evaluate, creating ReportableCrate instances
-        let mut reportable_crates: Vec<ReportableCrate> = if self.eval {
+        let has_expressions =
+            !self.config.deny_if_any.is_empty() || !self.config.accept_if_any.is_empty() || !self.config.accept_if_all.is_empty();
+        let should_eval = has_expressions || self.check;
+
+        let mut reportable_crates: Vec<ReportableCrate> = if should_eval {
             analyzable_crates
                 .into_iter()
                 .map(|facts| {

@@ -24,17 +24,19 @@ pub struct ValidateArgs {
 fn validate_config_inner(workspace_root: &Utf8Path, config_path: Option<&Utf8PathBuf>) -> Result<()> {
     let config = Config::load(workspace_root, config_path)?;
 
-    // Validate that all expressions can be evaluated against default metrics
-    let metrics: Vec<_> = default_metrics().collect();
+    // Validate that all expressions can be evaluated against default metrics (only if any are defined)
+    if !config.deny_if_any.is_empty() || !config.accept_if_any.is_empty() || !config.accept_if_all.is_empty() {
+        let metrics: Vec<_> = default_metrics().collect();
 
-    let _ = evaluate(
-        &config.deny_if_any,
-        &config.accept_if_any,
-        &config.accept_if_all,
-        &metrics,
-        Local::now(),
-    )
-    .into_app_err("evaluating configuration expressions")?;
+        let _ = evaluate(
+            &config.deny_if_any,
+            &config.accept_if_any,
+            &config.accept_if_all,
+            &metrics,
+            Local::now(),
+        )
+        .into_app_err("evaluating configuration expressions")?;
+    }
 
     Ok(())
 }
