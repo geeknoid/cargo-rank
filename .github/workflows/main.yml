@@ -193,7 +193,7 @@ jobs:
           cargo-tools: CARGO_LLVM_COV_VERSION
 
       # execute
-      - name: Generate Coverage (all-features)
+      - name: Generate Coverage
         run: cargo +${{ env.RUST_NIGHTLY }} llvm-cov --all-features --workspace --lcov --output-path lcov-all.info
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v5.5.2

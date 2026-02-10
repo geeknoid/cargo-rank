@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_single_crate_no_ranking() {
+    fn test_generate_single_crate_no_evaluation() {
         let crates = vec![create_test_crate("test_crate", "1.2.3", None)];
         let mut output = String::new();
         let result = generate(&crates, &mut output);
@@ -140,7 +140,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_single_crate_with_ranking() {
+    fn test_generate_single_crate_with_evaluation() {
         let eval = EvaluationOutcome {
             accepted: true,
             reasons: vec!["Good".to_string()],

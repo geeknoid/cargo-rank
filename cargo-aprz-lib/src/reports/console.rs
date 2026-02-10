@@ -188,18 +188,18 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_single_crate_no_ranking() {
+    fn test_generate_single_crate_no_evaluation() {
         let crates = vec![create_test_crate("test_crate", "1.0.0", None)];
         let mut output = String::new();
         let result = generate(&crates, false, &mut output);
         result.unwrap();
-        // Output should contain crate information but no ranking
+        // Output should contain crate information but no evaluation
         assert!(!output.contains("Evaluation Result"));
         assert!(!output.contains("ACCEPTABLE"));
     }
 
     #[test]
-    fn test_generate_single_crate_with_ranking_accepted() {
+    fn test_generate_single_crate_with_evaluation_accepted() {
         let eval = EvaluationOutcome {
             accepted: true,
             reasons: vec!["Good quality".to_string()],
@@ -213,7 +213,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_single_crate_with_ranking_denied() {
+    fn test_generate_single_crate_with_evaluation_denied() {
         let eval = EvaluationOutcome {
             accepted: false,
             reasons: vec!["Security issues".to_string()],

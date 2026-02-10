@@ -51,7 +51,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
     // Write metrics as rows, grouped by category
     let mut row = 1;
 
-    // Add ranking status rows if any crate has an evaluation
+    // Add evaluation rows if any crate has an evaluation
     let has_evaluations = crates.iter().any(|c| c.evaluation.is_some());
     if has_evaluations {
         // Result row with colored cells
@@ -75,7 +75,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
         write_eval_row(worksheet, row, crates, |eval| eval.reasons.join("; "))?;
         row += 1;
 
-        // Add blank row after ranking
+        // Add blank row after evaluation
         row += 1;
     }
 
@@ -170,7 +170,7 @@ fn write_metric_value(
     Ok(())
 }
 
-/// Helper function to write a ranking row (Status or Reasons)
+/// Helper function to write a evaluation row (Status or Reasons)
 #[expect(unused_results, reason = "rust_xlsxwriter methods return &mut Worksheet for chaining")]
 fn write_eval_row<F>(worksheet: &mut rust_xlsxwriter::Worksheet, row: u32, crates: &[ReportableCrate], extract_value: F) -> Result<()>
 where
@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime (rust_xlsxwriter)")]
-    fn test_generate_single_crate_no_ranking() {
+    fn test_generate_single_crate_no_evaluation() {
         let crates = vec![create_test_crate("test_crate", "1.2.3", None)];
         let mut output = Vec::new();
         let result = generate(&crates, &mut output);
@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime (rust_xlsxwriter)")]
-    fn test_generate_single_crate_with_ranking() {
+    fn test_generate_single_crate_with_evaluation() {
         let eval = EvaluationOutcome {
             accepted: true,
             reasons: vec!["Good".to_string()],

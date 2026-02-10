@@ -407,7 +407,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_deny_if_any_expression_evaluation_error() {
-        let deny_expr = Expression::new("bad_expr".to_string(), None, "undefined_var > 100".to_string()).unwrap();
+        let deny_expr = Expression::new("bad_expr".to_string(), None, "undefined_var > 100".to_string(), None).unwrap();
         let metrics = vec![];
         let result = evaluate(&[deny_expr], &[], &[], &metrics, test_timestamp());
         let _ = result.unwrap_err();
@@ -416,7 +416,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_accept_if_any_expression_evaluation_error() {
-        let accept_expr = Expression::new("bad_expr".to_string(), None, "missing_metric > 100".to_string()).unwrap();
+        let accept_expr = Expression::new("bad_expr".to_string(), None, "missing_metric > 100".to_string(), None).unwrap();
         let metrics = vec![];
         let result = evaluate(&[], &[accept_expr], &[], &metrics, test_timestamp());
         let _ = result.unwrap_err();
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_accept_if_all_expression_evaluation_error() {
-        let accept_all_expr = Expression::new("bad_expr".to_string(), None, "undefined.field".to_string()).unwrap();
+        let accept_all_expr = Expression::new("bad_expr".to_string(), None, "undefined.field".to_string(), None).unwrap();
         let metrics = vec![];
         let result = evaluate(&[], &[], &[accept_all_expr], &metrics, test_timestamp());
         let _ = result.unwrap_err();
@@ -451,7 +451,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_deny_if_any_true_no_description() {
-        let deny_expr = Expression::new("high_stars".to_string(), None, "stars > 100".to_string()).unwrap();
+        let deny_expr = Expression::new("high_stars".to_string(), None, "stars > 100".to_string(), None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[deny_expr], &[], &[], &metrics, test_timestamp()).unwrap();
         assert!(!outcome.accepted);
@@ -461,7 +461,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_accept_if_any_true_no_description() {
-        let accept_expr = Expression::new("high_stars".to_string(), None, "stars > 100".to_string()).unwrap();
+        let accept_expr = Expression::new("high_stars".to_string(), None, "stars > 100".to_string(), None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[], &[accept_expr], &[], &metrics, test_timestamp()).unwrap();
         assert!(outcome.accepted);
@@ -471,7 +471,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_accept_if_all_false_no_description() {
-        let accept_all_expr = Expression::new("high_stars".to_string(), None, "stars > 200".to_string()).unwrap();
+        let accept_all_expr = Expression::new("high_stars".to_string(), None, "stars > 200".to_string(), None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[], &[], &[accept_all_expr], &metrics, test_timestamp()).unwrap();
         assert!(!outcome.accepted);
@@ -481,8 +481,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_mixed_expressions_with_empty_accept_if_all() {
-        let deny_expr = Expression::new("d".to_string(), None, "stars > 200".to_string()).unwrap();
-        let accept_expr = Expression::new("a".to_string(), None, "stars > 200".to_string()).unwrap();
+        let deny_expr = Expression::new("d".to_string(), None, "stars > 200".to_string(), None).unwrap();
+        let accept_expr = Expression::new("a".to_string(), None, "stars > 200".to_string(), None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
 
         let outcome = evaluate(&[deny_expr], &[accept_expr], &[], &metrics, test_timestamp()).unwrap();
@@ -546,8 +546,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_accept_if_all_multiple_all_true() {
-        let expr1 = Expression::new("e1".to_string(), Some("desc1".to_string()), "stars > 100".to_string()).unwrap();
-        let expr2 = Expression::new("e2".to_string(), Some("desc2".to_string()), "coverage > 50.0".to_string()).unwrap();
+        let expr1 = Expression::new("e1".to_string(), Some("desc1".to_string()), "stars > 100".to_string(), None).unwrap();
+        let expr2 = Expression::new("e2".to_string(), Some("desc2".to_string()), "coverage > 50.0".to_string(), None).unwrap();
         let metrics = vec![
             Metric::with_value(&STARS_DEF, MetricValue::UInt(150)),
             Metric::with_value(&COVERAGE_DEF, MetricValue::Float(85.5)),
@@ -561,8 +561,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_accept_if_all_first_false() {
-        let expr1 = Expression::new("e1".to_string(), None, "stars > 200".to_string()).unwrap();
-        let expr2 = Expression::new("e2".to_string(), None, "coverage > 50.0".to_string()).unwrap();
+        let expr1 = Expression::new("e1".to_string(), None, "stars > 200".to_string(), None).unwrap();
+        let expr2 = Expression::new("e2".to_string(), None, "coverage > 50.0".to_string(), None).unwrap();
         let metrics = vec![
             Metric::with_value(&STARS_DEF, MetricValue::UInt(150)),
             Metric::with_value(&COVERAGE_DEF, MetricValue::Float(85.5)),
@@ -575,9 +575,9 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_accept_if_all_middle_false() {
-        let expr1 = Expression::new("e1".to_string(), None, "stars > 100".to_string()).unwrap();
-        let expr2 = Expression::new("e2".to_string(), None, "coverage > 90.0".to_string()).unwrap();
-        let expr3 = Expression::new("e3".to_string(), None, "stars < 200".to_string()).unwrap();
+        let expr1 = Expression::new("e1".to_string(), None, "stars > 100".to_string(), None).unwrap();
+        let expr2 = Expression::new("e2".to_string(), None, "coverage > 90.0".to_string(), None).unwrap();
+        let expr3 = Expression::new("e3".to_string(), None, "stars < 200".to_string(), None).unwrap();
         let metrics = vec![
             Metric::with_value(&STARS_DEF, MetricValue::UInt(150)),
             Metric::with_value(&COVERAGE_DEF, MetricValue::Float(85.5)),

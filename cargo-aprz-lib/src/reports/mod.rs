@@ -23,9 +23,8 @@
 //! - Categorization (grouping metrics by `MetricCategory`)
 //! - Status formatting (acceptance status display)
 //!
-//! The HTML and console generators support optional ranking displays based
-//! on evaluation outcomes. The Excel generator creates separate sheets for
-//! different metric categories to improve readability.
+//! The generators support optional evaluation displays based
+//! on evaluation outcomes.
 
 mod common;
 mod console;

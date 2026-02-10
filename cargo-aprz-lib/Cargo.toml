@@ -13,6 +13,9 @@ repository.workspace = true
 rust-version.workspace = true
 homepage.workspace = true
 
+[features]
+network_tests = []
+
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_System_IO", "Win32_System_Ioctl", "Win32_Security"] }
 

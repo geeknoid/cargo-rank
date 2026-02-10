@@ -4,6 +4,8 @@
 //! require network access. The database is downloaded once and shared across
 //! all tests via a static [`tokio::sync::OnceCell`].
 
+#![cfg(feature = "network_tests")]
+
 use cargo_aprz_lib::facts::advisories::{AdvisoryData, Provider};
 use cargo_aprz_lib::facts::{CrateSpec, Progress, ProviderResult};
 use chrono::Utc;

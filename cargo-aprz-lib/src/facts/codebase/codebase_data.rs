@@ -16,16 +16,8 @@ pub struct CodebaseData {
     pub miri_detected: bool,
     pub clippy_detected: bool,
     pub contributors: u64,
-    #[serde(default)]
     pub commits_last_90_days: u64,
-    #[serde(default)]
     pub commits_last_365_days: u64,
-    #[serde(default)]
     pub commit_count: u64,
-    #[serde(default = "default_last_commit_at")]
     pub last_commit_at: DateTime<Utc>,
-}
-
-const fn default_last_commit_at() -> DateTime<Utc> {
-    DateTime::UNIX_EPOCH
 }
