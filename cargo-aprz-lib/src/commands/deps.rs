@@ -2,7 +2,7 @@ use super::Host;
 use super::common::{Common, CommonArgs};
 use crate::Result;
 use crate::facts::CrateRef;
-use cargo_metadata::{CargoOpt, DependencyKind, Package, PackageId};
+use cargo_metadata::{CargoOpt, DependencyKind, Node, Package, PackageId};
 use clap::{Parser, ValueEnum};
 use ohno::{IntoAppError, bail};
 use serde::{Deserialize, Serialize};
@@ -71,6 +71,10 @@ pub async fn process_dependencies<H: Host>(host: &mut H, args: &DepsArgs) -> Res
 
     let metadata = common.metadata_cmd.exec().into_app_err("unable to retrieve workspace metadata")?;
     let all_packages: HashMap<_, _> = metadata.packages.iter().map(|p| (&p.id, p)).collect();
+    let resolve_index: HashMap<&PackageId, &Node> = metadata
+        .resolve
+        .as_ref()
+        .map_or_else(HashMap::default, |r| r.nodes.iter().map(|n| (&n.id, n)).collect());
 
     // Validate package names if specified
     if !args.package.is_empty() {
@@ -92,6 +96,7 @@ pub async fn process_dependencies<H: Host>(host: &mut H, args: &DepsArgs) -> Res
             args,
             &mut common,
             &all_packages,
+            &resolve_index,
             metadata
                 .workspace_members
                 .iter()
@@ -104,17 +109,19 @@ pub async fn process_dependencies<H: Host>(host: &mut H, args: &DepsArgs) -> Res
             args,
             &mut common,
             &all_packages,
+            &resolve_index,
             metadata.workspace_members.iter().filter_map(|id| all_packages.get(id).copied()),
         )
         .await
     } else if let Some(root) = metadata.root_package() {
-        process_packages(args, &mut common, &all_packages, core::iter::once(root)).await
+        process_packages(args, &mut common, &all_packages, &resolve_index, core::iter::once(root)).await
     } else {
         // Virtual workspace, default to all members
         process_packages(
             args,
             &mut common,
             &all_packages,
+            &resolve_index,
             metadata.workspace_members.iter().filter_map(|id| all_packages.get(id).copied()),
         )
         .await
@@ -125,6 +132,7 @@ async fn process_packages<'a, H: Host>(
     args: &DepsArgs,
     common: &mut Common<'_, H>,
     all_packages: &HashMap<&'a PackageId, &'a Package>,
+    resolve_index: &HashMap<&'a PackageId, &'a Node>,
     target_packages: impl Iterator<Item = &'a Package>,
 ) -> Result<()> {
     let should_process_std = args
@@ -147,35 +155,21 @@ async fn process_packages<'a, H: Host>(
         if should_process_std {
             crate_dep_pairs.extend(build_transitive_deps(
                 all_packages,
-                package
-                    .dependencies
-                    .iter()
-                    .filter(|d| d.kind == DependencyKind::Normal)
-                    .map(|d| d.name.as_str()),
+                resolve_index,
+                &package.id,
                 DependencyType::Standard,
             ));
         }
 
         if should_process_dev {
-            crate_dep_pairs.extend(build_transitive_deps(
-                all_packages,
-                package
-                    .dependencies
-                    .iter()
-                    .filter(|d| d.kind == DependencyKind::Development)
-                    .map(|d| d.name.as_str()),
-                DependencyType::Dev,
-            ));
+            crate_dep_pairs.extend(build_transitive_deps(all_packages, resolve_index, &package.id, DependencyType::Dev));
         }
 
         if should_process_build {
             crate_dep_pairs.extend(build_transitive_deps(
                 all_packages,
-                package
-                    .dependencies
-                    .iter()
-                    .filter(|d| d.kind == DependencyKind::Build)
-                    .map(|d| d.name.as_str()),
+                resolve_index,
+                &package.id,
                 DependencyType::Build,
             ));
         }
@@ -190,15 +184,18 @@ async fn process_packages<'a, H: Host>(
     common.report(facts.into_iter())
 }
 
-/// Build the transitive closure of dependencies starting from `initial_deps`
+/// Build the transitive closure of dependencies starting from a target package.
+///
+/// Uses the resolved dependency graph from `cargo metadata` to walk exact `PackageId`s,
+/// avoiding ambiguity when multiple versions of the same crate exist (e.g., syn 1.x and 2.x).
+///
+/// Dev/build dependencies only apply at the first hop; their transitive deps are Normal.
 fn build_transitive_deps<'a>(
     all_packages: &HashMap<&'a PackageId, &'a Package>,
-    initial_deps: impl IntoIterator<Item = &'a str>,
+    resolve_index: &HashMap<&'a PackageId, &'a Node>,
+    target_package_id: &PackageId,
     dependency_type: DependencyType,
 ) -> HashSet<(CrateRef, DependencyType)> {
-    // Convert DependencyType to DependencyKind for filtering the initial set.
-    // Dev/build dependencies only apply at the first hop; their own transitive
-    // dependencies are Normal (runtime) in Cargo's model.
     let initial_kind = match dependency_type {
         DependencyType::Standard => DependencyKind::Normal,
         DependencyType::Dev => DependencyKind::Development,
@@ -206,23 +203,33 @@ fn build_transitive_deps<'a>(
     };
 
     let mut result = HashSet::new();
-    let mut queue: Vec<(&str, bool)> = initial_deps.into_iter().map(|d| (d, true)).collect();
-    let mut visited_names = HashSet::new();
+    let mut visited: HashSet<&PackageId> = HashSet::new();
+    let mut queue: Vec<&PackageId> = Vec::new();
 
-    while let Some((dep_name, is_initial)) = queue.pop() {
-        if !visited_names.insert(dep_name) {
-            continue; // Already processed
+    // Seed the queue with the target package's direct deps of the requested kind
+    if let Some(node) = resolve_index.get(target_package_id) {
+        for dep in &node.deps {
+            if dep.dep_kinds.iter().any(|dk| dk.kind == initial_kind) {
+                queue.push(&dep.pkg);
+            }
+        }
+    }
+
+    while let Some(pkg_id) = queue.pop() {
+        if !visited.insert(pkg_id) {
+            continue;
         }
 
-        // Find the package for this dependency
-        if let Some(pkg) = all_packages.values().find(|p| p.name == dep_name) {
+        if let Some(pkg) = all_packages.get(pkg_id) {
             _ = result.insert((CrateRef::new(&pkg.name, Some(pkg.version.clone())), dependency_type));
 
-            // After the first hop, only follow Normal edges
-            let edge_kind = if is_initial { initial_kind } else { DependencyKind::Normal };
-            for dep in &pkg.dependencies {
-                if dep.kind == edge_kind {
-                    queue.push((dep.name.as_str(), false));
+            // Follow Normal edges for all transitive deps (initial deps already
+            // had their kind applied when seeding the queue above)
+            if let Some(node) = resolve_index.get(pkg_id) {
+                for dep in &node.deps {
+                    if dep.dep_kinds.iter().any(|dk| dk.kind == DependencyKind::Normal) {
+                        queue.push(&dep.pkg);
+                    }
                 }
             }
         }
