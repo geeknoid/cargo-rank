@@ -16,29 +16,17 @@
 
 pub type Result<T, E = ohno::AppError> = core::result::Result<T, E>;
 
-#[cfg(any(debug_assertions, test))]
-pub mod commands;
-#[cfg(not(any(debug_assertions, test)))]
-mod commands;
+macro_rules! declare_modules {
+    ($($mod:ident),+ $(,)?) => {
+        $(
+            #[cfg(debug_assertions)]
+            pub mod $mod;
+            #[cfg(not(debug_assertions))]
+            mod $mod;
+        )+
+    };
+}
 
-#[cfg(any(debug_assertions, test))]
-pub mod expr;
-#[cfg(not(any(debug_assertions, test)))]
-mod expr;
-
-#[cfg(any(debug_assertions, test))]
-pub mod facts;
-#[cfg(not(any(debug_assertions, test)))]
-mod facts;
-
-#[cfg(any(debug_assertions, test))]
-pub mod metrics;
-#[cfg(not(any(debug_assertions, test)))]
-mod metrics;
-
-#[cfg(any(debug_assertions, test))]
-pub mod reports;
-#[cfg(not(any(debug_assertions, test)))]
-mod reports;
+declare_modules!(commands, expr, facts, metrics, reports);
 
 pub use crate::commands::{Host, run};

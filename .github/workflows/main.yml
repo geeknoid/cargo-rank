@@ -30,10 +30,10 @@ jobs:
 
       # execute
       - name: Build
-        run: cargo build --workspace --verbose --locked --color always
+        run: cargo build --workspace --all-targets --verbose --locked --color always
       - name: Tests
         if: success() || failure()
-        run: cargo nextest run --verbose --workspace --all-features
+        run: cargo nextest run --verbose --workspace
       - name: Docs
         if: success() || failure()
         env:
@@ -42,6 +42,26 @@ jobs:
       - name: Doc Tests
         if: success() || failure()
         run: cargo test --doc --verbose --workspace --all-features
+
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      # prep
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          enable-sccache: true
+          rust-toolchain: RUST_MSRV
+
+      # execute
+      - name: Release Build
+        run: cargo build --workspace --verbose --locked --color always --release
 
   static-analysis:
     runs-on: ${{ matrix.os }}
@@ -175,11 +195,9 @@ jobs:
       # execute
       - name: Generate Coverage (all-features)
         run: cargo +${{ env.RUST_NIGHTLY }} llvm-cov --all-features --workspace --lcov --output-path lcov-all.info
-      - name: Generate Coverage (no-default-features)
-        run: cargo +${{ env.RUST_NIGHTLY }} llvm-cov --no-default-features --workspace --lcov --output-path lcov-no-def.info
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v5.5.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: lcov-all.info,lcov-no-def.info
+          files: lcov-all.info
           fail_ci_if_error: true

@@ -1,5 +1,6 @@
 use super::provider::LOG_TARGET;
 use crate::Result;
+use chrono::{DateTime, Utc};
 use core::time::Duration;
 use ohno::{IntoAppError, bail};
 use std::fs;
@@ -101,6 +102,58 @@ pub async fn count_contributors(repo_path: &Path) -> Result<u64> {
     let unique_contributors: std::collections::HashSet<&str> = stdout.lines().collect();
 
     Ok(unique_contributors.len() as u64)
+}
+
+/// Count commits in the last N days
+pub async fn count_recent_commits(repo_path: &Path, days: i64) -> Result<u64> {
+    let path_str = repo_path.to_str().into_app_err("invalid UTF-8 in repository path")?;
+
+    let since_arg = format!("--since={days} days ago");
+    let output = run_git_with_timeout(&["-C", path_str, "rev-list", "--count", &since_arg, "HEAD"]).await?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git rev-list failed: {stderr}");
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let count = stdout.trim().parse::<u64>().into_app_err("could not parse commit count")?;
+
+    Ok(count)
+}
+
+/// Count total commits in the repository
+pub async fn count_all_commits(repo_path: &Path) -> Result<u64> {
+    let path_str = repo_path.to_str().into_app_err("invalid UTF-8 in repository path")?;
+
+    let output = run_git_with_timeout(&["-C", path_str, "rev-list", "--count", "HEAD"]).await?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git rev-list failed: {stderr}");
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let count = stdout.trim().parse::<u64>().into_app_err("could not parse commit count")?;
+
+    Ok(count)
+}
+
+/// Get the timestamp of the most recent commit
+pub async fn get_last_commit_time(repo_path: &Path) -> Result<DateTime<Utc>> {
+    let path_str = repo_path.to_str().into_app_err("invalid UTF-8 in repository path")?;
+
+    let output = run_git_with_timeout(&["-C", path_str, "log", "-1", "--format=%aI"]).await?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git log failed: {stderr}");
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let dt = DateTime::parse_from_rfc3339(stdout.trim()).into_app_err("could not parse last commit timestamp")?;
+
+    Ok(dt.to_utc())
 }
 
 async fn run_git_with_timeout(args: &[&str]) -> Result<std::process::Output> {

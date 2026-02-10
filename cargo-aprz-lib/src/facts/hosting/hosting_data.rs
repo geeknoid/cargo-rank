@@ -8,7 +8,6 @@ pub struct HostingData {
     pub stars: u64,
     pub forks: u64,
     pub subscribers: u64,
-    pub commits_last_90_days: u64,
     pub issues: IssueStats,
     pub pulls: IssueStats,
 }

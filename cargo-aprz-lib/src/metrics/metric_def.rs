@@ -1,5 +1,6 @@
 use super::{MetricCategory, MetricValue};
 use crate::facts::{CrateFacts, DocMetricState};
+use chrono::DateTime;
 use compact_str::format_compact;
 
 #[derive(Debug)]
@@ -314,7 +315,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             .as_ref()
             .map(|data| MetricValue::DateTime(data.overall_data.created_at)),
         || Some(MetricValue::DateTime(
-            chrono::DateTime::from_timestamp(0, 0).expect("epoch timestamp is always valid")
+            DateTime::from_timestamp(0, 0).expect("epoch timestamp is always valid")
         ))
     ),
     metric_def!(
@@ -326,7 +327,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             .as_ref()
             .map(|data| MetricValue::DateTime(data.overall_data.updated_at)),
         || Some(MetricValue::DateTime(
-            chrono::DateTime::from_timestamp(0, 0).expect("epoch timestamp is always valid")
+            DateTime::from_timestamp(0, 0).expect("epoch timestamp is always valid")
         ))
     ),
     metric_def!(
@@ -338,7 +339,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             .as_ref()
             .map(|data| MetricValue::DateTime(data.version_data.created_at)),
         || Some(MetricValue::DateTime(
-            chrono::DateTime::from_timestamp(0, 0).expect("epoch timestamp is always valid")
+            DateTime::from_timestamp(0, 0).expect("epoch timestamp is always valid")
         ))
     ),
     metric_def!(
@@ -350,7 +351,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             .as_ref()
             .map(|data| MetricValue::DateTime(data.version_data.updated_at)),
         || Some(MetricValue::DateTime(
-            chrono::DateTime::from_timestamp(0, 0).expect("epoch timestamp is always valid")
+            DateTime::from_timestamp(0, 0).expect("epoch timestamp is always valid")
         ))
     ),
     metric_def!(
@@ -418,8 +419,35 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         "activity.commits_last_90_days",
         "Number of commits to the repository in the last 90 days",
         Activity,
-        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.commits_last_90_days)),
+        |facts| facts
+            .codebase_data
+            .as_ref()
+            .map(|data| MetricValue::UInt(data.commits_last_90_days)),
         || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.commits_last_365_days",
+        "Number of commits to the repository in the last 365 days",
+        Activity,
+        |facts| facts
+            .codebase_data
+            .as_ref()
+            .map(|data| MetricValue::UInt(data.commits_last_365_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.commit_count",
+        "Total number of commits in the repository",
+        Activity,
+        |facts| facts.codebase_data.as_ref().map(|data| MetricValue::UInt(data.commit_count)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.last_commit_at",
+        "Timestamp of the most recent commit in the repository",
+        Activity,
+        |facts| facts.codebase_data.as_ref().map(|data| MetricValue::DateTime(data.last_commit_at)),
+        || Some(MetricValue::DateTime(DateTime::UNIX_EPOCH))
     ),
     metric_def!(
         "activity.open_issues",

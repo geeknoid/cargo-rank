@@ -10,17 +10,14 @@ use crate::facts::request_tracker::{RequestTracker, TrackedTopic};
 use chrono::{DateTime, Utc};
 use core::time::Duration;
 use futures_util::future::join_all;
-use ohno::{EnrichableExt, IntoAppError};
+use ohno::EnrichableExt;
 use reqwest::header::LINK;
-use serde::de::{IgnoredAny, SeqAccess, Visitor};
-use serde::Deserializer as _;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 const LOG_TARGET: &str = "   hosting";
 const SECONDS_PER_DAY: f64 = 86400.0;
-const COMMIT_LOOKBACK_DAYS: i64 = 90;
 const ISSUE_LOOKBACK_DAYS: i64 = 365 * 10;
 const ISSUE_PAGE_SIZE: u8 = 255;
 const MAX_ISSUE_PAGES: u32 = 10;
@@ -33,11 +30,8 @@ const INITIAL_BATCH_SIZE: usize = 16;
 const MAX_BATCH_SIZE: usize = 64;
 
 /// Estimated number of API requests per repository
-/// Each repo requires approximately 3 requests: repo info, commits, issues
-const ESTIMATED_REQUESTS_PER_REPO: usize = 3;
-
-/// Pattern to extract page number from GitHub API Link header
-static PAGE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r#"page=(\d+)>; rel="last""#).expect("invalid regex"));
+/// Each repo requires approximately 2 requests: repo info, issues
+const ESTIMATED_REQUESTS_PER_REPO: usize = 2;
 
 /// Configuration for a specific hosting provider
 #[derive(Debug, Clone, Copy)]
@@ -372,19 +366,17 @@ impl Provider {
 
         log::info!(target: LOG_TARGET, "Querying hosting API for information on repository '{repo_spec}'");
 
-        let (repo_res, commits_res, issues_res) = tokio::join!(
+        let (repo_res, issues_res) = tokio::join!(
             self.get_repo_info(client, owner, repo),
-            self.get_commits_count(client, owner, repo),
             self.get_issues_and_pulls(client, owner, repo)
         );
 
         // Check for rate limiting or permanent failures in each result
         let (repo_data, repo_rate_limit) = unwrap_repo_result!(repo_res, repo_spec, "core info");
         let ((issues, pulls), issues_rate_limit) = unwrap_repo_result!(issues_res, repo_spec, "issues and pull request info", "issues/PRs");
-        let (commits, commits_rate_limit) = unwrap_repo_result!(commits_res, repo_spec, "commit count", "commits");
 
         // Use the most conservative rate limit info (the one with the least remaining quota)
-        let rate_limit = [issues_rate_limit, commits_rate_limit, repo_rate_limit]
+        let rate_limit = [issues_rate_limit, repo_rate_limit]
             .into_iter()
             .flatten()
             .min_by_key(|rl| rl.remaining);
@@ -403,7 +395,6 @@ impl Provider {
             stars: u64::from(repo_data.stargazers_count.unwrap_or(0)),
             forks: u64::from(repo_data.forks_count.unwrap_or(0)),
             subscribers,
-            commits_last_90_days: commits,
             issues,
             pulls,
         };
@@ -429,34 +420,6 @@ impl Provider {
     /// Construct API URL for a repository with optional path suffix
     fn repo_url(client: &Client, owner: &str, repo: &str, suffix: &str) -> String {
         format!("{}/repos/{owner}/{repo}{suffix}", client.base_url())
-    }
-
-    async fn get_count_via_link_header(&self, client: &Client, url: &str) -> HostingApiResult<u64> {
-        let (resp, rate_limit) = unwrap_or_return!(client.api_call(url).await);
-
-        // Try to get count from Link header
-        if let Some(link_header) = resp.headers().get(LINK)
-            && let Ok(link_str) = link_header.to_str()
-            && let Some(count) = PAGE_REGEX.captures(link_str).and_then(|caps| caps.get(1))
-        {
-            log::debug!(target: LOG_TARGET, "Fetched count via Link header from '{url}'");
-            if let Ok(parsed_count) = count.as_str().parse() {
-                return HostingApiResult::Success(parsed_count, rate_limit);
-            }
-        }
-
-        // Download response as bytes and parse
-        let bytes = match resp.bytes().await {
-            Ok(b) => b,
-            Err(e) => return HostingApiResult::Failed(e.into(), rate_limit),
-        };
-
-        log::debug!(target: LOG_TARGET, "Fetched response from '{url}'");
-
-        match count_json_array_elements(&bytes).into_app_err_with(|| format!("could not count items in JSON response from '{url}'")) {
-            Ok(count) => HostingApiResult::Success(count, rate_limit),
-            Err(e) => HostingApiResult::Failed(e, rate_limit),
-        }
     }
 
     async fn get_repo_info(&self, client: &Client, owner: &str, repo: &str) -> HostingApiResult<Repository> {
@@ -541,39 +504,6 @@ impl Provider {
 
         HostingApiResult::Success((issues_stats, pulls_stats), latest_rate_limit)
     }
-
-    async fn get_commits_count(&self, client: &Client, owner: &str, repo: &str) -> HostingApiResult<u64> {
-        let since = self.now - chrono::Duration::days(COMMIT_LOOKBACK_DAYS);
-        let since_str = since.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-        let url = format!("{}/repos/{owner}/{repo}/commits?since={since_str}&per_page=1", client.base_url());
-        self.get_count_via_link_header(client, &url).await
-    }
-}
-
-/// Count elements in a JSON array without allocating parsed values.
-fn count_json_array_elements(json: &[u8]) -> Result<u64> {
-    struct CountVisitor;
-
-    impl<'de> Visitor<'de> for CountVisitor {
-        type Value = u64;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter.write_str("a JSON array")
-        }
-
-        fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> std::result::Result<u64, A::Error> {
-            let mut count = 0u64;
-            while seq.next_element::<IgnoredAny>()?.is_some() {
-                count += 1;
-            }
-            Ok(count)
-        }
-    }
-
-    let mut deserializer = serde_json::Deserializer::from_slice(json);
-    deserializer
-        .deserialize_seq(CountVisitor)
-        .into_app_err("malformed JSON while counting array elements")
 }
 
 #[expect(clippy::cast_precision_loss, reason = "it happens")]
@@ -638,29 +568,6 @@ fn compute_issue_stats(open: &[Issue], closed: &[Issue], now: DateTime<Utc>) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_count_json_array_elements() {
-        // Empty array
-        assert_eq!(count_json_array_elements(b"[]").unwrap(), 0);
-
-        // Single element
-        assert_eq!(count_json_array_elements(br#"[{"id": 1}]"#).unwrap(), 1);
-
-        // Multiple elements
-        assert_eq!(count_json_array_elements(br#"[{"id": 1}, {"id": 2}, {"id": 3}]"#).unwrap(), 3);
-
-        // Complex objects (like GitHub contributors)
-        let json = br#"[
-            {"login": "user1", "contributions": 100},
-            {"login": "user2", "contributions": 50},
-            {"login": "user3", "contributions": 25}
-        ]"#;
-        assert_eq!(count_json_array_elements(json).unwrap(), 3);
-
-        // Malformed JSON should error
-        let _ = count_json_array_elements(b"[{broken").unwrap_err();
-    }
 
     #[test]
     fn test_percentile_empty() {
@@ -836,7 +743,6 @@ mod tests {
             stars: 1000,
             forks: 200,
             subscribers: 50,
-            commits_last_90_days: 150,
             issues: IssueStats {
                 open_count: 10,
                 closed_count: 100,
@@ -868,7 +774,6 @@ mod tests {
             stars: 1000,
             forks: 200,
             subscribers: 50,
-            commits_last_90_days: 150,
             issues: IssueStats {
                 open_count: 10,
                 closed_count: 100,

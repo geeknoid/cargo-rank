@@ -31,5 +31,5 @@ pub use metric::{Metric, default_metrics, flatten};
 pub use metric_category::MetricCategory;
 pub use metric_value::MetricValue;
 
-#[cfg(any(debug_assertions, test))]
+#[cfg(any(test, debug_assertions))]
 pub use metric_def::MetricDef;

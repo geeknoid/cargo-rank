@@ -17,6 +17,7 @@ A cargo tool to appraise the quality of Rust dependencies.
   - [Tokens](#tokens)
 - [Reports](#reports)
 - [Configuration and Expressions](#configuration-and-expressions)
+  - [Expression Checks in CI](#expression-checks-in-ci)
 - [Troubleshooting](#troubleshooting)
 - [Collected Metrics](#collected-metrics)
   - [Metadata Metrics](#metadata-metrics)
@@ -218,6 +219,12 @@ description = "Accepts if a crate is older than 6 months."
 expression = "stability.version_created_at < (now - duration('180d'))"
 ```
 
+### Expression Checks in CI
+
+If you want to use `cargo-aprz` in a CI pipeline to detect if any unsavory dependencies are being added to your project, you
+can use the `--check` option to make `cargo-aprz` return a non-zero exit code if any of crates being appraised are considered 
+as not acceptable based on the configured expressions.
+
 ## Troubleshooting
 
 The `crates` and `deps` commands both let you specify a logging level using the `--log-level` option. Turning on logging can be useful
@@ -279,6 +286,9 @@ The sections below show the full set of metrics collected.
 | Metric                                       | Description                                                    |
 |----------------------------------------------|----------------------------------------------------------------|
 | `activity.commits_last_90_days`              | Number of commits to the repository in the last 90 days        |
+| `activity.commits_last_365_days`             | Number of commits to the repository in the last 365 days       |
+| `activity.commit_count`                      | Total number of commits in the repository                      |
+| `activity.last_commit_at`                    | Timestamp of the most recent commit in the repository          |
 | `activity.open_issues`                       | Number of currently open issues                                |
 | `activity.closed_issues`                     | Total number of issues that have been closed (all time)        |
 | `activity.avg_open_issue_age_days`           | Average age in days of open issues                             |

@@ -122,7 +122,6 @@ mod tests {
                 stars: 100,
                 forks: 20,
                 subscribers: 5,
-                commits_last_90_days: 50,
                 issues: IssueStats {
                     open_count: 5,
                     closed_count: 20,
@@ -176,6 +175,10 @@ mod tests {
                 miri_detected: false,
                 clippy_detected: true,
                 contributors: 5,
+                commits_last_90_days: 50,
+                commits_last_365_days: 200,
+                commit_count: 1000,
+                last_commit_at: now,
             }),
             coverage_data: ProviderResult::Found(CoverageData {
                 timestamp: now,

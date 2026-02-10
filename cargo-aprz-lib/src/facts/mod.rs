@@ -50,5 +50,5 @@ pub use progress::Progress;
 pub use provider_result::ProviderResult;
 pub use repo_spec::RepoSpec;
 
-#[cfg(any(debug_assertions, test))]
+#[cfg(debug_assertions)]
 pub use request_tracker::RequestTracker;

@@ -37,6 +37,10 @@ struct RepoData {
     metadata: Arc<Metadata>,
     workflows: GitHubWorkflowInfo,
     contributor_count: u64,
+    commits_last_90_days: u64,
+    commits_last_365_days: u64,
+    commit_count: u64,
+    last_commit_at: DateTime<Utc>,
 }
 
 impl Provider {
@@ -236,6 +240,40 @@ impl Provider {
             }
         };
 
+        log::debug!(target: LOG_TARGET, "Counting recent commits in repository '{repo_spec}'");
+
+        let commits_last_90_days = match git::count_recent_commits(&repo_path, 90).await {
+            Ok(count) => count,
+            Err(e) => {
+                log::warn!(target: LOG_TARGET, "Could not count recent commits for '{repo_spec}': {e:#}");
+                0
+            }
+        };
+
+        let commits_last_365_days = match git::count_recent_commits(&repo_path, 365).await {
+            Ok(count) => count,
+            Err(e) => {
+                log::warn!(target: LOG_TARGET, "Could not count commits in last year for '{repo_spec}': {e:#}");
+                0
+            }
+        };
+
+        let commit_count = match git::count_all_commits(&repo_path).await {
+            Ok(count) => count,
+            Err(e) => {
+                log::warn!(target: LOG_TARGET, "Could not count total commits for '{repo_spec}': {e:#}");
+                0
+            }
+        };
+
+        let last_commit_at = match git::get_last_commit_time(&repo_path).await {
+            Ok(dt) => dt,
+            Err(e) => {
+                log::warn!(target: LOG_TARGET, "Could not get last commit time for '{repo_spec}': {e:#}");
+                DateTime::UNIX_EPOCH
+            }
+        };
+
         log::debug!(target: LOG_TARGET, "Detecting workflows in repository '{repo_spec}'");
 
         let workflows = match spawn_blocking(move || sniff_github_workflows(&repo_path))
@@ -254,6 +292,10 @@ impl Provider {
             metadata: Arc::new(metadata),
             workflows,
             contributor_count,
+            commits_last_90_days,
+            commits_last_365_days,
+            commit_count,
+            last_commit_at,
         })
     }
 
@@ -302,6 +344,10 @@ impl Provider {
             miri_detected: repo_data.workflows.miri_detected,
             clippy_detected: repo_data.workflows.clippy_detected,
             contributors: repo_data.contributor_count,
+            commits_last_90_days: repo_data.commits_last_90_days,
+            commits_last_365_days: repo_data.commits_last_365_days,
+            commit_count: repo_data.commit_count,
+            last_commit_at: repo_data.last_commit_at,
         };
 
         if let Err(e) = Self::analyze_source_files(crate_path.as_std_path(), &mut codebase_data).await {
