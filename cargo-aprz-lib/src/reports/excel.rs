@@ -3,7 +3,6 @@ use crate::Result;
 use crate::expr::EvaluationOutcome;
 use crate::metrics::{Metric, MetricCategory, MetricValue};
 use rust_xlsxwriter::{Color, DocProperties, Format, FormatAlign, Workbook};
-use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use strum::IntoEnumIterator;
 
@@ -46,20 +45,8 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
     // Cache metrics for each crate
     let crate_metrics: Vec<&[Metric]> = crates.iter().map(|c| c.metrics.as_slice()).collect();
 
-    // Collect all unique metric names across all crates using HashSet for O(1) lookups
-    let mut seen_metrics: HashSet<String> = HashSet::new();
-    let mut metrics_by_category: HashMap<MetricCategory, Vec<String>> = HashMap::new();
-
-    for &metrics in &crate_metrics {
-        for metric in metrics {
-            if seen_metrics.insert(metric.name().to_string()) {
-                metrics_by_category
-                    .entry(metric.category())
-                    .or_default()
-                    .push(metric.name().to_string());
-            }
-        }
-    }
+    // Group metrics by category across all crates
+    let metrics_by_category = common::group_all_metrics_by_category(&crate_metrics);
 
     // Write metrics as rows, grouped by category
     let mut row = 1;

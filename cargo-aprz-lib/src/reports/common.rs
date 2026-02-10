@@ -1,7 +1,7 @@
 //! Common utilities shared across report generators.
 
 use crate::metrics::{Metric, MetricCategory, MetricValue};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Format a metric value as a string using consistent formatting rules.
 ///
@@ -68,6 +68,27 @@ pub fn group_metrics_by_category<'a>(metrics: &'a [Metric]) -> HashMap<MetricCat
 
     for metric in metrics {
         metrics_by_category.entry(metric.category()).or_default().push(metric.name());
+    }
+
+    metrics_by_category
+}
+
+/// Group metrics by category across multiple crates, producing the union of all metric names.
+///
+/// Each metric name appears at most once per category, in the order first encountered.
+pub fn group_all_metrics_by_category(crate_metrics: &[&[Metric]]) -> HashMap<MetricCategory, Vec<String>> {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut metrics_by_category: HashMap<MetricCategory, Vec<String>> = HashMap::new();
+
+    for &metrics in crate_metrics {
+        for metric in metrics {
+            if seen.insert(metric.name().to_string()) {
+                metrics_by_category
+                    .entry(metric.category())
+                    .or_default()
+                    .push(metric.name().to_string());
+            }
+        }
     }
 
     metrics_by_category

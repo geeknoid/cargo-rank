@@ -4,7 +4,6 @@ use crate::metrics::{Metric, MetricCategory};
 use chrono::{DateTime, Local};
 use core::fmt::Write;
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
-use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 #[expect(clippy::too_many_lines, reason = "HTML template generation naturally requires many lines")]
@@ -259,10 +258,8 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
     // Collect metrics for each crate
     let crate_metrics: Vec<&[Metric]> = crates.iter().map(|c| c.metrics.as_slice()).collect();
 
-    // Group metrics by category
-    let metrics_by_category = crate_metrics
-        .first()
-        .map_or_else(HashMap::default, |first_metrics| common::group_metrics_by_category(first_metrics));
+    // Group metrics by category across all crates
+    let metrics_by_category = common::group_all_metrics_by_category(&crate_metrics);
 
     writeln!(writer, "  <div class=\"table-wrapper\">")?;
     writeln!(writer, "    <div class=\"table-container\">")?;
@@ -353,8 +350,8 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
                 // Find the metric description from the first crate
                 let description = crate_metrics
                     .first()
-                    .and_then(|metrics| metrics.iter().find(|m| m.name() == *metric_name))
-                    .map_or(*metric_name, |m| m.description());
+                    .and_then(|metrics| metrics.iter().find(|m| m.name() == metric_name.as_str()))
+                    .map_or(metric_name.as_str(), |m| m.description());
 
                 writeln!(
                     writer,
@@ -365,7 +362,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
 
                 // Value columns for each crate
                 for (crate_index, metrics) in crate_metrics.iter().enumerate() {
-                    let metric = metrics.iter().find(|m| m.name() == *metric_name);
+                    let metric = metrics.iter().find(|m| m.name() == metric_name.as_str());
                     let crate_info = &crates[crate_index];
                     let tooltip = format!("{} v{}\n{metric_name}\n{description}", crate_info.name, crate_info.version);
 

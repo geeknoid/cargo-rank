@@ -3,14 +3,12 @@ use crate::Result;
 use crate::metrics::MetricCategory;
 use core::fmt::Write;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<()> {
-    // Group metrics by category (use first crate's metrics as template)
-    let metrics_by_category = crates.first().map_or_else(HashMap::default, |crate_info| {
-        common::group_metrics_by_category(&crate_info.metrics)
-    });
+    // Group metrics by category across all crates
+    let crate_metrics: Vec<&[_]> = crates.iter().map(|c| c.metrics.as_slice()).collect();
+    let metrics_by_category = common::group_all_metrics_by_category(&crate_metrics);
 
     // Write header row
     write!(writer, "Metric")?;
