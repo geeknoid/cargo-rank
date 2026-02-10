@@ -548,7 +548,6 @@ mod tests {
     use crate::facts::progress::Progress;
     use chrono::Utc;
     use core::time::Duration;
-    use std::env;
     use std::sync::Arc;
     use url::Url;
 
@@ -570,15 +569,14 @@ mod tests {
         let url = Url::parse("https://static.crates.io/db-dump.tar.gz").expect("Could not parse URL");
 
         // Use a temporary directory for tables
-        let temp_dir = env::temp_dir().join("cargo-aprz-test-tables");
-        std::fs::create_dir_all(&temp_dir).expect("Could not create temp dir");
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
-        println!("Downloading and loading tables to {temp_dir:?}");
+        println!("Downloading and loading tables to {:?}", temp_dir.path());
 
         // Load the table manager (this will download if needed)
         let progress = Arc::new(NoOpProgress);
         let cache_ttl = Duration::from_secs(365 * 24 * 60 * 60); // 365 days
-        let table_mgr = TableMgr::new(&url, &temp_dir, cache_ttl, Utc::now(), progress)
+        let table_mgr = TableMgr::new(&url, temp_dir.path(), cache_ttl, Utc::now(), progress)
             .await
             .expect("Could not load table manager");
 

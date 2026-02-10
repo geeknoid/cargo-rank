@@ -38,6 +38,7 @@ mmap-rs.workspace = true
 ohno.workspace = true
 owo-colors.workspace = true
 pastey.workspace = true
+percent-encoding.workspace = true
 ra_ap_syntax.workspace = true
 regex.workspace = true
 reqwest.workspace = true

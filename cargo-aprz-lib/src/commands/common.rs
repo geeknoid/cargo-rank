@@ -59,8 +59,8 @@ pub struct CommonArgs {
     #[arg(long, default_value = "Cargo.toml", value_name = "PATH")]
     pub manifest_path: Utf8PathBuf,
 
-    /// Path to configuration file
-    #[arg(long, short = 'c', value_name = "PATH", default_value = "aprz.toml")]
+    /// Path to configuration file (default is `aprz.toml`)
+    #[arg(long, short = 'c', value_name = "PATH")]
     pub config: Option<Utf8PathBuf>,
 
     /// Control when to use colored output

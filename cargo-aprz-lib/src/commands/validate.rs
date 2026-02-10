@@ -4,6 +4,7 @@ use crate::Result;
 use crate::expr::evaluate;
 use crate::metrics::default_metrics;
 use camino::{Utf8Path, Utf8PathBuf};
+use cargo_metadata::MetadataCommand;
 use chrono::Local;
 use clap::Parser;
 use ohno::IntoAppError;
@@ -14,6 +15,10 @@ pub struct ValidateArgs {
     /// Path to configuration file (default is `aprz.toml`)
     #[arg(long, short = 'c', value_name = "PATH")]
     pub config: Option<Utf8PathBuf>,
+
+    /// Path to Cargo.toml file
+    #[arg(long, default_value = "Cargo.toml", value_name = "PATH")]
+    pub manifest_path: Utf8PathBuf,
 }
 
 /// Validates a configuration file by loading it and checking expression evaluation
@@ -42,10 +47,23 @@ fn validate_config_inner(workspace_root: &Utf8Path, config_path: Option<&Utf8Pat
 }
 
 pub fn validate_config<H: Host>(host: &mut H, args: &ValidateArgs) -> Result<()> {
-    let workspace_root = Utf8PathBuf::from(".");
     let config_path = args.config.as_ref();
 
-    match validate_config_inner(&workspace_root, config_path) {
+    // Only resolve workspace root when no explicit config path is provided
+    let workspace_root;
+    let workspace_root_ref = if config_path.is_some() {
+        // When an explicit config is given, workspace root is only used as a
+        // base for relative paths inside Config::load, which won't apply here.
+        Utf8Path::new(".")
+    } else {
+        let mut metadata_cmd = MetadataCommand::new();
+        let _ = metadata_cmd.manifest_path(&args.manifest_path);
+        let metadata = metadata_cmd.exec().into_app_err("unable to retrieve workspace metadata")?;
+        workspace_root = metadata.workspace_root;
+        &workspace_root
+    };
+
+    match validate_config_inner(workspace_root_ref, config_path) {
         Ok(()) => {
             let _ = writeln!(host.output(), "Configuration file is valid");
             if let Some(path) = config_path {
@@ -101,27 +119,24 @@ mod tests {
 
     #[test]
     fn test_default_config_is_valid() {
-        // Create a temporary file path for the test
-        let temp_dir = std::env::temp_dir();
-        let config_path =
-            Utf8PathBuf::from(temp_dir.to_string_lossy().to_string()).join(format!("test_config_{}.toml", std::process::id()));
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("test_config.toml");
 
         // Generate default configuration using init_config
         let mut init_host = TestHost::new();
         let init_args = InitArgs {
-            output: config_path.clone(),
+            output: Some(config_path.clone()),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
         };
         init_config(&mut init_host, &init_args).expect("init_config should succeed");
 
         // Validate the generated configuration
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
-
-        // Clean up the file
-        if let Some(ref path) = args.config {
-            let _ = std::fs::remove_file(path);
-        }
 
         assert!(result.is_ok(), "Default configuration should validate successfully: {result:?}");
     }
@@ -160,7 +175,10 @@ expression = "true"
         .expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(result.is_err(), "Invalid TOML syntax should fail validation");
@@ -189,7 +207,10 @@ unknown_field = "value"
         .expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(result.is_err(), "Unknown field should fail validation");
@@ -218,7 +239,10 @@ expression = "this is not a valid CEL expression !!!"
         .expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(result.is_err(), "Invalid expression syntax should fail validation");
@@ -244,7 +268,10 @@ crates_cache_ttl = "not a valid duration"
         .expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(result.is_err(), "Invalid duration format should fail validation");
@@ -273,7 +300,10 @@ expression = "this_metric_does_not_exist > 100"
         .expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(result.is_err(), "Expression referencing nonexistent metric should fail validation");
@@ -302,7 +332,10 @@ expression = "crates.downloads + 'string'"
         .expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(result.is_err(), "Expression with type mismatch should fail validation");
@@ -331,7 +364,10 @@ expression = "crates.downloads"
         .expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(result.is_err(), "Expression returning non-boolean should fail validation");
@@ -351,7 +387,10 @@ expression = "crates.downloads"
         std::fs::write(&config_path, "# Empty config file\n").expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(result.is_ok(), "Empty config should be valid (uses defaults)");
@@ -375,7 +414,10 @@ advisories_cache_ttl = "5h"
         .expect("Failed to write test config");
 
         let mut host = TestHost::new();
-        let args = ValidateArgs { config: Some(config_path) };
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
         let result = validate_config(&mut host, &args);
 
         assert!(

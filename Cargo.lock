@@ -294,6 +294,7 @@ dependencies = [
  "ohno",
  "owo-colors",
  "pastey",
+ "percent-encoding",
  "ra_ap_syntax",
  "regex",
  "reqwest",
@@ -2818,15 +2819,15 @@ dependencies = [
 
 [[package]]
 name = "ra_ap_edition"
-version = "0.0.318"
+version = "0.0.319"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c6b8787121e63c1298ebfad449825400fd760008e6f9d78efb2cb7155f4a2a0"
+checksum = "45d85b52a502a2cd62144fd6ca972867253972e903b5c5433cf2ce5c48b91850"
 
 [[package]]
 name = "ra_ap_parser"
-version = "0.0.318"
+version = "0.0.319"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c80fb0eef6cb43ca2fe0599b97b6dfdd035621d43a41297b9aff1898674994a7"
+checksum = "a326038df53edf9368ac769d2dfe087e3ed3f5bb6891aeba447022e9ceedd469"
 dependencies = [
  "drop_bomb",
  "ra-ap-rustc_lexer",
@@ -2838,9 +2839,9 @@ dependencies = [
 
 [[package]]
 name = "ra_ap_stdx"
-version = "0.0.318"
+version = "0.0.319"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ae2f4525fc8ba03ae5d4dbd01a73aedc6cd12c29c6535026d2dd60fc349b1ac"
+checksum = "f9ee0ec6d82af909b95300461ed65cda2599293973bbe9417e8223f4e8f08bc2"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-utils",
@@ -2854,9 +2855,9 @@ dependencies = [
 
 [[package]]
 name = "ra_ap_syntax"
-version = "0.0.318"
+version = "0.0.319"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce73fda2a09e0f05c54ce786aaaffdac603ed2ea5a74ceb810e29be9c6375cab"
+checksum = "81cdf6fb1804887421f02e156fe1130a68b24318db4347ae4663bfb993ab025c"
 dependencies = [
  "either",
  "itertools",

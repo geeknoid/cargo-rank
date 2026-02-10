@@ -115,7 +115,8 @@ mmap-rs = { version = "0.7.0", default-features = false }
 ohno = { version = "0.3.0", default-features = false, features = ["app-err"] }
 owo-colors = { version = "4.1", default-features = false }
 pastey = { version = "0.2.1", default-features = false }
-ra_ap_syntax = { version = "0.0.318", default-features = false }
+percent-encoding = { version = "2.3", default-features = false, features = ["alloc"] }
+ra_ap_syntax = { version = "0.0.319", default-features = false }
 regex = { version = "1.12.2", default-features = false, features = ["std", "unicode-perl"] }
 reqwest = { version = "0.13.1", default-features = false, features = ["json", "rustls", "stream"] }
 rust_xlsxwriter = { version = "0.93.0", default-features = false, features = ["zlib"] }

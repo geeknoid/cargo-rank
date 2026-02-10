@@ -196,18 +196,20 @@ fn build_transitive_deps<'a>(
     initial_deps: impl IntoIterator<Item = &'a str>,
     dependency_type: DependencyType,
 ) -> HashSet<(CrateRef, DependencyType)> {
-    // Convert DependencyType to DependencyKind for filtering
-    let dependency_kind = match dependency_type {
+    // Convert DependencyType to DependencyKind for filtering the initial set.
+    // Dev/build dependencies only apply at the first hop; their own transitive
+    // dependencies are Normal (runtime) in Cargo's model.
+    let initial_kind = match dependency_type {
         DependencyType::Standard => DependencyKind::Normal,
         DependencyType::Dev => DependencyKind::Development,
         DependencyType::Build => DependencyKind::Build,
     };
 
     let mut result = HashSet::new();
-    let mut queue: Vec<&str> = initial_deps.into_iter().collect();
+    let mut queue: Vec<(&str, bool)> = initial_deps.into_iter().map(|d| (d, true)).collect();
     let mut visited_names = HashSet::new();
 
-    while let Some(dep_name) = queue.pop() {
+    while let Some((dep_name, is_initial)) = queue.pop() {
         if !visited_names.insert(dep_name) {
             continue; // Already processed
         }
@@ -216,9 +218,11 @@ fn build_transitive_deps<'a>(
         if let Some(pkg) = all_packages.values().find(|p| p.name == dep_name) {
             _ = result.insert((CrateRef::new(&pkg.name, Some(pkg.version.clone())), dependency_type));
 
+            // After the first hop, only follow Normal edges
+            let edge_kind = if is_initial { initial_kind } else { DependencyKind::Normal };
             for dep in &pkg.dependencies {
-                if dep.kind == dependency_kind {
-                    queue.push(dep.name.as_str());
+                if dep.kind == edge_kind {
+                    queue.push((dep.name.as_str(), false));
                 }
             }
         }

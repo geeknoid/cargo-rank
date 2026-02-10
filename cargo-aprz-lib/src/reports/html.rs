@@ -3,6 +3,7 @@ use crate::Result;
 use crate::metrics::{Metric, MetricCategory};
 use chrono::{DateTime, Local};
 use core::fmt::Write;
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
@@ -483,10 +484,11 @@ fn format_keywords_or_categories<W: Write>(value: &str, url_type: &str, writer: 
         if i > 0 {
             write!(writer, ", ")?;
         }
+        let url_encoded_item = utf8_percent_encode(item, NON_ALPHANUMERIC);
         let escaped_item = html_escape(item);
         write!(
             writer,
-            "<a href=\"{base_url}{escaped_item}\" target=\"_blank\" rel=\"noopener noreferrer\">#{escaped_item}</a>"
+            "<a href=\"{base_url}{url_encoded_item}\" target=\"_blank\" rel=\"noopener noreferrer\">#{escaped_item}</a>"
         )?;
     }
 
