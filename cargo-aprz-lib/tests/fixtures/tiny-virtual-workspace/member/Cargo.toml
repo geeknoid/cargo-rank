@@ -1,10 +1,7 @@
 [package]
-name = "tiny-crate"
+name = "tiny-member"
 version = "0.1.0"
 edition = "2024"
 
-[workspace]
-
 [dependencies]
 itoa = "1"
-miniz_oxide = "0.8"

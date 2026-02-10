@@ -1,7 +1,8 @@
 //! Integration test for the `deps` command.
 //!
-//! Uses a tiny fixture crate (`tests/fixtures/tiny-crate`) whose only dependency
-//! is `itoa`, keeping network traffic to a minimum.
+//! Uses tiny fixture crates to keep network traffic to a minimum:
+//! - `tests/fixtures/tiny-crate`: single-package workspace with `itoa` + `miniz_oxide` (→ `adler2`)
+//! - `tests/fixtures/tiny-virtual-workspace`: virtual workspace with one member depending on `itoa`
 //!
 //! Gated behind the `network_tests` feature:
 //! ```sh
@@ -80,11 +81,15 @@ async fn test_deps_command_json_output() {
     let parsed: serde_json::Value = serde_json::from_str(&json_content).expect("valid JSON");
 
     let crates = parsed["crates"].as_array().expect("crates array");
-    assert_eq!(crates.len(), 1, "tiny-crate has exactly one dependency");
+    // tiny-crate depends on itoa + miniz_oxide, and miniz_oxide transitively brings adler2
+    assert_eq!(crates.len(), 3, "tiny-crate should have 3 dependencies (itoa, miniz_oxide, adler2)");
 
-    let entry = &crates[0];
-    assert_eq!(entry["name"].as_str(), Some("itoa"));
+    let names: Vec<&str> = crates.iter().filter_map(|c| c["name"].as_str()).collect();
+    assert!(names.contains(&"itoa"), "should contain itoa");
+    assert!(names.contains(&"miniz_oxide"), "should contain miniz_oxide");
+    assert!(names.contains(&"adler2"), "should contain adler2 (transitive dep of miniz_oxide)");
 
+    let entry = crates.iter().find(|c| c["name"].as_str() == Some("itoa")).expect("itoa entry");
     let metrics = entry["metrics"].as_object().expect("metrics object");
     assert!(!metrics.is_empty(), "should have metrics");
 }
@@ -111,6 +116,7 @@ async fn test_deps_command_console_output() {
 
     let output = host.output_str();
     assert!(output.contains("itoa"), "console output should mention itoa");
+    assert!(output.contains("adler2"), "console output should mention adler2 (transitive dep)");
 }
 
 #[tokio::test]
@@ -175,9 +181,12 @@ async fn test_deps_command_standard_deps_only() {
     let parsed: serde_json::Value = serde_json::from_str(&json_content).expect("valid JSON");
 
     let crates = parsed["crates"].as_array().expect("crates array");
-    // itoa is a standard dependency
-    assert_eq!(crates.len(), 1);
-    assert_eq!(crates[0]["name"].as_str(), Some("itoa"));
+    // itoa, miniz_oxide, and adler2 are all standard dependencies
+    assert_eq!(crates.len(), 3);
+    let names: Vec<&str> = crates.iter().filter_map(|c| c["name"].as_str()).collect();
+    assert!(names.contains(&"itoa"));
+    assert!(names.contains(&"miniz_oxide"));
+    assert!(names.contains(&"adler2"));
 }
 
 #[tokio::test]
@@ -243,4 +252,117 @@ async fn test_deps_command_nonexistent_package() {
     let result_msg = format!("{}", result.unwrap_err());
     let has_error = err_msg.contains("no-such-package") || result_msg.contains("no-such-package");
     assert!(has_error, "error should mention the package name");
+}
+
+// ---------------------------------------------------------------------------
+// Line 95: --package <name> filters to a specific package in the workspace
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_deps_command_with_package_flag() {
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let json_path = temp_dir.path().join("report.json");
+
+    let mut host = TestHost::new();
+    let result = cargo_aprz_lib::run(
+        &mut host,
+        [
+            "cargo",
+            "aprz",
+            "deps",
+            "--manifest-path",
+            FIXTURE_MANIFEST,
+            "--package",
+            "tiny-crate",
+            "--json",
+            json_path.to_str().expect("valid path"),
+            "--color",
+            "never",
+        ],
+    )
+    .await;
+
+    assert!(result.is_ok(), "deps --package tiny-crate should succeed: {result:?}");
+
+    let json_content = std::fs::read_to_string(&json_path).expect("read JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json_content).expect("valid JSON");
+
+    let crates = parsed["crates"].as_array().expect("crates array");
+    assert_eq!(crates.len(), 3, "should still resolve all 3 deps for tiny-crate");
+}
+
+// ---------------------------------------------------------------------------
+// Line 108: --workspace processes all workspace members
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_deps_command_with_workspace_flag() {
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let json_path = temp_dir.path().join("report.json");
+
+    let mut host = TestHost::new();
+    let result = cargo_aprz_lib::run(
+        &mut host,
+        [
+            "cargo",
+            "aprz",
+            "deps",
+            "--manifest-path",
+            FIXTURE_MANIFEST,
+            "--workspace",
+            "--json",
+            json_path.to_str().expect("valid path"),
+            "--color",
+            "never",
+        ],
+    )
+    .await;
+
+    assert!(result.is_ok(), "deps --workspace should succeed: {result:?}");
+
+    let json_content = std::fs::read_to_string(&json_path).expect("read JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json_content).expect("valid JSON");
+
+    let crates = parsed["crates"].as_array().expect("crates array");
+    assert_eq!(crates.len(), 3, "workspace should resolve all 3 deps");
+}
+
+// ---------------------------------------------------------------------------
+// Line 120: virtual workspace (no root package, no --package, no --workspace)
+// defaults to processing all workspace members
+// ---------------------------------------------------------------------------
+
+const VIRTUAL_WS_MANIFEST: &str = "tests/fixtures/tiny-virtual-workspace/Cargo.toml";
+
+#[tokio::test]
+async fn test_deps_command_virtual_workspace() {
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let json_path = temp_dir.path().join("report.json");
+
+    let mut host = TestHost::new();
+    let result = cargo_aprz_lib::run(
+        &mut host,
+        [
+            "cargo",
+            "aprz",
+            "deps",
+            "--manifest-path",
+            VIRTUAL_WS_MANIFEST,
+            "--json",
+            json_path.to_str().expect("valid path"),
+            "--color",
+            "never",
+        ],
+    )
+    .await;
+
+    assert!(result.is_ok(), "deps on virtual workspace should succeed: {result:?}");
+
+    let json_content = std::fs::read_to_string(&json_path).expect("read JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json_content).expect("valid JSON");
+
+    let crates = parsed["crates"].as_array().expect("crates array");
+    // The virtual workspace member depends only on itoa
+    assert_eq!(crates.len(), 1);
+    assert_eq!(crates[0]["name"].as_str(), Some("itoa"));
 }
