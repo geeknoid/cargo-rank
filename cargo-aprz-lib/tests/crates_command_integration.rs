@@ -49,9 +49,12 @@ impl Host for TestHost {
 }
 
 #[tokio::test]
-async fn test_crates_command_json_output() {
+async fn test_crates_command_all_report_types() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
+    let csv_path = temp_dir.path().join("report.csv");
+    let html_path = temp_dir.path().join("report.html");
+    let excel_path = temp_dir.path().join("report.xlsx");
 
     let mut host = TestHost::new();
     let result = cargo_aprz_lib::run(
@@ -63,6 +66,13 @@ async fn test_crates_command_json_output() {
             "serde@1.0.200",
             "--json",
             json_path.to_str().expect("valid path"),
+            "--csv",
+            csv_path.to_str().expect("valid path"),
+            "--html",
+            html_path.to_str().expect("valid path"),
+            "--excel",
+            excel_path.to_str().expect("valid path"),
+            "--console",
             "--color",
             "never",
         ],
@@ -70,22 +80,41 @@ async fn test_crates_command_json_output() {
     .await;
 
     assert!(result.is_ok(), "crates command failed: {result:?}");
-    assert!(json_path.exists(), "JSON report file should be created");
 
+    // JSON report
+    assert!(json_path.exists(), "JSON report file should be created");
     let json_content = std::fs::read_to_string(&json_path).expect("read JSON");
     let parsed: serde_json::Value = serde_json::from_str(&json_content).expect("valid JSON");
-
-    // Top-level is an object with a "crates" array
     let crates = parsed["crates"].as_array().expect("crates array");
     assert_eq!(crates.len(), 1);
-
     let entry = &crates[0];
     assert_eq!(entry["name"].as_str(), Some("serde"));
     assert_eq!(entry["version"].as_str(), Some("1.0.200"));
-
-    // Should have metrics
     let metrics = entry["metrics"].as_object().expect("metrics object");
     assert!(!metrics.is_empty(), "should have metrics");
+
+    // CSV report
+    assert!(csv_path.exists(), "CSV report file should be created");
+    let csv_content = std::fs::read_to_string(&csv_path).expect("read CSV");
+    let csv_lines: Vec<&str> = csv_content.lines().collect();
+    assert!(csv_lines.len() >= 2, "CSV should have header + data rows");
+    assert!(csv_lines[0].starts_with("Metric"), "CSV header should start with 'Metric'");
+    assert!(csv_content.contains("serde"), "CSV should contain crate name");
+
+    // HTML report
+    assert!(html_path.exists(), "HTML report file should be created");
+    let html_content = std::fs::read_to_string(&html_path).expect("read HTML");
+    assert!(html_content.contains("<html"), "HTML report should contain html tag");
+    assert!(html_content.contains("serde"), "HTML report should mention crate name");
+
+    // Excel report
+    assert!(excel_path.exists(), "Excel report file should be created");
+    let excel_size = std::fs::metadata(&excel_path).expect("excel metadata").len();
+    assert!(excel_size > 0, "Excel report should not be empty");
+
+    // Console output
+    let console_output = host.output_str();
+    assert!(console_output.contains("serde"), "console output should mention the crate name");
 }
 
 #[tokio::test]
