@@ -30,6 +30,10 @@ impl TestHost {
     fn output_str(&self) -> String {
         String::from_utf8_lossy(&self.output_buf).into_owned()
     }
+
+    fn error_str(&self) -> String {
+        String::from_utf8_lossy(&self.error_buf).into_owned()
+    }
 }
 
 impl Host for TestHost {
@@ -188,4 +192,96 @@ async fn test_crates_command_nonexistent_crate() {
 
     // Should succeed (non-existent crates are reported, not fatal)
     assert!(result.is_ok(), "crates command should not fail for unknown crates: {result:?}");
+}
+
+// ---------------------------------------------------------------------------
+// Line 245: CrateNotFound with non-empty suggestions ("Did you mean ...?")
+// Uses a misspelled name close to a real crate so suggestions are returned.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_crates_command_misspelled_crate_shows_suggestions() {
+    let mut host = TestHost::new();
+    let result = cargo_aprz_lib::run(
+        &mut host,
+        ["cargo", "aprz", "crates", "serdee@1.0.0", "--color", "never", "--console"],
+    )
+    .await;
+
+    // The command itself succeeds; the crate is reported as not found
+    assert!(result.is_ok(), "should not fail: {result:?}");
+
+    let error_output = host.error_str();
+    assert!(
+        error_output.contains("Did you mean"),
+        "error output should contain suggestions, got: {error_output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Line 262: VersionNotFound — real crate with a nonexistent version
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_crates_command_nonexistent_version() {
+    let mut host = TestHost::new();
+    let result = cargo_aprz_lib::run(
+        &mut host,
+        ["cargo", "aprz", "crates", "serde@99.99.99", "--color", "never", "--console"],
+    )
+    .await;
+
+    assert!(result.is_ok(), "should not fail: {result:?}");
+
+    let error_output = host.error_str();
+    assert!(
+        error_output.contains("Could not find information on version"),
+        "error output should mention missing version, got: {error_output}"
+    );
+    assert!(
+        error_output.contains("serde"),
+        "error output should mention the crate name, got: {error_output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Line 310: should_eval branch — --check triggers expression evaluation
+// and produces ReportableCrate with an evaluation result.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_crates_command_with_check_flag() {
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let json_path = temp_dir.path().join("report.json");
+
+    let mut host = TestHost::new();
+    let result = cargo_aprz_lib::run(
+        &mut host,
+        [
+            "cargo",
+            "aprz",
+            "crates",
+            "serde@1.0.200",
+            "--check",
+            "--json",
+            json_path.to_str().expect("valid path"),
+            "--color",
+            "never",
+        ],
+    )
+    .await;
+
+    // --check with no expressions means evaluation succeeds (nothing to deny)
+    assert!(result.is_ok(), "crates --check should succeed: {result:?}");
+
+    let json_content = std::fs::read_to_string(&json_path).expect("read JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json_content).expect("valid JSON");
+
+    let crates = parsed["crates"].as_array().expect("crates array");
+    assert_eq!(crates.len(), 1);
+    assert_eq!(crates[0]["name"].as_str(), Some("serde"));
+
+    // With --check, the evaluation field should be present
+    let eval = &crates[0]["evaluation"];
+    assert!(!eval.is_null(), "evaluation should be present when --check is used");
 }
