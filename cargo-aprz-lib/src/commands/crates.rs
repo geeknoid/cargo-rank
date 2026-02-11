@@ -16,7 +16,7 @@ pub struct CratesArgs {
 
 pub async fn process_crates<H: Host>(host: &mut H, args: &CratesArgs) -> Result<()> {
     let mut common = Common::new(host, &args.common).await?;
-    let crate_facts = common.process_crates(args.crates.clone(), true).await?;
+    let crate_facts = common.process_crates(&args.crates, true).await?;
 
     common.report(crate_facts.into_iter())
 }

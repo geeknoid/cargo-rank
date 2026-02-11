@@ -1,0 +1,77 @@
+Metric,tick v0.1.2,tokio v1.49.0
+crate.name,tick,tokio
+crate.version,0.1.2,1.49.0
+crate.description,Provides primitives to interact with and manipulate machine time.,"An event-driven, non-blocking I/O platform for writing asynchronous I/O
+backed applications.
+"
+crate.license,MIT,MIT
+crate.categories,data-structures,"asynchronous, network-programming"
+crate.keywords,"clock, stopwatch, tick, time","async, futures, io, non-blocking"
+crate.features,"default, fmt, serde, test-util, tokio","default, fs, full, io-std, io-uring, io-util, macros, net, process, rt, rt-multi-thread, signal, sync, taskdump, test-util, time"
+crate.repository,https://github.com/microsoft/oxidizer,https://github.com/tokio-rs/tokio
+crate.homepage,https://github.com/microsoft/oxidizer,https://tokio.rs/
+crate.minimum_rust,1.88,1.71
+crate.rust_edition,2024,2021
+crate.owners,"microsoft-oss-releases, oxidizer-crates-io-bot, martintmk","carllerche, github:tokio-rs:core, Darksonn"
+stability.crate_created_at,2015-09-09,2016-07-01
+stability.crate_updated_at,2026-01-05,2026-01-03
+stability.version_created_at,2026-01-05,2026-01-03
+stability.version_updated_at,2026-01-05,2026-01-03
+stability.yanked,false,false
+stability.versions_last_90_days,2,3
+usage.total_downloads,4721,520450141
+usage.total_downloads_last_90_days,136,67694204
+usage.version_downloads,107,12336043
+usage.version_downloads_last_90_days,108,12642734
+usage.dependent_crates,4,42935
+community.repo_stars,58,31040
+community.repo_forks,16,2921
+community.repo_subscribers,3,312
+community.repo_contributors,18,1033
+activity.commits_last_90_days,138,93
+activity.commits_last_365_days,173,375
+activity.commit_count,173,4390
+activity.last_commit_at,2026-02-10,2026-02-09
+activity.open_issues,13,98
+activity.closed_issues,24,235
+activity.avg_open_issue_age_days,33,277
+activity.median_open_issue_age_days,27,284
+activity.p90_open_issue_age_days,56,476
+activity.open_pull_requests,6,54
+activity.closed_pull_requests,204,613
+activity.avg_open_pull_request_age_days,18,216
+activity.median_open_pull_request_age_days,12,198
+activity.p90_open_pull_request_age_days,63,524
+docs.documentation,https://docs.rs/tick/0.1.2,https://docs.rs/tokio/1.49.0
+docs.public_api_elements,51,1358
+docs.undocumented_public_api_elements,1,11
+docs.public_api_coverage_percentage,98.04,99.19
+docs.crate_level_docs_present,true,true
+docs.broken_links,0,247
+docs.examples_in_docs,47,763
+docs.standalone_examples,7,0
+trust.unsafe_blocks,0,899
+trust.ci_workflows,true,true
+trust.miri_usage,true,true
+trust.clippy_usage,true,true
+trust.code_coverage_percentage,100.00,
+code.source_files,20,372
+code.source_files_with_errors,0,8
+code.code_lines,2171,82222
+code.test_lines,1489,6638
+code.comment_lines,1564,44330
+code.transitive_dependencies,139,177
+advisories.total_low_severity_vulnerabilities,0,0
+advisories.total_medium_severity_vulnerabilities,0,0
+advisories.total_high_severity_vulnerabilities,0,0
+advisories.total_critical_severity_vulnerabilities,0,0
+advisories.total_notice_warnings,0,0
+advisories.total_unmaintained_warnings,0,0
+advisories.total_unsound_warnings,0,2
+advisories.version_low_severity_vulnerabilities,0,0
+advisories.version_medium_severity_vulnerabilities,0,0
+advisories.version_high_severity_vulnerabilities,0,0
+advisories.version_critical_severity_vulnerabilities,0,0
+advisories.version_notice_warnings,0,0
+advisories.version_unmaintained_warnings,0,0
+advisories.version_unsound_warnings,0,0

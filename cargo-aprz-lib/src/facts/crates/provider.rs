@@ -105,7 +105,7 @@ impl Provider {
     /// 8. Count dependents and assemble final results
     pub async fn get_crates_data(
         &self,
-        crates: Vec<CrateRef>,
+        crates: &[CrateRef],
         progress: &dyn Progress,
         suggestions: bool,
     ) -> impl Iterator<Item = (CrateSpec, ProviderResult<CratesData>)> {
@@ -119,6 +119,7 @@ impl Provider {
         let message = Arc::new(message);
         progress.set_indeterminate(Box::new(move || (*message).clone()));
 
+        let crates = crates.to_vec();
         tokio::task::spawn_blocking(move || provider.collect_crate_data(crates, suggestions))
             .await
             .expect("tasks must not panic")
@@ -347,8 +348,8 @@ impl Provider {
         requested: &[CrateRef],
         crate_name_to_id: &HashMap<CompactString, CrateId>,
     ) -> (HashMap<CrateId, HashMap<SemverVersion, CrateRef>>, HashMap<CrateId, CrateRef>) {
-        let mut needed_versions = HashMap::new();
-        let mut need_latest_version = HashMap::new();
+        let mut needed_versions = HashMap::with_capacity(requested.len());
+        let mut need_latest_version = HashMap::with_capacity(requested.len());
 
         for crate_ref in requested {
             if let Some(&crate_id) = crate_name_to_id.get(crate_ref.name()) {
@@ -798,11 +799,11 @@ impl Provider {
     ) -> CratesData {
         let version_row = self.table_mgr.versions_table().get(version_index);
         let version_data = CrateVersionData {
-            description: version_row.description.to_string(),
+            description: version_row.description.into(),
             homepage: version_row.homepage(),
             documentation: version_row.documentation(),
-            license: version_row.license.to_string(),
-            rust_version: version_row.rust_version.to_string(),
+            license: version_row.license.into(),
+            rust_version: version_row.rust_version.into(),
             edition: version_row.edition(),
             features: version_row.features(),
             created_at: version_row.created_at,

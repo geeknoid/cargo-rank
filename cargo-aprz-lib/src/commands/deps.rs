@@ -176,8 +176,9 @@ async fn process_packages<'a, H: Host>(
     }
 
     // Fetch facts for each crate (no suggestions for deps command)
+    let crate_refs: Vec<CrateRef> = crate_dep_pairs.into_iter().map(|(crate_ref, _)| crate_ref).collect();
     let facts = common
-        .process_crates(crate_dep_pairs.iter().map(|(crate_ref, _)| crate_ref.clone()), false)
+        .process_crates(&crate_refs, false)
         .await?;
 
     // Report the facts

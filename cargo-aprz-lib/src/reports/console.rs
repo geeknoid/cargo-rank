@@ -4,6 +4,7 @@ use crate::expr::Risk;
 use crate::metrics::{Metric, MetricCategory};
 use core::fmt::Write;
 use owo_colors::OwoColorize;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use terminal_size::{Width, terminal_size};
@@ -19,14 +20,14 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], use_colors: bool, writer: 
         // Show appraisal if one is available
         if let Some(eval) = &crate_info.appraisal {
             let status_str = common::format_risk_status(eval.risk);
-            let colored_status = if use_colors {
+            let colored_status: Cow<'_, str> = if use_colors {
                 match eval.risk {
-                    Risk::Low => status_str.green().bold().to_string(),
-                    Risk::Medium => status_str.yellow().bold().to_string(),
-                    Risk::High => status_str.red().bold().to_string(),
+                    Risk::Low => status_str.green().bold().to_string().into(),
+                    Risk::Medium => status_str.yellow().bold().to_string().into(),
+                    Risk::High => status_str.red().bold().to_string().into(),
                 }
             } else {
-                status_str.to_string()
+                Cow::Borrowed(status_str)
             };
             writeln!(writer, "{} v{} is appraised as {colored_status}", crate_info.name, crate_info.version)?;
 
@@ -66,7 +67,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], use_colors: bool, writer: 
 
                 for &metric_name in metric_names {
                     if let Some(&metric) = metric_map.get(metric_name) {
-                        let formatted_value = metric.value.as_ref().map_or_else(|| "n/a".to_string(), common::format_metric_value);
+                        let formatted_value: Cow<'_, str> = metric.value.as_ref().map_or(Cow::Borrowed("n/a"), |v| Cow::Owned(common::format_metric_value(v)));
 
                         // Wrap the value text
                         let wrapped_lines = wrap_text(&formatted_value, term_width, value_indent);
@@ -155,6 +156,7 @@ mod tests {
     use super::*;
     use crate::expr::{Appraisal, ExpressionOutcome, Risk};
     use crate::metrics::{MetricDef, MetricValue};
+    use std::sync::Arc;
 
     static NAME_DEF: MetricDef = MetricDef {
         name: "name",
@@ -177,7 +179,7 @@ mod tests {
             Metric::with_value(&NAME_DEF, MetricValue::String(name.into())),
             Metric::with_value(&VERSION_DEF, MetricValue::String(version.into())),
         ];
-        ReportableCrate::new(name.to_string(), version.parse().unwrap(), metrics, evaluation)
+        ReportableCrate::new(name.into(), Arc::new(version.parse().unwrap()), metrics, evaluation)
     }
 
     #[test]
@@ -204,7 +206,7 @@ mod tests {
     fn test_generate_single_crate_with_evaluation_accepted() {
         let eval = Appraisal {
             risk: Risk::Low,
-            expression_outcomes: vec![ExpressionOutcome::new("quality".to_string(), "Good quality".to_string(), true)],
+            expression_outcomes: vec![ExpressionOutcome::new("quality".into(), "Good quality".into(), true)],
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
@@ -218,7 +220,7 @@ mod tests {
     fn test_generate_single_crate_with_evaluation_denied() {
         let eval = Appraisal {
             risk: Risk::High,
-            expression_outcomes: vec![ExpressionOutcome::new("security".to_string(), "Security issues".to_string(), false)],
+            expression_outcomes: vec![ExpressionOutcome::new("security".into(), "Security issues".into(), false)],
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();

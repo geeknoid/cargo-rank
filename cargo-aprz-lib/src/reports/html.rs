@@ -5,6 +5,7 @@ use crate::metrics::{Metric, MetricCategory};
 use chrono::{DateTime, Local};
 use core::fmt::Write;
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 #[expect(clippy::too_many_lines, reason = "HTML template generation naturally requires many lines")]
@@ -14,6 +15,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
     writeln!(writer, "<head>")?;
     writeln!(writer, "  <meta charset=\"UTF-8\">")?;
     writeln!(writer, "  <title>Crate Metrics</title>")?;
+    writeln!(writer, "  <link rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg viewBox='0 0 1200 800' xmlns='http://www.w3.org/2000/svg'%3E%3Cg%3E%3Cg transform='matrix(1,0,0,1,654.172,668.359)'%3E%3Cpath d='M0,-322.648C-114.597,-322.648 -218.172,-308.869 -296.172,-286.419L-296.172,-291.49C-374.172,-266.395 -423.853,-231.531 -423.853,-192.984C-423.853,-186.907 -422.508,-180.922 -420.15,-175.053L-428.134,-160.732C-428.134,-160.732 -434.547,-152.373 -423.199,-134.733C-413.189,-119.179 -363.035,-58.295 -336.571,-26.413C-325.204,-10.065 -317.488,0 -316.814,-0.973C-315.753,-2.516 -323.878,-33.202 -346.453,-68.215C-356.986,-87.02 -369.811,-111.934 -377.361,-130.335C-356.28,-116.993 -328.172,-104.89 -296.172,-94.474L-296.172,-94.633C-218.172,-72.18 -114.597,-58.404 0,-58.404C131.156,-58.404 248.828,-76.45 327.828,-104.895L327.828,-276.153C248.828,-304.6 131.156,-322.648 0,-322.648' fill='%23a52b00'/%3E%3C/g%3E%3Cg transform='matrix(1,0,0,1,1177.87,277.21)'%3E%3Cpath d='M0,227.175L-88.296,162.132C-89.126,159.237 -89.956,156.345 -90.812,153.474L-61.81,111.458C-58.849,107.184 -58.252,101.629 -60.175,96.755C-62.1,91.905 -66.311,88.428 -71.292,87.576L-120.335,79.255C-122.233,75.376 -124.225,71.557 -126.224,67.771L-105.62,20.599C-103.501,15.793 -103.947,10.209 -106.759,5.848C-109.556,1.465 -114.31,-1.094 -119.376,-0.895L-169.146,0.914C-171.723,-2.442 -174.34,-5.766 -177.012,-9.032L-165.574,-59.592C-164.415,-64.724 -165.876,-70.1 -169.453,-73.83C-173.008,-77.546 -178.175,-79.084 -183.089,-77.88L-231.567,-65.961C-234.707,-68.736 -237.897,-71.474 -241.126,-74.157L-239.381,-126.064C-239.193,-131.318 -241.643,-136.311 -245.849,-139.227C-250.053,-142.161 -255.389,-142.603 -259.987,-140.423L-305.213,-118.921C-308.853,-121.011 -312.515,-123.081 -316.218,-125.084L-324.209,-176.232C-325.021,-181.413 -328.355,-185.816 -333.024,-187.826C-337.679,-189.848 -343.014,-189.193 -347.101,-186.116L-387.422,-155.863C-391.392,-157.181 -395.38,-158.446 -399.418,-159.655L-416.798,-208.159C-418.564,-213.104 -422.64,-216.735 -427.608,-217.756C-432.561,-218.768 -437.656,-217.053 -441.091,-213.217L-475.029,-175.246C-479.133,-175.717 -483.239,-176.147 -487.356,-176.505L-513.564,-220.659C-516.22,-225.131 -520.908,-227.852 -525.961,-227.852C-531.002,-227.852 -535.7,-225.131 -538.333,-220.659L-564.547,-176.505C-568.666,-176.147 -572.791,-175.717 -576.888,-175.246L-610.831,-213.217C-614.268,-217.053 -619.382,-218.768 -624.318,-217.756C-629.284,-216.721 -633.363,-213.104 -635.124,-208.159L-652.517,-159.655C-656.544,-158.446 -660.534,-157.173 -664.514,-155.863L-704.822,-186.116C-708.92,-189.204 -714.254,-189.857 -718.92,-187.826C-723.57,-185.816 -726.917,-181.413 -727.723,-176.232L-735.72,-125.084C-739.42,-123.081 -743.083,-121.022 -746.734,-118.921L-791.956,-140.423C-796.548,-142.612 -801.908,-142.161 -806.091,-139.227C-810.292,-136.311 -812.747,-131.318 -812.557,-126.064L-810.821,-74.157C-814.04,-71.474 -817.224,-68.736 -820.379,-65.961L-868.849,-77.88C-873.774,-79.075 -878.935,-77.546 -882.499,-73.83C-886.084,-70.1 -887.538,-64.724 -886.384,-59.592L-874.969,-9.032C-877.618,-5.753 -880.239,-2.442 -882.808,0.914L-932.579,-0.895C-937.602,-1.043 -942.396,1.465 -945.202,5.848C-948.014,10.209 -948.439,15.793 -946.348,20.599L-925.729,67.771C-927.732,71.557 -929.721,75.376 -931.635,79.255L-980.675,87.576C-985.657,88.417 -989.858,91.892 -991.795,96.755C-993.72,101.629 -993.095,107.184 -990.156,111.458L-961.146,153.474C-961.37,154.215 -961.576,154.964 -961.799,155.707L-1043.82,242.829C-1043.82,242.829 -1056.38,252.68 -1038.09,275.831C-1021.95,296.252 -939.097,377.207 -895.338,419.62C-876.855,441.152 -864.195,454.486 -862.872,453.332C-860.784,451.5 -871.743,412.326 -908.147,366.362C-936.207,325.123 -972.625,261.696 -964.086,254.385C-964.086,254.385 -954.372,242.054 -934.882,233.178C-934.169,233.749 -935.619,232.613 -934.882,233.178C-934.882,233.178 -523.568,422.914 -142.036,236.388C-98.452,228.571 -72.068,251.917 -72.068,251.917C-62.969,257.193 -86.531,322.412 -105.906,365.583C-132.259,414.606 -136.123,452.859 -133.888,454.185C-132.479,455.027 -122.89,440.438 -109.214,417.219C-75.469,370.196 -11.675,280.554 0,258.781C13.239,234.094 0,227.175 0,227.175' fill='%23f74c00'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\">")?;
     writeln!(writer, "  <style>")?;
     writeln!(writer, "    :root {{")?;
     writeln!(writer, "      --bg-color: #e5e7eb;")?;
@@ -265,7 +267,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
     let crate_metrics: Vec<&[Metric]> = crates.iter().map(|c| c.metrics.as_slice()).collect();
 
     // Group metrics by category across all crates
-    let metrics_by_category = common::group_all_metrics_by_category(&crate_metrics);
+    let metrics_by_category = common::group_all_metrics_by_category(crate_metrics.iter().copied());
 
     writeln!(writer, "  <div class=\"table-wrapper\">")?;
     writeln!(writer, "    <div class=\"table-container\">")?;
@@ -336,6 +338,13 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
 
     // Iterate through categories in order
     let mut is_first_category = true;
+
+    // Build per-crate metric lookup maps for O(1) access in the inner loop
+    let crate_metric_maps: Vec<HashMap<&str, &Metric>> = crate_metrics
+        .iter()
+        .map(|metrics| metrics.iter().map(|m| (m.name(), m)).collect())
+        .collect();
+
     for category in MetricCategory::iter() {
         if let Some(category_metrics) = metrics_by_category.get(&category) {
             // Add spacer row before each category except the first
@@ -361,14 +370,14 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
             writeln!(writer, "          </tr>")?;
 
             // Metric rows for this category
-            for metric_name in category_metrics {
+            for &metric_name in category_metrics {
                 writeln!(writer, "          <tr class=\"metric-row\">")?;
 
                 // Find the metric description from the first crate
-                let description = crate_metrics
+                let description = crate_metric_maps
                     .first()
-                    .and_then(|metrics| metrics.iter().find(|m| m.name() == metric_name.as_str()))
-                    .map_or(metric_name.as_str(), |m| m.description());
+                    .and_then(|map| map.get(metric_name))
+                    .map_or(metric_name, |m| m.description());
 
                 writeln!(
                     writer,
@@ -378,8 +387,8 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
                 )?;
 
                 // Value columns for each crate
-                for (crate_index, metrics) in crate_metrics.iter().enumerate() {
-                    let metric = metrics.iter().find(|m| m.name() == metric_name.as_str());
+                for (crate_index, metric_map) in crate_metric_maps.iter().enumerate() {
+                    let metric = metric_map.get(metric_name);
                     let crate_info = &crates[crate_index];
                     let tooltip = format!("{} v{}\n{metric_name}\n{description}", crate_info.name, crate_info.version);
 
@@ -515,6 +524,7 @@ mod tests {
     use crate::expr::Appraisal;
     use crate::metrics::{MetricDef, MetricValue};
     use chrono::TimeZone;
+    use std::sync::Arc;
 
     fn test_timestamp() -> DateTime<Local> {
         Local.with_ymd_and_hms(2024, 1, 15, 10, 30, 0).unwrap()
@@ -541,7 +551,7 @@ mod tests {
             Metric::with_value(&NAME_DEF, MetricValue::String(name.into())),
             Metric::with_value(&VERSION_DEF, MetricValue::String(version.into())),
         ];
-        ReportableCrate::new(name.to_string(), version.parse().unwrap(), metrics, evaluation)
+        ReportableCrate::new(name.into(), Arc::new(version.parse().unwrap()), metrics, evaluation)
     }
 
     #[test]

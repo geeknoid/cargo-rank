@@ -83,10 +83,9 @@ impl Collector {
     pub async fn collect(
         &self,
         _now: DateTime<Utc>,
-        crate_refs: impl IntoIterator<Item = CrateRef>,
+        crate_refs: &[CrateRef],
         suggestions: bool,
     ) -> Result<impl Iterator<Item = CrateFacts>> {
-        let crate_refs: Vec<_> = crate_refs.into_iter().collect();
         if crate_refs.is_empty() {
             return Ok(Vec::new().into_iter());
         }

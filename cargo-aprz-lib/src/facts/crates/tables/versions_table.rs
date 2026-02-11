@@ -4,6 +4,7 @@ use super::UserId;
 use super::{CrateId, VersionId, define_rows, define_table};
 use crate::Result;
 use chrono::{DateTime, Utc};
+use compact_str::CompactString;
 use ohno::IntoAppError;
 use semver::Version;
 use std::collections::BTreeMap;
@@ -54,7 +55,7 @@ impl VersionRow<'_> {
     ///
     /// Panics if the features JSON in the database is malformed
     #[must_use]
-    pub fn features(&self) -> BTreeMap<String, Vec<String>> {
+    pub fn features(&self) -> BTreeMap<CompactString, Vec<CompactString>> {
         serde_json::from_str(self.features).expect("invalid data in features field")
     }
 
@@ -118,7 +119,7 @@ impl VersionRow<'_> {
 define_table! {
     versions {
         fn write_row(csv_row: &CsvVersionRow<'a>, writer: &mut RowWriter<impl Write>) -> Result<()> {
-            let _ = serde_json::from_str::<BTreeMap<String, Vec<String>>>(csv_row.features).into_app_err("invalid feature map")?;
+            let _ = serde_json::from_str::<BTreeMap<CompactString, Vec<CompactString>>>(csv_row.features).into_app_err("invalid feature map")?;
 
             writer.write_str_as_u64(csv_row.id)?;
             writer.write_str_as_u64(csv_row.crate_id)?;

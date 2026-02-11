@@ -18,6 +18,7 @@ use directories::BaseDirs;
 use ohno::IntoAppError;
 use std::fs;
 use std::io::Write;
+use std::sync::Arc;
 
 /// Color mode configuration for output
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -211,7 +212,7 @@ impl<'a, H: super::Host> Common<'a, H> {
             .init();
     }
 
-    pub async fn process_crates(&self, crates: impl IntoIterator<Item = CrateRef>, suggestions: bool) -> Result<Vec<CrateFacts>> {
+    pub async fn process_crates(&self, crates: &[CrateRef], suggestions: bool) -> Result<Vec<CrateFacts>> {
         let results = self.collector.collect(Utc::now(), crates, suggestions).await;
 
         match results {
@@ -309,8 +310,8 @@ impl<'a, H: super::Host> Common<'a, H> {
                     .ok();
 
                     ReportableCrate::new(
-                        facts.crate_spec.name().to_string(),
-                        facts.crate_spec.version().clone(),
+                        Arc::clone(facts.crate_spec.name_arc()),
+                        Arc::clone(facts.crate_spec.version_arc()),
                         metrics,
                         evaluation,
                     )
@@ -322,8 +323,8 @@ impl<'a, H: super::Host> Common<'a, H> {
                 .map(|facts| {
                     let metrics: Vec<_> = flatten(&facts).collect();
                     ReportableCrate::new(
-                        facts.crate_spec.name().to_string(),
-                        facts.crate_spec.version().clone(),
+                        Arc::clone(facts.crate_spec.name_arc()),
+                        Arc::clone(facts.crate_spec.version_arc()),
                         metrics,
                         None,
                     )
@@ -332,7 +333,7 @@ impl<'a, H: super::Host> Common<'a, H> {
         };
 
         // Sort crates by name and version for consistent ordering
-        reportable_crates.sort_by_cached_key(|crate_info| (crate_info.name.clone(), crate_info.version.clone()));
+        reportable_crates.sort_by(|a, b| a.name.as_ref().cmp(b.name.as_ref()).then_with(|| a.version.cmp(&b.version)));
 
         let generating_reports = self.html.is_some() || self.excel.is_some() || self.csv.is_some() || self.json.is_some();
 

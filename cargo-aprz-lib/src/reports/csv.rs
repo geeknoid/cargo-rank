@@ -1,14 +1,20 @@
 use super::{ReportableCrate, common};
 use crate::Result;
-use crate::metrics::MetricCategory;
+use crate::metrics::{Metric, MetricCategory};
 use core::fmt::Write;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<()> {
     // Group metrics by category across all crates
-    let crate_metrics: Vec<&[_]> = crates.iter().map(|c| c.metrics.as_slice()).collect();
-    let metrics_by_category = common::group_all_metrics_by_category(&crate_metrics);
+    let metrics_by_category = common::group_all_metrics_by_category(crates.iter().map(|c| c.metrics.as_slice()));
+
+    // Build per-crate metric lookup maps for O(1) access
+    let crate_metric_maps: Vec<HashMap<&str, &Metric>> = crates
+        .iter()
+        .map(|c| c.metrics.iter().map(|m| (m.name(), m)).collect())
+        .collect();
 
     // Write header row
     write!(writer, "Metric")?;
@@ -34,13 +40,13 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
         write!(writer, "Reasons")?;
         for crate_info in crates {
             if let Some(appraisal) = &crate_info.appraisal {
-                let reasons = appraisal.expression_outcomes.iter().map(|o| {
+                let reasons = common::join_with(appraisal.expression_outcomes.iter().map(|o| {
                     if o.result {
-                        "✔️".to_owned() + &*o.name.clone()
+                        format!("✔️{}", o.name)
                     } else {
-                        "🗙".to_owned() + &*o.name.clone()
+                        format!("🗙{}", o.name)
                     }
-                }).collect::<Vec<_>>().join("; ");
+                }), "; ");
                 write!(writer, ",{}", escape_csv(&reasons))?;
             } else {
                 write!(writer, ",")?;
@@ -57,8 +63,8 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
                 write!(writer, "{}", escape_csv(metric_name))?;
 
                 // Write values for each crate
-                for crate_info in crates {
-                    if let Some(metric) = crate_info.metrics.iter().find(|m| m.name() == *metric_name)
+                for metric_map in &crate_metric_maps {
+                    if let Some(metric) = metric_map.get(metric_name)
                         && let Some(ref value) = metric.value
                     {
                         write!(writer, ",{}", escape_csv(&common::format_metric_value(value)))?;
@@ -93,6 +99,7 @@ mod tests {
     use super::*;
     use crate::expr::{Appraisal, ExpressionOutcome, Risk};
     use crate::metrics::{Metric, MetricDef, MetricValue};
+    use std::sync::Arc;
 
     static NAME_DEF: MetricDef = MetricDef {
         name: "name",
@@ -115,7 +122,7 @@ mod tests {
             Metric::with_value(&NAME_DEF, MetricValue::String(name.into())),
             Metric::with_value(&VERSION_DEF, MetricValue::String(version.into())),
         ];
-        ReportableCrate::new(name.to_string(), version.parse().unwrap(), metrics, evaluation)
+        ReportableCrate::new(name.into(), Arc::new(version.parse().unwrap()), metrics, evaluation)
     }
 
     #[test]
@@ -181,8 +188,8 @@ mod tests {
         let eval = Appraisal {
             risk: Risk::Low,
             expression_outcomes: vec![
-                ExpressionOutcome::new("good".to_string(), "Good".to_string(), true),
-                ExpressionOutcome::new("quality".to_string(), "Quality".to_string(), true),
+                ExpressionOutcome::new("good".into(), "Good".into(), true),
+                ExpressionOutcome::new("quality".into(), "Quality".into(), true),
             ],
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
@@ -211,7 +218,7 @@ mod tests {
     fn test_generate_with_special_characters() {
         let eval = Appraisal {
             risk: Risk::Low,
-            expression_outcomes: vec![ExpressionOutcome::new("quotes".to_string(), "Reason with \"quotes\"".to_string(), true)],
+            expression_outcomes: vec![ExpressionOutcome::new("quotes".into(), "Reason with \"quotes\"".into(), true)],
         };
         let crates = vec![create_test_crate("test,\"crate\"", "1.0.0", Some(eval))];
         let mut output = String::new();
@@ -225,7 +232,7 @@ mod tests {
     fn test_generate_denied_status() {
         let eval = Appraisal {
             risk: Risk::High,
-            expression_outcomes: vec![ExpressionOutcome::new("security".to_string(), "Security issue".to_string(), false)],
+            expression_outcomes: vec![ExpressionOutcome::new("security".into(), "Security issue".into(), false)],
         };
         let crates = vec![create_test_crate("bad_crate", "1.0.0", Some(eval))];
         let mut output = String::new();

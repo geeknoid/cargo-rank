@@ -5,6 +5,7 @@ use crate::facts::cache_doc;
 use crate::facts::crate_spec::CrateSpec;
 use crate::facts::progress::Progress;
 use chrono::{DateTime, Utc};
+use compact_str::CompactString;
 use core::time::Duration;
 use ohno::IntoAppError;
 use rustsec::{
@@ -82,10 +83,10 @@ where
 {
     let start_time = std::time::Instant::now();
 
-    let mut crate_map: HashMap<String, Vec<(CrateSpec, ProviderResult<AdvisoryData>)>> = HashMap::new();
+    let mut crate_map: HashMap<CompactString, Vec<(CrateSpec, ProviderResult<AdvisoryData>)>> = HashMap::new();
 
     for crate_spec in crates {
-        crate_map.entry(crate_spec.name().to_owned()).or_default().push((
+        crate_map.entry(crate_spec.name().into()).or_default().push((
             crate_spec,
             ProviderResult::Found(AdvisoryData {
                 timestamp: now,

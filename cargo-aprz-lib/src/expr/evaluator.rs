@@ -32,7 +32,7 @@ use std::sync::Arc;
 pub fn evaluate(
     high_risk_if_any: &[Expression],
     eval: &[Expression],
-    metrics: &[Metric],
+    metrics: impl IntoIterator<Item: core::borrow::Borrow<Metric>>,
     now: DateTime<Local>,
     medium_risk_threshold: f64,
     low_risk_threshold: f64,
@@ -45,8 +45,8 @@ pub fn evaluate(
                 return Ok(Appraisal::new(
                     Risk::High,
                     vec![ExpressionOutcome::new(
-                        expr.name().to_string(),
-                        expr.description().unwrap_or_else(|| expr.expression()).to_string(),
+                        expr.name_arc(),
+                        expr.description_or_expression_arc(),
                         true,
                     )],
                 ));
@@ -66,7 +66,7 @@ pub fn evaluate(
 
     let mut total_possible_points: u32 = 0;
     let mut total_granted_points: u32 = 0;
-    let mut outcomes = Vec::new();
+    let mut outcomes = Vec::with_capacity(eval.len());
 
     for expr in eval {
         let points = expr.points().unwrap_or(1);
@@ -78,8 +78,8 @@ pub fn evaluate(
                     total_granted_points += points;
                 }
                 outcomes.push(ExpressionOutcome::new(
-                    expr.name().to_string(),
-                    expr.description().unwrap_or_else(|| expr.expression()).to_string(),
+                    expr.name_arc(),
+                    expr.description_or_expression_arc(),
                     result,
                 ));
             }
@@ -117,23 +117,25 @@ fn evaluate_expression(program: &Program, name: &str, context: &Context) -> Resu
     }
 }
 
-fn build_cel_context(metrics: &[Metric], now: DateTime<Local>) -> Context<'_> {
+fn build_cel_context(metrics: impl IntoIterator<Item: core::borrow::Borrow<Metric>>, now: DateTime<Local>) -> Context<'static> {
+    use core::borrow::Borrow;
     use std::collections::HashMap;
 
     let mut context = Context::default();
 
     // Build nested map structure for dotted metric names
-    let mut root_map: HashMap<String, HashMap<Arc<String>, Value>> = HashMap::new();
-    let mut flat_vars: Vec<(&str, Value)> = Vec::new();
+    let mut root_map: HashMap<&str, HashMap<Arc<String>, Value>> = HashMap::with_capacity(16);
+    let mut flat_vars: Vec<(&str, Value)> = Vec::with_capacity(16);
 
     for metric in metrics {
+        let metric: &Metric = metric.borrow();
         let cel_value = metric.value.as_ref().map_or(Value::Null, convert_metric_value);
         let name = metric.name();
 
         // Split on first dot only
         if let Some((prefix, suffix)) = name.split_once('.') {
             let _ = root_map
-                .entry(prefix.to_string())
+                .entry(prefix)
                 .or_default()
                 .insert(Arc::new(suffix.to_string()), cel_value);
         } else {
@@ -145,7 +147,7 @@ fn build_cel_context(metrics: &[Metric], now: DateTime<Local>) -> Context<'_> {
     // Add nested structures to context
     for (prefix, fields) in root_map {
         let cel_map = Map::from(fields);
-        context.add_variable_from_value(&prefix, Value::Map(cel_map));
+        context.add_variable_from_value(prefix, Value::Map(cel_map));
     }
 
     // Add flat variables
@@ -211,14 +213,14 @@ mod tests {
     #[cfg_attr(miri, ignore)]
     fn test_evaluation_outcome_creation() {
         let outcomes = vec![
-            ExpressionOutcome::new("r1".to_string(), "reason 1".to_string(), true),
-            ExpressionOutcome::new("r2".to_string(), "reason 2".to_string(), false),
+            ExpressionOutcome::new("r1".into(), "reason 1".into(), true),
+            ExpressionOutcome::new("r2".into(), "reason 2".into(), false),
         ];
         let outcome = Appraisal::new(Risk::Low, outcomes);
         assert_eq!(outcome.risk, Risk::Low);
         assert_eq!(outcome.expression_outcomes.len(), 2);
 
-        let denied = Appraisal::new(Risk::High, vec![ExpressionOutcome::new("r".to_string(), "reason".to_string(), false)]);
+        let denied = Appraisal::new(Risk::High, vec![ExpressionOutcome::new("r".into(), "reason".into(), false)]);
         assert_eq!(denied.risk, Risk::High);
         assert_eq!(denied.expression_outcomes.len(), 1);
     }
@@ -409,7 +411,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_high_risk_if_any_expression_evaluation_error() {
-        let expr = Expression::new("bad_expr".to_string(), None, "undefined_var > 100".to_string(), None).unwrap();
+        let expr = Expression::new("bad_expr", None, "undefined_var > 100", None).unwrap();
         let metrics = vec![];
         let result = evaluate(&[expr], &[], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
         let _ = result.unwrap_err();
@@ -418,7 +420,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_eval_expression_evaluation_error() {
-        let expr = Expression::new("bad_expr".to_string(), None, "undefined.field".to_string(), None).unwrap();
+        let expr = Expression::new("bad_expr", None, "undefined.field", None).unwrap();
         let metrics = vec![];
         let result = evaluate(&[], &[expr], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
         let _ = result.unwrap_err();
@@ -444,7 +446,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_high_risk_if_any_true_no_description() {
-        let expr = Expression::new("high_stars".to_string(), None, "stars > 100".to_string(), None).unwrap();
+        let expr = Expression::new("high_stars", None, "stars > 100", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[expr], &[], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD).unwrap();
         assert_eq!(outcome.risk, Risk::High);
@@ -456,7 +458,7 @@ mod tests {
     #[cfg_attr(miri, ignore)]
     fn test_eval_false_no_description() {
         // Single eval expression that fails => score 0/1 = 0% => High risk
-        let expr = Expression::new("high_stars".to_string(), None, "stars > 200".to_string(), None).unwrap();
+        let expr = Expression::new("high_stars", None, "stars > 200", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[], &[expr], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD).unwrap();
         assert_eq!(outcome.risk, Risk::High);
@@ -466,7 +468,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_high_risk_false_with_empty_eval() {
-        let high_risk_expr = Expression::new("d".to_string(), None, "stars > 200".to_string(), None).unwrap();
+        let high_risk_expr = Expression::new("d", None, "stars > 200", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
 
         let outcome = evaluate(&[high_risk_expr], &[], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD).unwrap();
@@ -530,8 +532,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_eval_multiple_all_true() {
-        let expr1 = Expression::new("e1".to_string(), Some("desc1".to_string()), "stars > 100".to_string(), None).unwrap();
-        let expr2 = Expression::new("e2".to_string(), Some("desc2".to_string()), "coverage > 50.0".to_string(), None).unwrap();
+        let expr1 = Expression::new("e1", Some("desc1"), "stars > 100", None).unwrap();
+        let expr2 = Expression::new("e2", Some("desc2"), "coverage > 50.0", None).unwrap();
         let metrics = vec![
             Metric::with_value(&STARS_DEF, MetricValue::UInt(150)),
             Metric::with_value(&COVERAGE_DEF, MetricValue::Float(85.5)),
@@ -546,8 +548,8 @@ mod tests {
     #[cfg_attr(miri, ignore)]
     fn test_eval_first_false() {
         // 1 of 2 expressions pass => score 50% => Medium risk (between 30 and 70)
-        let expr1 = Expression::new("e1".to_string(), None, "stars > 200".to_string(), None).unwrap();
-        let expr2 = Expression::new("e2".to_string(), None, "coverage > 50.0".to_string(), None).unwrap();
+        let expr1 = Expression::new("e1", None, "stars > 200", None).unwrap();
+        let expr2 = Expression::new("e2", None, "coverage > 50.0", None).unwrap();
         let metrics = vec![
             Metric::with_value(&STARS_DEF, MetricValue::UInt(150)),
             Metric::with_value(&COVERAGE_DEF, MetricValue::Float(85.5)),
@@ -561,9 +563,9 @@ mod tests {
     #[cfg_attr(miri, ignore)]
     fn test_eval_middle_false() {
         // 2 of 3 expressions pass => score ~66.7% => Medium risk (between 30 and 70)
-        let expr1 = Expression::new("e1".to_string(), None, "stars > 100".to_string(), None).unwrap();
-        let expr2 = Expression::new("e2".to_string(), None, "coverage > 90.0".to_string(), None).unwrap();
-        let expr3 = Expression::new("e3".to_string(), None, "stars < 200".to_string(), None).unwrap();
+        let expr1 = Expression::new("e1", None, "stars > 100", None).unwrap();
+        let expr2 = Expression::new("e2", None, "coverage > 90.0", None).unwrap();
+        let expr3 = Expression::new("e3", None, "stars < 200", None).unwrap();
         let metrics = vec![
             Metric::with_value(&STARS_DEF, MetricValue::UInt(150)),
             Metric::with_value(&COVERAGE_DEF, MetricValue::Float(85.5)),
@@ -577,8 +579,8 @@ mod tests {
     #[cfg_attr(miri, ignore)]
     fn test_eval_with_explicit_points() {
         // expr1: 10 points, true; expr2: 5 points, false => 10/15 = 66.7% => Medium
-        let expr1 = Expression::new("e1".to_string(), None, "stars > 100".to_string(), Some(10)).unwrap();
-        let expr2 = Expression::new("e2".to_string(), None, "stars > 200".to_string(), Some(5)).unwrap();
+        let expr1 = Expression::new("e1", None, "stars > 100", Some(10)).unwrap();
+        let expr2 = Expression::new("e2", None, "stars > 200", Some(5)).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
 
         let outcome = evaluate(&[], &[expr1, expr2], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD).unwrap();
@@ -589,8 +591,8 @@ mod tests {
     #[cfg_attr(miri, ignore)]
     fn test_eval_weighted_points_high_risk() {
         // expr1: 1 point, true; expr2: 10 points, false => 1/11 = 9.1% => High (below 30)
-        let expr1 = Expression::new("e1".to_string(), None, "stars > 100".to_string(), Some(1)).unwrap();
-        let expr2 = Expression::new("e2".to_string(), None, "stars > 200".to_string(), Some(10)).unwrap();
+        let expr1 = Expression::new("e1", None, "stars > 100", Some(1)).unwrap();
+        let expr2 = Expression::new("e2", None, "stars > 200", Some(10)).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
 
         let outcome = evaluate(&[], &[expr1, expr2], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD).unwrap();
@@ -601,8 +603,8 @@ mod tests {
     #[cfg_attr(miri, ignore)]
     fn test_eval_all_false_is_high_risk() {
         // 0 of 2 pass => score 0% => High risk
-        let expr1 = Expression::new("e1".to_string(), None, "stars > 200".to_string(), None).unwrap();
-        let expr2 = Expression::new("e2".to_string(), None, "coverage > 90.0".to_string(), None).unwrap();
+        let expr1 = Expression::new("e1", None, "stars > 200", None).unwrap();
+        let expr2 = Expression::new("e2", None, "coverage > 90.0", None).unwrap();
         let metrics = vec![
             Metric::with_value(&STARS_DEF, MetricValue::UInt(150)),
             Metric::with_value(&COVERAGE_DEF, MetricValue::Float(85.5)),
@@ -616,17 +618,17 @@ mod tests {
     #[cfg_attr(miri, ignore)]
     fn test_eval_reasons_include_all_expressions() {
         // All expressions evaluated, reasons include both passed and failed
-        let expr1 = Expression::new("e1".to_string(), Some("good".to_string()), "stars > 100".to_string(), None).unwrap();
-        let expr2 = Expression::new("e2".to_string(), Some("bad".to_string()), "stars > 200".to_string(), None).unwrap();
+        let expr1 = Expression::new("e1", Some("good"), "stars > 100", None).unwrap();
+        let expr2 = Expression::new("e2", Some("bad"), "stars > 200", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
 
         let outcome = evaluate(&[], &[expr1, expr2], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD).unwrap();
         assert_eq!(outcome.expression_outcomes.len(), 2);
-        assert_eq!(outcome.expression_outcomes[0].name, "e1");
-        assert_eq!(outcome.expression_outcomes[0].description, "good");
+        assert_eq!(&*outcome.expression_outcomes[0].name, "e1");
+        assert_eq!(&*outcome.expression_outcomes[0].description, "good");
         assert!(outcome.expression_outcomes[0].result);
-        assert_eq!(outcome.expression_outcomes[1].name, "e2");
-        assert_eq!(outcome.expression_outcomes[1].description, "bad");
+        assert_eq!(&*outcome.expression_outcomes[1].name, "e2");
+        assert_eq!(&*outcome.expression_outcomes[1].description, "bad");
         assert!(!outcome.expression_outcomes[1].result);
     }
 }

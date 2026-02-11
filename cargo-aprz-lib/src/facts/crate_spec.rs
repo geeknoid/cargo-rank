@@ -38,7 +38,17 @@ impl CrateSpec {
     }
 
     #[must_use]
+    pub const fn name_arc(&self) -> &Arc<str> {
+        &self.name
+    }
+
+    #[must_use]
     pub fn version(&self) -> &Version {
+        &self.version
+    }
+
+    #[must_use]
+    pub const fn version_arc(&self) -> &Arc<Version> {
         &self.version
     }
 }

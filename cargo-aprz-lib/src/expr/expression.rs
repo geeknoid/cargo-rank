@@ -10,13 +10,13 @@ use std::sync::Arc;
 /// A boolean expression that can be evaluated against crate metrics
 #[derive(Debug, Clone)]
 pub struct Expression {
-    name: String,
-    description: Option<String>,
+    name: Arc<str>,
+    description: Option<Arc<str>>,
     points: Option<u32>,
     program: Arc<Program>,
 
     #[expect(clippy::struct_field_names, reason = "Field name matches struct name intentionally for clarity")]
-    expression_string: String,
+    expression_string: Arc<str>,
 }
 
 impl Expression {
@@ -24,15 +24,15 @@ impl Expression {
     ///
     /// # Errors
     /// Returns an error if the expression cannot be parsed
-    pub fn new(name: String, description: Option<String>, expression: String, points: Option<u32>) -> Result<Self> {
-        let program = Program::compile(&expression).map_err(|e| app_err!("Could not parse expression '{name}': {e}"))?;
+    pub fn new(name: &str, description: Option<&str>, expression: &str, points: Option<u32>) -> Result<Self> {
+        let program = Program::compile(expression).map_err(|e| app_err!("Could not parse expression '{name}': {e}"))?;
 
         Ok(Self {
-            name,
-            description,
+            name: Arc::from(name),
+            description: description.map(Arc::from),
             points,
             program: Arc::new(program),
-            expression_string: expression,
+            expression_string: Arc::from(expression),
         })
     }
 
@@ -41,10 +41,23 @@ impl Expression {
         &self.name
     }
 
+    /// Returns a cheap clone of the name as an `Arc<str>`.
+    #[must_use]
+    pub fn name_arc(&self) -> Arc<str> {
+        Arc::clone(&self.name)
+    }
+
     #[must_use]
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
+
+    /// Returns the description (or expression string as fallback) as an `Arc<str>`.
+    #[must_use]
+    pub fn description_or_expression_arc(&self) -> Arc<str> {
+        self.description.as_ref().map_or_else(|| Arc::clone(&self.expression_string), Arc::clone)
+    }
+
     #[must_use]
     pub const fn points(&self) -> Option<u32> {
         self.points
@@ -69,11 +82,11 @@ impl Serialize for Expression {
         use serde::ser::SerializeStruct;
 
         let mut state = serializer.serialize_struct("Expression", 3)?;
-        state.serialize_field("name", &self.name)?;
+        state.serialize_field("name", &*self.name)?;
         if let Some(ref desc) = self.description {
-            state.serialize_field("description", desc)?;
+            state.serialize_field("description", &**desc)?;
         }
-        state.serialize_field("expression", &self.expression_string)?;
+        state.serialize_field("expression", &*self.expression_string)?;
         if let Some(points) = self.points {
             state.serialize_field("points", &points)?;
         }
@@ -89,15 +102,23 @@ impl<'de> Deserialize<'de> for Expression {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct ExpressionData {
-            name: String,
-            description: Option<String>,
-            expression: String,
+            name: Arc<str>,
+            description: Option<Arc<str>>,
+            expression: Arc<str>,
             points: Option<u32>,
         }
 
         let data = ExpressionData::deserialize(deserializer)?;
+        let program = Program::compile(&data.expression)
+            .map_err(|e| D::Error::custom(format!("Could not parse expression '{}': {e}", data.name)))?;
 
-        Self::new(data.name, data.description, data.expression, data.points).map_err(D::Error::custom)
+        Ok(Self {
+            name: data.name,
+            description: data.description,
+            points: data.points,
+            program: Arc::new(program),
+            expression_string: data.expression,
+        })
     }
 }
 
@@ -108,36 +129,36 @@ mod tests {
     #[test]
     fn test_create_expression() {
         let expr = Expression::new(
-            "high_stars".to_string(),
-            Some("Checks if repo has many stars".to_string()),
-            "stars > 100".to_string(),
+            "high_stars",
+            Some("Checks if repo has many stars"),
+            "stars > 100",
             Some(10),
         );
 
         assert!(expr.is_ok());
         let expr = expr.unwrap();
-        assert_eq!(expr.name, "high_stars");
-        assert_eq!(expr.description, Some("Checks if repo has many stars".to_string()));
+        assert_eq!(&*expr.name, "high_stars");
+        assert_eq!(expr.description.as_deref(), Some("Checks if repo has many stars"));
         assert_eq!(expr.expression(), "stars > 100");
         assert_eq!(expr.points, Some(10));
     }
 
     #[test]
     fn test_create_expression_no_description() {
-        let expr = Expression::new("simple_check".to_string(), None, "x > 5".to_string(), None);
+        let expr = Expression::new("simple_check", None, "x > 5", None);
 
         assert!(expr.is_ok());
         let expr = expr.unwrap();
-        assert_eq!(expr.name, "simple_check");
+        assert_eq!(&*expr.name, "simple_check");
         assert!(expr.description.is_none());
     }
 
     #[test]
     fn test_create_expression_invalid() {
         let expr = Expression::new(
-            "bad_expr".to_string(),
+            "bad_expr",
             None,
-            "(x > 5".to_string(), // Mismatched parentheses
+            "(x > 5", // Mismatched parentheses
             None,
         );
 
@@ -146,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_json() {
-        let expr = Expression::new("test_expr".to_string(), None, "a && b".to_string(), None).unwrap();
+        let expr = Expression::new("test_expr", None, "a && b", None).unwrap();
 
         let json = serde_json::to_string(&expr).unwrap();
         let deserialized: Expression = serde_json::from_str(&json).unwrap();
@@ -158,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_serialize_with_description_format() {
-        let expr = Expression::new("test".to_string(), Some("A test description".to_string()), "x > 5".to_string(), None).unwrap();
+        let expr = Expression::new("test", Some("A test description"), "x > 5", None).unwrap();
 
         let json = serde_json::to_value(&expr).unwrap();
         assert_eq!(json["name"], "test");
@@ -169,7 +190,7 @@ mod tests {
 
     #[test]
     fn test_serialize_without_description_format() {
-        let expr = Expression::new("test".to_string(), None, "x > 5".to_string(), None).unwrap();
+        let expr = Expression::new("test", None, "x > 5", None).unwrap();
 
         let json = serde_json::to_value(&expr).unwrap();
         assert_eq!(json["name"], "test");
@@ -196,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_program_getter() {
-        let expr = Expression::new("test".to_string(), None, "x > 5".to_string(), None).unwrap();
+        let expr = Expression::new("test", None, "x > 5", None).unwrap();
 
         let program = expr.program();
         // Verify it's a valid program by checking it's not null
@@ -205,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_all_getters() {
-        let expr = Expression::new("test_name".to_string(), Some("test_desc".to_string()), "a && b".to_string(), None).unwrap();
+        let expr = Expression::new("test_name", Some("test_desc"), "a && b", None).unwrap();
 
         assert_eq!(expr.name(), "test_name");
         assert_eq!(expr.description(), Some("test_desc"));
@@ -227,13 +248,13 @@ mod tests {
 
     #[test]
     fn test_complex_expression() {
-        let expr = Expression::new("complex".to_string(), None, "x > 5 && (y < 10 || z == true)".to_string(), None);
+        let expr = Expression::new("complex", None, "x > 5 && (y < 10 || z == true)", None);
         let _ = expr.unwrap();
     }
 
     #[test]
     fn test_expression_with_functions() {
-        let expr = Expression::new("func_test".to_string(), None, "size(mylist) > 0".to_string(), None);
+        let expr = Expression::new("func_test", None, "size(mylist) > 0", None);
         let _ = expr.unwrap();
     }
 

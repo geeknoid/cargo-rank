@@ -1,5 +1,6 @@
 use super::rust_edition::RustEdition;
 use chrono::{DateTime, NaiveDate, Utc};
+use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use url::Url;
@@ -15,7 +16,7 @@ pub struct CrateVersionData {
     /// This is the text that appears in search results and on the crate's crates.io page.
     ///
     /// **Source**: `versions.csv` from the `versions` table, `description` field
-    pub description: String,
+    pub description: CompactString,
 
     /// Optional URL to the crate's homepage (may differ from repository).
     /// Often points to project documentation or landing pages.
@@ -33,13 +34,13 @@ pub struct CrateVersionData {
     /// Indicates the license(s) under which this version is distributed.
     ///
     /// **Source**: `versions.csv` from the `versions` table, `license` field
-    pub license: String,
+    pub license: CompactString,
 
     /// Optional minimum Rust version (MSRV) required to compile this crate.
     /// Format is a semantic version string (e.g., "1.70.0").
     ///
     /// **Source**: `versions.csv` from the `versions` table, `rust_version` field
-    pub rust_version: String,
+    pub rust_version: CompactString,
 
     /// Optional Rust edition this crate targets.
     /// Determines which language features and deprecations apply.
@@ -53,7 +54,7 @@ pub struct CrateVersionData {
     ///
     /// **Source**: `versions.csv` from the `versions` table, `features` field
     /// - Stored as JSON in the database, deserialized to `BTreeMap`
-    pub features: BTreeMap<String, Vec<String>>,
+    pub features: BTreeMap<CompactString, Vec<CompactString>>,
 
     /// When this specific version was first published to crates.io.
     ///

@@ -49,6 +49,7 @@ mod snapshot_tests {
     use chrono::{DateTime, Local, TimeZone, Utc};
     use semver::Version;
     use std::io::Cursor;
+    use std::sync::Arc;
 
     fn test_timestamp() -> DateTime<Local> {
         Local.with_ymd_and_hms(2024, 1, 15, 10, 30, 0).unwrap()
@@ -124,8 +125,8 @@ mod snapshot_tests {
 
         vec![
             ReportableCrate::new(
-                "tokio".to_string(),
-                Version::parse("1.35.0").unwrap(),
+                "tokio".into(),
+                Arc::new(Version::parse("1.35.0").unwrap()),
                 vec![
                     Metric::with_value(&NAME_DEF, MetricValue::String("tokio".into())),
                     Metric::with_value(&VERSION_DEF, MetricValue::String("1.35.0".into())),
@@ -139,11 +140,11 @@ mod snapshot_tests {
                         MetricValue::List(vec![MetricValue::String("async".into()), MetricValue::String("runtime".into())]),
                     ),
                 ],
-                Some(Appraisal::new(Risk::Low, vec![ExpressionOutcome::new("high_stars".to_string(), "High stars and good coverage".to_string(), true)])),
+                Some(Appraisal::new(Risk::Low, vec![ExpressionOutcome::new("high_stars".into(), "High stars and good coverage".into(), true)])),
             ),
             ReportableCrate::new(
-                "serde".to_string(),
-                Version::parse("1.0.195").unwrap(),
+                "serde".into(),
+                Arc::new(Version::parse("1.0.195").unwrap()),
                 vec![
                     Metric::with_value(&NAME_DEF, MetricValue::String("serde".into())),
                     Metric::with_value(&VERSION_DEF, MetricValue::String("1.0.195".into())),
@@ -154,11 +155,11 @@ mod snapshot_tests {
                     Metric::with_value(&HAS_CI_DEF, MetricValue::Boolean(true)),
                     Metric::with_value(&KEYWORDS_DEF, MetricValue::List(vec![MetricValue::String("serialization".into())])),
                 ],
-                Some(Appraisal::new(Risk::High, vec![ExpressionOutcome::new("low_stars".to_string(), "Low star count".to_string(), false)])),
+                Some(Appraisal::new(Risk::High, vec![ExpressionOutcome::new("low_stars".into(), "Low star count".into(), false)])),
             ),
             ReportableCrate::new(
-                "anyhow".to_string(),
-                Version::parse("1.0.75").unwrap(),
+                "anyhow".into(),
+                Arc::new(Version::parse("1.0.75").unwrap()),
                 vec![
                     Metric::with_value(&NAME_DEF, MetricValue::String("anyhow".into())),
                     Metric::with_value(&VERSION_DEF, MetricValue::String("1.0.75".into())),
@@ -262,8 +263,8 @@ mod snapshot_tests {
         let created_at = Utc.with_ymd_and_hms(2023, 6, 1, 12, 0, 0).unwrap();
 
         let crate_with_all_metrics = ReportableCrate::new(
-            "comprehensive-crate".to_string(),
-            Version::parse("2.0.0").unwrap(),
+            "comprehensive-crate".into(),
+            Arc::new(Version::parse("2.0.0").unwrap()),
             vec![
                 Metric::with_value(&NAME_DEF, MetricValue::String("comprehensive-crate".into())),
                 Metric::with_value(&VERSION_DEF, MetricValue::String("2.0.0".into())),
@@ -284,9 +285,9 @@ mod snapshot_tests {
             Some(Appraisal::new(
                 Risk::Low,
                 vec![
-                    ExpressionOutcome::new("coverage".to_string(), "Excellent coverage".to_string(), true),
-                    ExpressionOutcome::new("active".to_string(), "Active development".to_string(), true),
-                    ExpressionOutcome::new("maintained".to_string(), "Well maintained".to_string(), true),
+                    ExpressionOutcome::new("coverage".into(), "Excellent coverage".into(), true),
+                    ExpressionOutcome::new("active".into(), "Active development".into(), true),
+                    ExpressionOutcome::new("maintained".into(), "Well maintained".into(), true),
                 ],
             )),
         );

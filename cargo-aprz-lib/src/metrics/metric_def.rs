@@ -33,7 +33,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         "crate.name",
         "Name of the crate",
         Metadata,
-        |facts| Some(MetricValue::String(facts.crate_spec.name().to_string().into())),
+        |facts| Some(MetricValue::String(facts.crate_spec.name().into())),
         || Some(MetricValue::String("".into()))
     ),
     metric_def!(
@@ -51,7 +51,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             facts
                 .crates_data
                 .as_ref()
-                .map(|data| MetricValue::String(data.version_data.description.clone().into()))
+                .map(|data| MetricValue::String(data.version_data.description.clone()))
         },
         || Some(MetricValue::String("".into()))
     ),
@@ -62,7 +62,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         |facts| facts
             .crates_data
             .as_ref()
-            .map(|data| MetricValue::String(data.version_data.license.clone().into())),
+            .map(|data| MetricValue::String(data.version_data.license.clone())),
         || Some(MetricValue::String("".into()))
     ),
     metric_def!(
@@ -98,7 +98,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             data.version_data
                 .features
                 .keys()
-                .map(|s| MetricValue::String(s.clone().into()))
+                .map(|s| MetricValue::String(s.clone()))
                 .collect()
         )),
         || Some(MetricValue::List(Vec::new()))
@@ -113,8 +113,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
                     data.overall_data
                         .repository
                         .as_ref()
-                        .map_or_else(String::new, ToString::to_string)
-                        .into(),
+                        .map_or_else(|| "".into(), |url| url.as_str().into()),
                 )
             })
         },
@@ -128,8 +127,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             data.version_data
                 .homepage
                 .as_ref()
-                .map_or_else(String::new, ToString::to_string)
-                .into()
+                .map_or_else(|| "".into(), |url| url.as_str().into())
         )),
         || Some(MetricValue::String("".into()))
     ),
@@ -140,7 +138,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         |facts| facts
             .crates_data
             .as_ref()
-            .map(|data| MetricValue::String(data.version_data.rust_version.clone().into())),
+            .map(|data| MetricValue::String(data.version_data.rust_version.clone())),
         || Some(MetricValue::String("".into()))
     ),
     metric_def!(
@@ -151,8 +149,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             data.version_data
                 .edition
                 .as_ref()
-                .map_or_else(String::new, |e| e.as_str().to_string())
-                .into()
+                .map_or_else(|| "".into(), |e| e.as_str().into())
         )),
         || Some(MetricValue::String("".into()))
     ),

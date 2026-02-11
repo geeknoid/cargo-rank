@@ -91,11 +91,11 @@ mod tests {
             crate_spec: CrateSpec::from_arcs(Arc::from("test-crate"), Arc::new(Version::parse("1.0.0").unwrap())),
             crates_data: ProviderResult::Found(CratesData::new(
                 CrateVersionData {
-                    description: "Test crate".to_string(),
+                    description: "Test crate".into(),
                     homepage: None,
                     documentation: None,
-                    license: "MIT".to_string(),
-                    rust_version: "1.70.0".to_string(),
+                    license: "MIT".into(),
+                    rust_version: "1.70.0".into(),
                     edition: None,
                     features: BTreeMap::new(),
                     created_at: now,

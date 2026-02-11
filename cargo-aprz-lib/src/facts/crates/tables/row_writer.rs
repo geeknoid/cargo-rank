@@ -162,17 +162,22 @@ impl<'a, W: Write> RowWriter<'a, W> {
         Ok(())
     }
 
-    pub fn write_str_vec(&mut self, vec: &[impl AsRef<str>]) -> Result<()> {
-        self.write_u64(vec.len() as u64)?;
-        for s in vec {
-            self.write_str(s.as_ref())?;
-        }
-        Ok(())
-    }
-
     pub fn write_pg_array_as_str_vec(&mut self, s: &str) -> Result<()> {
-        let vec = parse_pg_array(s)?;
-        self.write_str_vec(&vec)
+        let inner = s
+            .strip_prefix('{')
+            .and_then(|s| s.strip_suffix('}'))
+            .ok_or_else(|| app_err!("invalid PostgreSQL array format: expected '{{...}}', got '{s}'"))?;
+
+        if inner.is_empty() {
+            self.write_u64(0)
+        } else {
+            let count = inner.matches(',').count() + 1;
+            self.write_u64(count as u64)?;
+            for element in inner.split(',') {
+                self.write_str(element)?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -194,14 +199,3 @@ fn parse_pg_date(s: &str) -> Result<u64> {
     ))
 }
 
-fn parse_pg_array(s: &str) -> Result<Vec<String>> {
-    let inner = s
-        .strip_prefix('{')
-        .and_then(|s| s.strip_suffix('}'))
-        .ok_or_else(|| app_err!("invalid PostgreSQL array format: expected '{{...}}', got '{s}'"))?;
-    if inner.is_empty() {
-        Ok(Vec::new())
-    } else {
-        Ok(inner.split(',').map(String::from).collect())
-    }
-}

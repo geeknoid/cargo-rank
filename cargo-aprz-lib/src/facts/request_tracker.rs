@@ -83,7 +83,7 @@ impl RequestTracker {
     fn progress_reporter_callback(counters: &[RequestCounter; 4]) -> (u64, u64, String) {
         let mut total_issued = 0u64;
         let mut total_completed = 0u64;
-        let mut parts = Vec::new();
+        let mut parts = Vec::with_capacity(TrackedTopic::all().len());
 
         for topic in TrackedTopic::all() {
             let counter = &counters[topic.index()];

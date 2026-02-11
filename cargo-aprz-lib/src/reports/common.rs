@@ -52,8 +52,32 @@ pub fn format_keywords_or_categories_with_prefix(value: &str) -> String {
     if value.is_empty() {
         return String::new();
     }
-    let items: Vec<String> = value.split(',').map(|item| format!("#{}", item.trim())).collect();
-    items.join(", ")
+    let mut result = String::new();
+    for (i, item) in value.split(',').enumerate() {
+        if i > 0 {
+            result.push_str(", ");
+        }
+        result.push('#');
+        result.push_str(item.trim());
+    }
+    result
+}
+
+/// Join an iterator of displayable items with a separator, without collecting into a Vec.
+pub fn join_with<I, D>(iter: I, sep: &str) -> String
+where
+    I: IntoIterator<Item = D>,
+    D: core::fmt::Display,
+{
+    use core::fmt::Write;
+    let mut result = String::new();
+    for (i, item) in iter.into_iter().enumerate() {
+        if i > 0 {
+            result.push_str(sep);
+        }
+        let _ = write!(result, "{item}");
+    }
+    result
 }
 
 /// Format a risk level as a consistent string.
@@ -69,7 +93,7 @@ pub const fn format_risk_status(risk: Risk) -> &'static str {
 ///
 /// Returns a `HashMap` mapping each category to a vector of metric names.
 pub fn group_metrics_by_category<'a>(metrics: &'a [Metric]) -> HashMap<MetricCategory, Vec<&'a str>> {
-    let mut metrics_by_category: HashMap<MetricCategory, Vec<&'a str>> = HashMap::new();
+    let mut metrics_by_category: HashMap<MetricCategory, Vec<&'a str>> = HashMap::with_capacity(metrics.len().min(16));
 
     for metric in metrics {
         metrics_by_category.entry(metric.category()).or_default().push(metric.name());
@@ -81,17 +105,18 @@ pub fn group_metrics_by_category<'a>(metrics: &'a [Metric]) -> HashMap<MetricCat
 /// Group metrics by category across multiple crates, producing the union of all metric names.
 ///
 /// Each metric name appears at most once per category, in the order first encountered.
-pub fn group_all_metrics_by_category(crate_metrics: &[&[Metric]]) -> HashMap<MetricCategory, Vec<String>> {
-    let mut seen: HashSet<String> = HashSet::new();
-    let mut metrics_by_category: HashMap<MetricCategory, Vec<String>> = HashMap::new();
+#[expect(single_use_lifetimes, reason = "Lifetime required for impl Trait parameter")]
+pub fn group_all_metrics_by_category<'a>(crate_metrics: impl IntoIterator<Item = &'a [Metric]>) -> HashMap<MetricCategory, Vec<&'static str>> {
+    let mut seen: HashSet<&'static str> = HashSet::with_capacity(128);
+    let mut metrics_by_category: HashMap<MetricCategory, Vec<&'static str>> = HashMap::with_capacity(16);
 
-    for &metrics in crate_metrics {
+    for metrics in crate_metrics {
         for metric in metrics {
-            if seen.insert(metric.name().to_string()) {
+            if seen.insert(metric.name()) {
                 metrics_by_category
                     .entry(metric.category())
                     .or_default()
-                    .push(metric.name().to_string());
+                    .push(metric.name());
             }
         }
     }

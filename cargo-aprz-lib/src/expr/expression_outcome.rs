@@ -1,16 +1,18 @@
 use core::fmt;
+use std::sync::Arc;
 
 /// The outcome of evaluating a single expression.
 #[derive(Debug, Clone)]
 pub struct ExpressionOutcome {
-    pub name: String,
-    pub description: String,
+    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub result: bool,
 }
 
 impl ExpressionOutcome {
     #[must_use]
-    pub const fn new(name: String, description: String, result: bool) -> Self {
+    #[expect(clippy::missing_const_for_fn, reason = "Arc<str> parameters prevent const")]
+    pub fn new(name: Arc<str>, description: Arc<str>, result: bool) -> Self {
         Self {
             name,
             description,

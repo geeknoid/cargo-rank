@@ -8,6 +8,7 @@ use crate::facts::crate_spec::{self, CrateSpec};
 use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::request_tracker::{RequestTracker, TrackedTopic};
 use chrono::{DateTime, Utc};
+use compact_str::CompactString;
 use core::time::Duration;
 use futures_util::future::join_all;
 use ohno::EnrichableExt;
@@ -152,7 +153,7 @@ impl Provider {
         cache_ttl: Duration,
         now: DateTime<Utc>,
     ) -> Result<Self> {
-        let mut hosts = Vec::new();
+        let mut hosts = Vec::with_capacity(SUPPORTED_HOSTS.len());
 
         for host in SUPPORTED_HOSTS {
             // Map host domain to appropriate token
@@ -182,12 +183,12 @@ impl Provider {
         let repo_to_crates = crate_spec::by_repo(crates);
 
         // Group repos by host domain
-        let mut repos_by_host: HashMap<&'static str, Vec<RepoSpec>> = HashMap::new();
-        let mut crates_by_host: HashMap<&'static str, HashMap<RepoSpec, Vec<CrateSpec>>> = HashMap::new();
-        let mut unknown_host_crates: Vec<(CrateSpec, String)> = Vec::new();
+        let mut repos_by_host: HashMap<&'static str, Vec<RepoSpec>> = HashMap::with_capacity(SUPPORTED_HOSTS.len());
+        let mut crates_by_host: HashMap<&'static str, HashMap<RepoSpec, Vec<CrateSpec>>> = HashMap::with_capacity(SUPPORTED_HOSTS.len());
+        let mut unknown_host_crates: Vec<(CrateSpec, CompactString)> = Vec::new();
 
         for (repo_spec, crate_specs) in repo_to_crates {
-            let host_domain = repo_spec.host().to_string();
+            let host_domain = repo_spec.host();
 
             // Check if this host is supported
             if let Some(host) = SUPPORTED_HOSTS.iter().find(|h| h.host_domain == host_domain) {
@@ -195,6 +196,7 @@ impl Provider {
                 let _ = crates_by_host.entry(host.host_domain).or_default().insert(repo_spec, crate_specs);
             } else {
                 log::warn!(target: LOG_TARGET, "Unsupported host '{host_domain}', cannot fetch hosting data");
+                let host_domain: CompactString = host_domain.into();
                 for crate_spec in crate_specs {
                     unknown_host_crates.push((crate_spec, host_domain.clone()));
                 }
@@ -207,10 +209,10 @@ impl Provider {
         }
 
         // Process each supported host in parallel
-        let mut fetch_futures = Vec::new();
+        let mut fetch_futures = Vec::with_capacity(self.hosts.len());
         for (host, client) in &self.hosts {
-            if let Some(repos) = repos_by_host.get(host.host_domain) {
-                let fut = self.fetch_hosting_data_batch(client, repos.clone(), host, tracker);
+            if let Some(repos) = repos_by_host.remove(host.host_domain) {
+                let fut = self.fetch_hosting_data_batch(client, repos, host, tracker);
                 fetch_futures.push(fut);
             }
         }
@@ -436,7 +438,7 @@ impl Provider {
         let since = self.now - chrono::Duration::days(ISSUE_LOOKBACK_DAYS);
         let since_str = since.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
 
-        let mut all_issues = Vec::new();
+        let mut all_issues = Vec::with_capacity(ISSUE_PAGE_SIZE as usize);
         let mut latest_rate_limit: Option<RateLimitInfo> = None;
         let mut page_num = 1u32;
 

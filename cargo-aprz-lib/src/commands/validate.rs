@@ -31,12 +31,10 @@ fn validate_config_inner(workspace_root: &Utf8Path, config_path: Option<&Utf8Pat
 
     // Validate that all expressions can be evaluated against default metrics (only if any are defined)
     if !config.high_risk_if_any.is_empty() || !config.eval.is_empty() {
-        let metrics: Vec<_> = default_metrics().collect();
-
         let _ = evaluate(
             &config.high_risk_if_any,
             &config.eval,
-            &metrics,
+            default_metrics(),
             Local::now(),
             config.medium_risk_threshold,
             config.low_risk_threshold,

@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Crate Metrics</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 1200 800' xmlns='http://www.w3.org/2000/svg'%3E%3Cg%3E%3Cg transform='matrix(1,0,0,1,654.172,668.359)'%3E%3Cpath d='M0,-322.648C-114.597,-322.648 -218.172,-308.869 -296.172,-286.419L-296.172,-291.49C-374.172,-266.395 -423.853,-231.531 -423.853,-192.984C-423.853,-186.907 -422.508,-180.922 -420.15,-175.053L-428.134,-160.732C-428.134,-160.732 -434.547,-152.373 -423.199,-134.733C-413.189,-119.179 -363.035,-58.295 -336.571,-26.413C-325.204,-10.065 -317.488,0 -316.814,-0.973C-315.753,-2.516 -323.878,-33.202 -346.453,-68.215C-356.986,-87.02 -369.811,-111.934 -377.361,-130.335C-356.28,-116.993 -328.172,-104.89 -296.172,-94.474L-296.172,-94.633C-218.172,-72.18 -114.597,-58.404 0,-58.404C131.156,-58.404 248.828,-76.45 327.828,-104.895L327.828,-276.153C248.828,-304.6 131.156,-322.648 0,-322.648' fill='%23a52b00'/%3E%3C/g%3E%3Cg transform='matrix(1,0,0,1,1177.87,277.21)'%3E%3Cpath d='M0,227.175L-88.296,162.132C-89.126,159.237 -89.956,156.345 -90.812,153.474L-61.81,111.458C-58.849,107.184 -58.252,101.629 -60.175,96.755C-62.1,91.905 -66.311,88.428 -71.292,87.576L-120.335,79.255C-122.233,75.376 -124.225,71.557 -126.224,67.771L-105.62,20.599C-103.501,15.793 -103.947,10.209 -106.759,5.848C-109.556,1.465 -114.31,-1.094 -119.376,-0.895L-169.146,0.914C-171.723,-2.442 -174.34,-5.766 -177.012,-9.032L-165.574,-59.592C-164.415,-64.724 -165.876,-70.1 -169.453,-73.83C-173.008,-77.546 -178.175,-79.084 -183.089,-77.88L-231.567,-65.961C-234.707,-68.736 -237.897,-71.474 -241.126,-74.157L-239.381,-126.064C-239.193,-131.318 -241.643,-136.311 -245.849,-139.227C-250.053,-142.161 -255.389,-142.603 -259.987,-140.423L-305.213,-118.921C-308.853,-121.011 -312.515,-123.081 -316.218,-125.084L-324.209,-176.232C-325.021,-181.413 -328.355,-185.816 -333.024,-187.826C-337.679,-189.848 -343.014,-189.193 -347.101,-186.116L-387.422,-155.863C-391.392,-157.181 -395.38,-158.446 -399.418,-159.655L-416.798,-208.159C-418.564,-213.104 -422.64,-216.735 -427.608,-217.756C-432.561,-218.768 -437.656,-217.053 -441.091,-213.217L-475.029,-175.246C-479.133,-175.717 -483.239,-176.147 -487.356,-176.505L-513.564,-220.659C-516.22,-225.131 -520.908,-227.852 -525.961,-227.852C-531.002,-227.852 -535.7,-225.131 -538.333,-220.659L-564.547,-176.505C-568.666,-176.147 -572.791,-175.717 -576.888,-175.246L-610.831,-213.217C-614.268,-217.053 -619.382,-218.768 -624.318,-217.756C-629.284,-216.721 -633.363,-213.104 -635.124,-208.159L-652.517,-159.655C-656.544,-158.446 -660.534,-157.173 -664.514,-155.863L-704.822,-186.116C-708.92,-189.204 -714.254,-189.857 -718.92,-187.826C-723.57,-185.816 -726.917,-181.413 -727.723,-176.232L-735.72,-125.084C-739.42,-123.081 -743.083,-121.022 -746.734,-118.921L-791.956,-140.423C-796.548,-142.612 -801.908,-142.161 -806.091,-139.227C-810.292,-136.311 -812.747,-131.318 -812.557,-126.064L-810.821,-74.157C-814.04,-71.474 -817.224,-68.736 -820.379,-65.961L-868.849,-77.88C-873.774,-79.075 -878.935,-77.546 -882.499,-73.83C-886.084,-70.1 -887.538,-64.724 -886.384,-59.592L-874.969,-9.032C-877.618,-5.753 -880.239,-2.442 -882.808,0.914L-932.579,-0.895C-937.602,-1.043 -942.396,1.465 -945.202,5.848C-948.014,10.209 -948.439,15.793 -946.348,20.599L-925.729,67.771C-927.732,71.557 -929.721,75.376 -931.635,79.255L-980.675,87.576C-985.657,88.417 -989.858,91.892 -991.795,96.755C-993.72,101.629 -993.095,107.184 -990.156,111.458L-961.146,153.474C-961.37,154.215 -961.576,154.964 -961.799,155.707L-1043.82,242.829C-1043.82,242.829 -1056.38,252.68 -1038.09,275.831C-1021.95,296.252 -939.097,377.207 -895.338,419.62C-876.855,441.152 -864.195,454.486 -862.872,453.332C-860.784,451.5 -871.743,412.326 -908.147,366.362C-936.207,325.123 -972.625,261.696 -964.086,254.385C-964.086,254.385 -954.372,242.054 -934.882,233.178C-934.169,233.749 -935.619,232.613 -934.882,233.178C-934.882,233.178 -523.568,422.914 -142.036,236.388C-98.452,228.571 -72.068,251.917 -72.068,251.917C-62.969,257.193 -86.531,322.412 -105.906,365.583C-132.259,414.606 -136.123,452.859 -133.888,454.185C-132.479,455.027 -122.89,440.438 -109.214,417.219C-75.469,370.196 -11.675,280.554 0,258.781C13.239,234.094 0,227.175 0,227.175' fill='%23f74c00'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg-color: #e5e7eb;
+      --card-bg: #ffffff;
+      --text-color: #1a202c;
+      --border-color: #e2e8f0;
+      --category-bg: #fed7aa;
+      --category-border: #cbd5e0;
+      --hover-bg: rgba(66, 153, 225, 0.04);
+      --metric-cell-bg: #fafafa;
+      --accent-color: #4299e1;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #374151;
+        --card-bg: #000000;
+        --text-color: #e5e7eb;
+        --border-color: #4b5563;
+        --category-bg: #a52b00;
+        --category-border: #6b7280;
+        --hover-bg: rgba(99, 179, 237, 0.08);
+        --metric-cell-bg: #0a0a0a;
+        --accent-color: #60a5fa;
+      }
+    }
+    body.dark-theme {
+      --bg-color: #374151;
+      --card-bg: #000000;
+      --text-color: #e5e7eb;
+      --border-color: #4b5563;
+      --category-bg: #a52b00;
+      --category-border: #6b7280;
+      --hover-bg: rgba(99, 179, 237, 0.08);
+      --metric-cell-bg: #0a0a0a;
+      --accent-color: #60a5fa;
+    }
+    body.light-theme {
+      --bg-color: #e5e7eb;
+      --card-bg: #ffffff;
+      --text-color: #1a202c;
+      --border-color: #e2e8f0;
+      --category-bg: #fed7aa;
+      --category-border: #cbd5e0;
+      --hover-bg: rgba(66, 153, 225, 0.04);
+      --metric-cell-bg: #fafafa;
+      --accent-color: #4299e1;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; margin: 0; padding: 32px; background-color: var(--bg-color); color: var(--text-color); transition: background-color 0.3s ease, color 0.3s ease; }
+    body.dark-theme { color-scheme: dark; }
+    body.light-theme { color-scheme: light; }
+    .header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: flex-start; gap: 20px; margin-bottom: 32px; }
+    .header-content {}
+    h1 { color: var(--text-color); margin-bottom: 4px; font-size: 28px; font-weight: 600; letter-spacing: -0.5px; margin-top: 0; }
+    .subtitle { color: var(--text-color); font-size: 13px; opacity: 0.6; margin-top: 0; margin-bottom: 0; font-weight: 400; }
+    .ferris { width: 60px; height: 40px; margin: 0 20px; flex-shrink: 0; }
+    .theme-toggle { background: none; border: 2px solid var(--border-color); border-radius: 8px; width: 44px; height: 44px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; flex-shrink: 0; justify-self: end; }
+    .theme-toggle:hover { border-color: var(--accent-color); background-color: var(--hover-bg); }
+    .theme-toggle svg { width: 20px; height: 20px; fill: var(--text-color); opacity: 0.8; }
+    .table-wrapper { background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04); overflow: hidden; }
+    table { border-collapse: collapse; width: 100%; background-color: var(--card-bg); }
+    td { border-bottom: 1px solid var(--border-color); padding: 14px 16px; text-align: left; font-size: 14px; }
+    .category-header { background-color: var(--category-bg); font-weight: bold; font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-color); opacity: 0.8; height: 44px; }
+    .category-header td { padding: 12px 16px; border-top: 3px solid var(--category-border); border-bottom: 1px solid var(--category-border); }
+    .category-spacer { height: 16px; }
+    .category-spacer td { background-color: var(--bg-color); border: none; padding: 0; }
+    .category-header td:first-child { position: sticky; left: 0; z-index: 15; background-color: var(--category-bg); border-right: 1px solid var(--border-color); }
+    .category-header td:not(:first-child) { background-color: var(--category-bg); }
+    .metric-row:hover { background-color: var(--hover-bg); }
+    .metric-row td:first-child { font-weight: 500; background-color: var(--metric-cell-bg); position: sticky; left: 0; z-index: 5; border-right: 1px solid var(--border-color); }
+    .metric-row:hover td:first-child { background-color: var(--hover-bg); }
+    .metric-row:last-child td { border-bottom: none; }
+    .low-risk { background-color: #c8e6c9; color: #2e7d32; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+    .medium-risk { background-color: #fff9c4; color: #f57f17; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+    .high-risk { background-color: #ffcdd2; color: #c62828; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+    .not-evaluated { background-color: #fff9c4; color: #f57f17; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+    .na { color: #a0aec0; font-style: italic; font-size: 13px; }
+    .table-container { overflow-x: auto; max-height: calc(100vh - 160px); }
+    a { color: var(--accent-color); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    @media (prefers-color-scheme: dark) {
+      .low-risk { background-color: #1b5e20; color: #a5d6a7; }
+      .medium-risk { background-color: #f57f17; color: #212121; }
+      .high-risk { background-color: #b71c1c; color: #ef9a9a; }
+      .not-evaluated { background-color: #f57f17; color: #212121; }
+      .na { color: #8b949e; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1>Crate Metrics</h1>
+      <p class="subtitle">Produced by cargo-aprz 0.3.0 on 2026-02-10</p>
+    </div>
+    <svg class="ferris" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+      <g>
+        <g transform="matrix(1,0,0,1,654.172,668.359)">
+          <path d="M0,-322.648C-114.597,-322.648 -218.172,-308.869 -296.172,-286.419L-296.172,-291.49C-374.172,-266.395 -423.853,-231.531 -423.853,-192.984C-423.853,-186.907 -422.508,-180.922 -420.15,-175.053L-428.134,-160.732C-428.134,-160.732 -434.547,-152.373 -423.199,-134.733C-413.189,-119.179 -363.035,-58.295 -336.571,-26.413C-325.204,-10.065 -317.488,0 -316.814,-0.973C-315.753,-2.516 -323.878,-33.202 -346.453,-68.215C-356.986,-87.02 -369.811,-111.934 -377.361,-130.335C-356.28,-116.993 -328.172,-104.89 -296.172,-94.474L-296.172,-94.633C-218.172,-72.18 -114.597,-58.404 0,-58.404C131.156,-58.404 248.828,-76.45 327.828,-104.895L327.828,-276.153C248.828,-304.6 131.156,-322.648 0,-322.648" style="fill:rgb(165,43,0);fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,1099.87,554.94)">
+          <path d="M0,-50.399L-13.433,-78.227C-13.362,-79.283 -13.309,-80.341 -13.309,-81.402C-13.309,-112.95 -46.114,-142.022 -101.306,-165.303L-101.306,2.499C-75.555,-8.365 -54.661,-20.485 -39.72,-33.538C-44.118,-15.855 -59.157,19.917 -71.148,45.073C-90.855,81.054 -97.993,112.376 -97.077,113.926C-96.493,114.904 -89.77,104.533 -79.855,87.726C-56.783,54.85 -13.063,-7.914 -4.325,-23.901C5.574,-42.024 0,-50.399 0,-50.399" style="fill:rgb(165,43,0);fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,1177.87,277.21)">
+          <path d="M0,227.175L-88.296,162.132C-89.126,159.237 -89.956,156.345 -90.812,153.474L-61.81,111.458C-58.849,107.184 -58.252,101.629 -60.175,96.755C-62.1,91.905 -66.311,88.428 -71.292,87.576L-120.335,79.255C-122.233,75.376 -124.225,71.557 -126.224,67.771L-105.62,20.599C-103.501,15.793 -103.947,10.209 -106.759,5.848C-109.556,1.465 -114.31,-1.094 -119.376,-0.895L-169.146,0.914C-171.723,-2.442 -174.34,-5.766 -177.012,-9.032L-165.574,-59.592C-164.415,-64.724 -165.876,-70.1 -169.453,-73.83C-173.008,-77.546 -178.175,-79.084 -183.089,-77.88L-231.567,-65.961C-234.707,-68.736 -237.897,-71.474 -241.126,-74.157L-239.381,-126.064C-239.193,-131.318 -241.643,-136.311 -245.849,-139.227C-250.053,-142.161 -255.389,-142.603 -259.987,-140.423L-305.213,-118.921C-308.853,-121.011 -312.515,-123.081 -316.218,-125.084L-324.209,-176.232C-325.021,-181.413 -328.355,-185.816 -333.024,-187.826C-337.679,-189.848 -343.014,-189.193 -347.101,-186.116L-387.422,-155.863C-391.392,-157.181 -395.38,-158.446 -399.418,-159.655L-416.798,-208.159C-418.564,-213.104 -422.64,-216.735 -427.608,-217.756C-432.561,-218.768 -437.656,-217.053 -441.091,-213.217L-475.029,-175.246C-479.133,-175.717 -483.239,-176.147 -487.356,-176.505L-513.564,-220.659C-516.22,-225.131 -520.908,-227.852 -525.961,-227.852C-531.002,-227.852 -535.7,-225.131 -538.333,-220.659L-564.547,-176.505C-568.666,-176.147 -572.791,-175.717 -576.888,-175.246L-610.831,-213.217C-614.268,-217.053 -619.382,-218.768 -624.318,-217.756C-629.284,-216.721 -633.363,-213.104 -635.124,-208.159L-652.517,-159.655C-656.544,-158.446 -660.534,-157.173 -664.514,-155.863L-704.822,-186.116C-708.92,-189.204 -714.254,-189.857 -718.92,-187.826C-723.57,-185.816 -726.917,-181.413 -727.723,-176.232L-735.72,-125.084C-739.42,-123.081 -743.083,-121.022 -746.734,-118.921L-791.956,-140.423C-796.548,-142.612 -801.908,-142.161 -806.091,-139.227C-810.292,-136.311 -812.747,-131.318 -812.557,-126.064L-810.821,-74.157C-814.04,-71.474 -817.224,-68.736 -820.379,-65.961L-868.849,-77.88C-873.774,-79.075 -878.935,-77.546 -882.499,-73.83C-886.084,-70.1 -887.538,-64.724 -886.384,-59.592L-874.969,-9.032C-877.618,-5.753 -880.239,-2.442 -882.808,0.914L-932.579,-0.895C-937.602,-1.043 -942.396,1.465 -945.202,5.848C-948.014,10.209 -948.439,15.793 -946.348,20.599L-925.729,67.771C-927.732,71.557 -929.721,75.376 -931.635,79.255L-980.675,87.576C-985.657,88.417 -989.858,91.892 -991.795,96.755C-993.72,101.629 -993.095,107.184 -990.156,111.458L-961.146,153.474C-961.37,154.215 -961.576,154.964 -961.799,155.707L-1043.82,242.829C-1043.82,242.829 -1056.38,252.68 -1038.09,275.831C-1021.95,296.252 -939.097,377.207 -895.338,419.62C-876.855,441.152 -864.195,454.486 -862.872,453.332C-860.784,451.5 -871.743,412.326 -908.147,366.362C-936.207,325.123 -972.625,261.696 -964.086,254.385C-964.086,254.385 -954.372,242.054 -934.882,233.178C-934.169,233.749 -935.619,232.613 -934.882,233.178C-934.882,233.178 -523.568,422.914 -142.036,236.388C-98.452,228.571 -72.068,251.917 -72.068,251.917C-62.969,257.193 -86.531,322.412 -105.906,365.583C-132.259,414.606 -136.123,452.859 -133.888,454.185C-132.479,455.027 -122.89,440.438 -109.214,417.219C-75.469,370.196 -11.675,280.554 0,258.781C13.239,234.094 0,227.175 0,227.175" style="fill:rgb(247,76,0);fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,795.856,464.937)">
+          <path d="M0,159.631C1.575,158.289 2.4,157.492 2.4,157.492L-132.25,144.985C-22.348,0 65.618,116.967 74.988,129.879L74.988,159.631L0,159.631Z" style="fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,278.418,211.791)">
+          <path d="M0,253.04C0,253.04 -111.096,209.79 -129.876,163.242C-129.876,163.242 0.515,59.525 -155.497,-50.644L-159.726,89.773C-159.726,89.773 -205.952,45.179 -203.912,-32.91C-203.912,-32.91 -347.685,36.268 -179.436,158.667C-179.436,158.667 -173.76,224.365 -22.459,303.684L0,253.04Z" style="fill:rgb(247,76,0);fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,729.948,492.523)">
+          <path d="M0,-87.016C0,-87.016 41.104,-132.025 82.21,-87.016C82.21,-87.016 114.507,-27.003 82.21,3C82.21,3 29.36,45.009 0,3C0,3 -35.232,-30.006 0,-87.016" style="fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,777.536,422.196)">
+          <path d="M0,0.008C0,17.531 -10.329,31.738 -23.07,31.738C-35.809,31.738 -46.139,17.531 -46.139,0.008C-46.139,-17.521 -35.809,-31.73 -23.07,-31.73C-10.329,-31.73 0,-17.521 0,0.008" style="fill:white;fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,546.49,486.263)">
+          <path d="M0,-93.046C0,-93.046 70.508,-124.265 89.753,-54.583C89.753,-54.583 109.912,26.635 31.851,31.219C31.851,31.219 -67.69,12.047 0,-93.046" style="fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,581.903,423.351)">
+          <path d="M0,0.002C0,18.074 -10.653,32.731 -23.794,32.731C-36.931,32.731 -47.586,18.074 -47.586,0.002C-47.586,-18.076 -36.931,-32.729 -23.794,-32.729C-10.653,-32.729 0,-18.076 0,0.002" style="fill:white;fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,1002.23,778.679)">
+          <path d="M0,-296.808C0,-296.808 -14.723,-238.165 -106.292,-176.541L-131.97,-170.523C-131.97,-170.523 -215.036,-322.004 -332.719,-151.302C-332.719,-151.302 -296.042,-172.656 -197.719,-146.652C-197.719,-146.652 -242.949,-77.426 -334.061,-79.553C-334.061,-79.553 -246.748,25.196 -113.881,-126.107C-113.881,-126.107 26.574,-180.422 37.964,-296.808L0,-296.808Z" style="fill:rgb(247,76,0);fill-rule:nonzero;"/>
+        </g>
+      </g>
+    </svg>
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+      <svg id="theme-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+  <div class="table-wrapper">
+    <div class="table-container">
+      <table>
+        <tbody>
+          <tr class="category-header">
+            <td>Metadata</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Name of the crate">crate.name</td>
+            <td title="tick v0.1.2
+crate.name
+Name of the crate">tick</td>
+            <td title="tokio v1.49.0
+crate.name
+Name of the crate">tokio</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Semantic version of the crate">crate.version</td>
+            <td title="tick v0.1.2
+crate.version
+Semantic version of the crate">0.1.2</td>
+            <td title="tokio v1.49.0
+crate.version
+Semantic version of the crate">1.49.0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Description of the crate&#39;s purpose and use">crate.description</td>
+            <td title="tick v0.1.2
+crate.description
+Description of the crate&#39;s purpose and use">Provides primitives to interact with and manipulate machine time.</td>
+            <td title="tokio v1.49.0
+crate.description
+Description of the crate&#39;s purpose and use">An event-driven, non-blocking I/O platform for writing asynchronous I/O
+backed applications.
+</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="SPDX license identifier constraining use of the crate">crate.license</td>
+            <td title="tick v0.1.2
+crate.license
+SPDX license identifier constraining use of the crate">MIT</td>
+            <td title="tokio v1.49.0
+crate.license
+SPDX license identifier constraining use of the crate">MIT</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Crate categories">crate.categories</td>
+            <td title="tick v0.1.2
+crate.categories
+Crate categories"><a href="https://crates.io/categories/data%2Dstructures" target="_blank" rel="noopener noreferrer">#data-structures</a></td>
+            <td title="tokio v1.49.0
+crate.categories
+Crate categories"><a href="https://crates.io/categories/asynchronous" target="_blank" rel="noopener noreferrer">#asynchronous</a>, <a href="https://crates.io/categories/network%2Dprogramming" target="_blank" rel="noopener noreferrer">#network-programming</a></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Crate keywords">crate.keywords</td>
+            <td title="tick v0.1.2
+crate.keywords
+Crate keywords"><a href="https://crates.io/keywords/clock" target="_blank" rel="noopener noreferrer">#clock</a>, <a href="https://crates.io/keywords/stopwatch" target="_blank" rel="noopener noreferrer">#stopwatch</a>, <a href="https://crates.io/keywords/tick" target="_blank" rel="noopener noreferrer">#tick</a>, <a href="https://crates.io/keywords/time" target="_blank" rel="noopener noreferrer">#time</a></td>
+            <td title="tokio v1.49.0
+crate.keywords
+Crate keywords"><a href="https://crates.io/keywords/async" target="_blank" rel="noopener noreferrer">#async</a>, <a href="https://crates.io/keywords/futures" target="_blank" rel="noopener noreferrer">#futures</a>, <a href="https://crates.io/keywords/io" target="_blank" rel="noopener noreferrer">#io</a>, <a href="https://crates.io/keywords/non%2Dblocking" target="_blank" rel="noopener noreferrer">#non-blocking</a></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Available crate features">crate.features</td>
+            <td title="tick v0.1.2
+crate.features
+Available crate features">default, fmt, serde, test-util, tokio</td>
+            <td title="tokio v1.49.0
+crate.features
+Available crate features">default, fs, full, io-std, io-uring, io-util, macros, net, process, rt, rt-multi-thread, signal, sync, taskdump, test-util, time</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="URL to the crate&#39;s source code repository">crate.repository</td>
+            <td title="tick v0.1.2
+crate.repository
+URL to the crate&#39;s source code repository"><a href="https://github.com/microsoft/oxidizer" target="_blank" rel="noopener noreferrer">https://github.com/microsoft/oxidizer</a></td>
+            <td title="tokio v1.49.0
+crate.repository
+URL to the crate&#39;s source code repository"><a href="https://github.com/tokio-rs/tokio" target="_blank" rel="noopener noreferrer">https://github.com/tokio-rs/tokio</a></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="URL to the crate&#39;s homepage">crate.homepage</td>
+            <td title="tick v0.1.2
+crate.homepage
+URL to the crate&#39;s homepage"><a href="https://github.com/microsoft/oxidizer" target="_blank" rel="noopener noreferrer">https://github.com/microsoft/oxidizer</a></td>
+            <td title="tokio v1.49.0
+crate.homepage
+URL to the crate&#39;s homepage"><a href="https://tokio.rs/" target="_blank" rel="noopener noreferrer">https://tokio.rs/</a></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Minimum Rust version (MSRV) required to compile this crate">crate.minimum_rust</td>
+            <td title="tick v0.1.2
+crate.minimum_rust
+Minimum Rust version (MSRV) required to compile this crate">1.88</td>
+            <td title="tokio v1.49.0
+crate.minimum_rust
+Minimum Rust version (MSRV) required to compile this crate">1.71</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Rust edition this crate targets">crate.rust_edition</td>
+            <td title="tick v0.1.2
+crate.rust_edition
+Rust edition this crate targets">2024</td>
+            <td title="tokio v1.49.0
+crate.rust_edition
+Rust edition this crate targets">2021</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="List of owner usernames">crate.owners</td>
+            <td title="tick v0.1.2
+crate.owners
+List of owner usernames">microsoft-oss-releases, oxidizer-crates-io-bot, martintmk</td>
+            <td title="tokio v1.49.0
+crate.owners
+List of owner usernames">carllerche, github:tokio-rs:core, Darksonn</td>
+          </tr>
+          <tr class="category-spacer">
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="category-header">
+            <td>Stability</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="When the crate was first published to crates.io">stability.crate_created_at</td>
+            <td title="tick v0.1.2
+stability.crate_created_at
+When the crate was first published to crates.io">2015-09-09</td>
+            <td title="tokio v1.49.0
+stability.crate_created_at
+When the crate was first published to crates.io">2016-07-01</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="When the crate&#39;s metadata was last updated on crates.io">stability.crate_updated_at</td>
+            <td title="tick v0.1.2
+stability.crate_updated_at
+When the crate&#39;s metadata was last updated on crates.io">2026-01-05</td>
+            <td title="tokio v1.49.0
+stability.crate_updated_at
+When the crate&#39;s metadata was last updated on crates.io">2026-01-03</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="When this version was first published to crates.io">stability.version_created_at</td>
+            <td title="tick v0.1.2
+stability.version_created_at
+When this version was first published to crates.io">2026-01-05</td>
+            <td title="tokio v1.49.0
+stability.version_created_at
+When this version was first published to crates.io">2026-01-03</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="When this version&#39;s metadata was last updated on crates.io">stability.version_updated_at</td>
+            <td title="tick v0.1.2
+stability.version_updated_at
+When this version&#39;s metadata was last updated on crates.io">2026-01-05</td>
+            <td title="tokio v1.49.0
+stability.version_updated_at
+When this version&#39;s metadata was last updated on crates.io">2026-01-03</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Whether this version has been yanked from crates.io">stability.yanked</td>
+            <td title="tick v0.1.2
+stability.yanked
+Whether this version has been yanked from crates.io">false</td>
+            <td title="tokio v1.49.0
+stability.yanked
+Whether this version has been yanked from crates.io">false</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of versions published in the last 90 days">stability.versions_last_90_days</td>
+            <td title="tick v0.1.2
+stability.versions_last_90_days
+Number of versions published in the last 90 days">2</td>
+            <td title="tokio v1.49.0
+stability.versions_last_90_days
+Number of versions published in the last 90 days">3</td>
+          </tr>
+          <tr class="category-spacer">
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="category-header">
+            <td>Usage</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Crate downloads across all versions">usage.total_downloads</td>
+            <td title="tick v0.1.2
+usage.total_downloads
+Crate downloads across all versions">4721</td>
+            <td title="tokio v1.49.0
+usage.total_downloads
+Crate downloads across all versions">520450141</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Crate downloads across all versions in the last 90 days">usage.total_downloads_last_90_days</td>
+            <td title="tick v0.1.2
+usage.total_downloads_last_90_days
+Crate downloads across all versions in the last 90 days">136</td>
+            <td title="tokio v1.49.0
+usage.total_downloads_last_90_days
+Crate downloads across all versions in the last 90 days">67694204</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Crate downloads of this specific version">usage.version_downloads</td>
+            <td title="tick v0.1.2
+usage.version_downloads
+Crate downloads of this specific version">107</td>
+            <td title="tokio v1.49.0
+usage.version_downloads
+Crate downloads of this specific version">12336043</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Crate downloads of this specific version in the last 90 days">usage.version_downloads_last_90_days</td>
+            <td title="tick v0.1.2
+usage.version_downloads_last_90_days
+Crate downloads of this specific version in the last 90 days">108</td>
+            <td title="tokio v1.49.0
+usage.version_downloads_last_90_days
+Crate downloads of this specific version in the last 90 days">12642734</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of unique crates that depend on this crate">usage.dependent_crates</td>
+            <td title="tick v0.1.2
+usage.dependent_crates
+Number of unique crates that depend on this crate">4</td>
+            <td title="tokio v1.49.0
+usage.dependent_crates
+Number of unique crates that depend on this crate">42935</td>
+          </tr>
+          <tr class="category-spacer">
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="category-header">
+            <td>Community</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of stars on the repository">community.repo_stars</td>
+            <td title="tick v0.1.2
+community.repo_stars
+Number of stars on the repository">58</td>
+            <td title="tokio v1.49.0
+community.repo_stars
+Number of stars on the repository">31040</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of forks of the repository">community.repo_forks</td>
+            <td title="tick v0.1.2
+community.repo_forks
+Number of forks of the repository">16</td>
+            <td title="tokio v1.49.0
+community.repo_forks
+Number of forks of the repository">2921</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of users watching/subscribing to the repository">community.repo_subscribers</td>
+            <td title="tick v0.1.2
+community.repo_subscribers
+Number of users watching/subscribing to the repository">3</td>
+            <td title="tokio v1.49.0
+community.repo_subscribers
+Number of users watching/subscribing to the repository">312</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of contributors to the repository">community.repo_contributors</td>
+            <td title="tick v0.1.2
+community.repo_contributors
+Number of contributors to the repository">18</td>
+            <td title="tokio v1.49.0
+community.repo_contributors
+Number of contributors to the repository">1033</td>
+          </tr>
+          <tr class="category-spacer">
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="category-header">
+            <td>Activity</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of commits to the repository in the last 90 days">activity.commits_last_90_days</td>
+            <td title="tick v0.1.2
+activity.commits_last_90_days
+Number of commits to the repository in the last 90 days">138</td>
+            <td title="tokio v1.49.0
+activity.commits_last_90_days
+Number of commits to the repository in the last 90 days">93</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of commits to the repository in the last 365 days">activity.commits_last_365_days</td>
+            <td title="tick v0.1.2
+activity.commits_last_365_days
+Number of commits to the repository in the last 365 days">173</td>
+            <td title="tokio v1.49.0
+activity.commits_last_365_days
+Number of commits to the repository in the last 365 days">375</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Total number of commits in the repository">activity.commit_count</td>
+            <td title="tick v0.1.2
+activity.commit_count
+Total number of commits in the repository">173</td>
+            <td title="tokio v1.49.0
+activity.commit_count
+Total number of commits in the repository">4390</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Timestamp of the most recent commit in the repository">activity.last_commit_at</td>
+            <td title="tick v0.1.2
+activity.last_commit_at
+Timestamp of the most recent commit in the repository">2026-02-10</td>
+            <td title="tokio v1.49.0
+activity.last_commit_at
+Timestamp of the most recent commit in the repository">2026-02-09</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of currently open issues">activity.open_issues</td>
+            <td title="tick v0.1.2
+activity.open_issues
+Number of currently open issues">13</td>
+            <td title="tokio v1.49.0
+activity.open_issues
+Number of currently open issues">98</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Total number of issues that have been closed (all time)">activity.closed_issues</td>
+            <td title="tick v0.1.2
+activity.closed_issues
+Total number of issues that have been closed (all time)">24</td>
+            <td title="tokio v1.49.0
+activity.closed_issues
+Total number of issues that have been closed (all time)">235</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Average age in days of open issues">activity.avg_open_issue_age_days</td>
+            <td title="tick v0.1.2
+activity.avg_open_issue_age_days
+Average age in days of open issues">33</td>
+            <td title="tokio v1.49.0
+activity.avg_open_issue_age_days
+Average age in days of open issues">277</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Median age in days of open issues (50th percentile)">activity.median_open_issue_age_days</td>
+            <td title="tick v0.1.2
+activity.median_open_issue_age_days
+Median age in days of open issues (50th percentile)">27</td>
+            <td title="tokio v1.49.0
+activity.median_open_issue_age_days
+Median age in days of open issues (50th percentile)">284</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="90th percentile age in days of open issues">activity.p90_open_issue_age_days</td>
+            <td title="tick v0.1.2
+activity.p90_open_issue_age_days
+90th percentile age in days of open issues">56</td>
+            <td title="tokio v1.49.0
+activity.p90_open_issue_age_days
+90th percentile age in days of open issues">476</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of currently open pull requests">activity.open_pull_requests</td>
+            <td title="tick v0.1.2
+activity.open_pull_requests
+Number of currently open pull requests">6</td>
+            <td title="tokio v1.49.0
+activity.open_pull_requests
+Number of currently open pull requests">54</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Total number of pull requests that have been closed (all time)">activity.closed_pull_requests</td>
+            <td title="tick v0.1.2
+activity.closed_pull_requests
+Total number of pull requests that have been closed (all time)">204</td>
+            <td title="tokio v1.49.0
+activity.closed_pull_requests
+Total number of pull requests that have been closed (all time)">613</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Average age in days of open pull requests">activity.avg_open_pull_request_age_days</td>
+            <td title="tick v0.1.2
+activity.avg_open_pull_request_age_days
+Average age in days of open pull requests">18</td>
+            <td title="tokio v1.49.0
+activity.avg_open_pull_request_age_days
+Average age in days of open pull requests">216</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Median age in days of open pull requests (50th percentile)">activity.median_open_pull_request_age_days</td>
+            <td title="tick v0.1.2
+activity.median_open_pull_request_age_days
+Median age in days of open pull requests (50th percentile)">12</td>
+            <td title="tokio v1.49.0
+activity.median_open_pull_request_age_days
+Median age in days of open pull requests (50th percentile)">198</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="90th percentile age in days of open pull requests">activity.p90_open_pull_request_age_days</td>
+            <td title="tick v0.1.2
+activity.p90_open_pull_request_age_days
+90th percentile age in days of open pull requests">63</td>
+            <td title="tokio v1.49.0
+activity.p90_open_pull_request_age_days
+90th percentile age in days of open pull requests">524</td>
+          </tr>
+          <tr class="category-spacer">
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="category-header">
+            <td>Documentation</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="URL to the crate&#39;s documentation">docs.documentation</td>
+            <td title="tick v0.1.2
+docs.documentation
+URL to the crate&#39;s documentation"><a href="https://docs.rs/tick/0.1.2" target="_blank" rel="noopener noreferrer">https://docs.rs/tick/0.1.2</a></td>
+            <td title="tokio v1.49.0
+docs.documentation
+URL to the crate&#39;s documentation"><a href="https://docs.rs/tokio/1.49.0" target="_blank" rel="noopener noreferrer">https://docs.rs/tokio/1.49.0</a></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of public API elements (functions, structs, etc.)">docs.public_api_elements</td>
+            <td title="tick v0.1.2
+docs.public_api_elements
+Number of public API elements (functions, structs, etc.)">51</td>
+            <td title="tokio v1.49.0
+docs.public_api_elements
+Number of public API elements (functions, structs, etc.)">1358</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of public API elements without documentation">docs.undocumented_public_api_elements</td>
+            <td title="tick v0.1.2
+docs.undocumented_public_api_elements
+Number of public API elements without documentation">1</td>
+            <td title="tokio v1.49.0
+docs.undocumented_public_api_elements
+Number of public API elements without documentation">11</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Percentage of public API elements with documentation">docs.public_api_coverage_percentage</td>
+            <td title="tick v0.1.2
+docs.public_api_coverage_percentage
+Percentage of public API elements with documentation">98.04</td>
+            <td title="tokio v1.49.0
+docs.public_api_coverage_percentage
+Percentage of public API elements with documentation">99.19</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Whether crate-level documentation exists">docs.crate_level_docs_present</td>
+            <td title="tick v0.1.2
+docs.crate_level_docs_present
+Whether crate-level documentation exists">true</td>
+            <td title="tokio v1.49.0
+docs.crate_level_docs_present
+Whether crate-level documentation exists">true</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of broken links in documentation">docs.broken_links</td>
+            <td title="tick v0.1.2
+docs.broken_links
+Number of broken links in documentation">0</td>
+            <td title="tokio v1.49.0
+docs.broken_links
+Number of broken links in documentation">247</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of code examples in documentation">docs.examples_in_docs</td>
+            <td title="tick v0.1.2
+docs.examples_in_docs
+Number of code examples in documentation">47</td>
+            <td title="tokio v1.49.0
+docs.examples_in_docs
+Number of code examples in documentation">763</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of standalone example programs in the codebase">docs.standalone_examples</td>
+            <td title="tick v0.1.2
+docs.standalone_examples
+Number of standalone example programs in the codebase">7</td>
+            <td title="tokio v1.49.0
+docs.standalone_examples
+Number of standalone example programs in the codebase">0</td>
+          </tr>
+          <tr class="category-spacer">
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="category-header">
+            <td>Trustworthiness</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of unsafe blocks in the codebase">trust.unsafe_blocks</td>
+            <td title="tick v0.1.2
+trust.unsafe_blocks
+Number of unsafe blocks in the codebase">0</td>
+            <td title="tokio v1.49.0
+trust.unsafe_blocks
+Number of unsafe blocks in the codebase">899</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Whether CI/CD workflows were detected in the repository">trust.ci_workflows</td>
+            <td title="tick v0.1.2
+trust.ci_workflows
+Whether CI/CD workflows were detected in the repository">true</td>
+            <td title="tokio v1.49.0
+trust.ci_workflows
+Whether CI/CD workflows were detected in the repository">true</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Whether Miri is used in CI">trust.miri_usage</td>
+            <td title="tick v0.1.2
+trust.miri_usage
+Whether Miri is used in CI">true</td>
+            <td title="tokio v1.49.0
+trust.miri_usage
+Whether Miri is used in CI">true</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Whether Clippy is used in CI">trust.clippy_usage</td>
+            <td title="tick v0.1.2
+trust.clippy_usage
+Whether Clippy is used in CI">true</td>
+            <td title="tokio v1.49.0
+trust.clippy_usage
+Whether Clippy is used in CI">true</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Percentage of code covered by tests">trust.code_coverage_percentage</td>
+            <td title="tick v0.1.2
+trust.code_coverage_percentage
+Percentage of code covered by tests">100.00</td>
+            <td title="tokio v1.49.0
+trust.code_coverage_percentage
+Percentage of code covered by tests"><span class="na">n/a</span></td>
+          </tr>
+          <tr class="category-spacer">
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="category-header">
+            <td>Codebase</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of source files">code.source_files</td>
+            <td title="tick v0.1.2
+code.source_files
+Number of source files">20</td>
+            <td title="tokio v1.49.0
+code.source_files
+Number of source files">372</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of source files that had analysis errors">code.source_files_with_errors</td>
+            <td title="tick v0.1.2
+code.source_files_with_errors
+Number of source files that had analysis errors">0</td>
+            <td title="tokio v1.49.0
+code.source_files_with_errors
+Number of source files that had analysis errors">8</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of lines of production code (excluding tests)">code.code_lines</td>
+            <td title="tick v0.1.2
+code.code_lines
+Number of lines of production code (excluding tests)">2171</td>
+            <td title="tokio v1.49.0
+code.code_lines
+Number of lines of production code (excluding tests)">82222</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of lines of test code">code.test_lines</td>
+            <td title="tick v0.1.2
+code.test_lines
+Number of lines of test code">1489</td>
+            <td title="tokio v1.49.0
+code.test_lines
+Number of lines of test code">6638</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of comment lines in the codebase">code.comment_lines</td>
+            <td title="tick v0.1.2
+code.comment_lines
+Number of comment lines in the codebase">1564</td>
+            <td title="tokio v1.49.0
+code.comment_lines
+Number of comment lines in the codebase">44330</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of transitive dependencies">code.transitive_dependencies</td>
+            <td title="tick v0.1.2
+code.transitive_dependencies
+Number of transitive dependencies">139</td>
+            <td title="tokio v1.49.0
+code.transitive_dependencies
+Number of transitive dependencies">177</td>
+          </tr>
+          <tr class="category-spacer">
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="category-header">
+            <td>Advisories</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of low severity vulnerabilities across all versions">advisories.total_low_severity_vulnerabilities</td>
+            <td title="tick v0.1.2
+advisories.total_low_severity_vulnerabilities
+Number of low severity vulnerabilities across all versions">0</td>
+            <td title="tokio v1.49.0
+advisories.total_low_severity_vulnerabilities
+Number of low severity vulnerabilities across all versions">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of medium severity vulnerabilities across all versions">advisories.total_medium_severity_vulnerabilities</td>
+            <td title="tick v0.1.2
+advisories.total_medium_severity_vulnerabilities
+Number of medium severity vulnerabilities across all versions">0</td>
+            <td title="tokio v1.49.0
+advisories.total_medium_severity_vulnerabilities
+Number of medium severity vulnerabilities across all versions">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of high severity vulnerabilities across all versions">advisories.total_high_severity_vulnerabilities</td>
+            <td title="tick v0.1.2
+advisories.total_high_severity_vulnerabilities
+Number of high severity vulnerabilities across all versions">0</td>
+            <td title="tokio v1.49.0
+advisories.total_high_severity_vulnerabilities
+Number of high severity vulnerabilities across all versions">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of critical severity vulnerabilities across all versions">advisories.total_critical_severity_vulnerabilities</td>
+            <td title="tick v0.1.2
+advisories.total_critical_severity_vulnerabilities
+Number of critical severity vulnerabilities across all versions">0</td>
+            <td title="tokio v1.49.0
+advisories.total_critical_severity_vulnerabilities
+Number of critical severity vulnerabilities across all versions">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of notice warnings across all versions">advisories.total_notice_warnings</td>
+            <td title="tick v0.1.2
+advisories.total_notice_warnings
+Number of notice warnings across all versions">0</td>
+            <td title="tokio v1.49.0
+advisories.total_notice_warnings
+Number of notice warnings across all versions">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of unmaintained warnings across all versions">advisories.total_unmaintained_warnings</td>
+            <td title="tick v0.1.2
+advisories.total_unmaintained_warnings
+Number of unmaintained warnings across all versions">0</td>
+            <td title="tokio v1.49.0
+advisories.total_unmaintained_warnings
+Number of unmaintained warnings across all versions">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of unsound warnings across all versions">advisories.total_unsound_warnings</td>
+            <td title="tick v0.1.2
+advisories.total_unsound_warnings
+Number of unsound warnings across all versions">0</td>
+            <td title="tokio v1.49.0
+advisories.total_unsound_warnings
+Number of unsound warnings across all versions">2</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of low severity vulnerabilities in this version">advisories.version_low_severity_vulnerabilities</td>
+            <td title="tick v0.1.2
+advisories.version_low_severity_vulnerabilities
+Number of low severity vulnerabilities in this version">0</td>
+            <td title="tokio v1.49.0
+advisories.version_low_severity_vulnerabilities
+Number of low severity vulnerabilities in this version">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of medium severity vulnerabilities in this version">advisories.version_medium_severity_vulnerabilities</td>
+            <td title="tick v0.1.2
+advisories.version_medium_severity_vulnerabilities
+Number of medium severity vulnerabilities in this version">0</td>
+            <td title="tokio v1.49.0
+advisories.version_medium_severity_vulnerabilities
+Number of medium severity vulnerabilities in this version">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of high severity vulnerabilities in this version">advisories.version_high_severity_vulnerabilities</td>
+            <td title="tick v0.1.2
+advisories.version_high_severity_vulnerabilities
+Number of high severity vulnerabilities in this version">0</td>
+            <td title="tokio v1.49.0
+advisories.version_high_severity_vulnerabilities
+Number of high severity vulnerabilities in this version">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of critical severity vulnerabilities in this version">advisories.version_critical_severity_vulnerabilities</td>
+            <td title="tick v0.1.2
+advisories.version_critical_severity_vulnerabilities
+Number of critical severity vulnerabilities in this version">0</td>
+            <td title="tokio v1.49.0
+advisories.version_critical_severity_vulnerabilities
+Number of critical severity vulnerabilities in this version">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of notice warnings for this version">advisories.version_notice_warnings</td>
+            <td title="tick v0.1.2
+advisories.version_notice_warnings
+Number of notice warnings for this version">0</td>
+            <td title="tokio v1.49.0
+advisories.version_notice_warnings
+Number of notice warnings for this version">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of unmaintained warnings for this version">advisories.version_unmaintained_warnings</td>
+            <td title="tick v0.1.2
+advisories.version_unmaintained_warnings
+Number of unmaintained warnings for this version">0</td>
+            <td title="tokio v1.49.0
+advisories.version_unmaintained_warnings
+Number of unmaintained warnings for this version">0</td>
+          </tr>
+          <tr class="metric-row">
+            <td title="Number of unsound warnings for this version">advisories.version_unsound_warnings</td>
+            <td title="tick v0.1.2
+advisories.version_unsound_warnings
+Number of unsound warnings for this version">0</td>
+            <td title="tokio v1.49.0
+advisories.version_unsound_warnings
+Number of unsound warnings for this version">0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    function getSystemTheme() {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    function updateIcon(theme) {
+      const icon = document.getElementById('theme-icon');
+      if (theme === 'dark') {
+        icon.innerHTML = '<circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42m12.72-12.72l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+      } else {
+        icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+      }
+    }
+    function applyTheme(theme) {
+      document.body.classList.remove('dark-theme', 'light-theme');
+      document.body.classList.add(theme + '-theme');
+      updateIcon(theme);
+    }
+    function toggleTheme() {
+      const currentTheme = localStorage.getItem('theme') || getSystemTheme();
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', newTheme);
+      applyTheme(newTheme);
+    }
+    const savedTheme = localStorage.getItem('theme');
+    applyTheme(savedTheme || getSystemTheme());
+  </script>
+</body>
+</html>
