@@ -187,43 +187,54 @@ to assess whether a crate is acceptable or not acceptable to use as a dependency
 instead of the default.
 
 `cargo-aprz` uses the [CEL expression language](https://github.com/google/cel-spec/blob/master/doc/langdef.md). This is a flexible, general-purpose expression
-language that allows you to write potentially complex boolean expressions that operate on the value of collected metrics. Expressions are divided into three buckets:
+language that allows you to write potentially complex boolean expressions that operate on the value of collected metrics. Expressions are divided into two buckets:
 
-- deny_if_any: If any of these expressions evaluate to `true`, the crate is considered to be of insufficient quality to be used as a dependency.
+- high_risk_if_any: If any of these expressions evaluate to `true`, the crate is flagged as high risk.
 
-- accept_if_any: If any of these expressions evaluate to `true`, the crate is considered to be of sufficient quality to be used as a dependency.
+- eval: Each expression has a point value (default 1). All expressions are evaluated and a score is
+  computed as `granted_points / total_points * 100`. The score is compared against configurable
+  thresholds (`medium_risk_threshold` and `low_risk_threshold`) to determine whether the crate is
+  low, medium, or high risk.
 
-- accept_if_all: If all of these expressions evaluate to `true`, the crate is considered to be of sufficient quality to be used as a dependency.
-
-These buckets are evaluated in order. If no expressions are defined, then all crates are considered to as acceptable.
+These buckets are evaluated in order. If no expressions are defined, then all crates are considered low risk.
 
 Within these expressions, you can refer to any of the collected metrics. For example, you could write an expression that says
-"if the number of open issues is greater than 100, treat this crate as not being acceptable as a dependency":
+"if the number of open issues is greater than 100, treat this crate as high risk":
 
 ```toml
-[[deny_if_any]]
+[[high_risk_if_any]]
 name = "Open Issues"
-description = "Denies if there are too many open issues, which may indicate an unmaintained or low-quality crate."
+description = "Flags crates with too many open issues, which may indicate an unmaintained or low-quality crate."
 expression = "activity.open_issues > 100"   
 ```
 
 Any of the metric listed in [Collected Metrics](#collected-metrics) below can be used in these expressions, which gives you a lot of flexibility in
 defining what you consider to be an acceptable or unacceptable crate.
 
-In addition to the metrics, you can also use the `now` variable in expressions to refer to the current date and time. For example:
+You can also use `duration()` in expressions for time-based comparisons. You can assign higher point values to more
+important expressions using the `points` field:
 
 ```toml
-[[accept_if_all]]
+[[eval]]
 name = "Established Crate"
-description = "Accepts if a crate is older than 6 months."
-expression = "stability.version_created_at < (now - duration('4320h'))"  # 4320 hours = 180 days
+description = "Accepts if the crate version was created more than 6 months ago."
+expression = "stability.version_created_at < (stability.version_updated_at - duration('4320h'))"  # 4320 hours = 180 days
+points = 5
+```
+
+By default, crates scoring below 30 are high risk, between 30 and 70 are medium risk, and 70 or above are low risk.
+You can customize these thresholds:
+
+```toml
+medium_risk_threshold = 30.0
+low_risk_threshold = 70.0
 ```
 
 ### Expression Checks in CI
 
 If you want to use `cargo-aprz` in a CI pipeline to detect if any unsavory dependencies are being added to your project, you
-can use the `--check` option to make `cargo-aprz` return a non-zero exit code if any of crates being appraised are considered 
-as not acceptable based on the configured expressions.
+can use the `--check` option to make `cargo-aprz` return a non-zero exit code if any of the crates being appraised are
+flagged as high risk based on the configured expressions.
 
 ## Troubleshooting
 

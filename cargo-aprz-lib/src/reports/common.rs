@@ -1,5 +1,6 @@
 //! Common utilities shared across report generators.
 
+use crate::expr::Risk;
 use crate::metrics::{Metric, MetricCategory, MetricValue};
 use std::collections::{HashMap, HashSet};
 
@@ -55,9 +56,13 @@ pub fn format_keywords_or_categories_with_prefix(value: &str) -> String {
     items.join(", ")
 }
 
-/// Format an acceptance status as a consistent string.
-pub const fn format_acceptance_status(accepted: bool) -> &'static str {
-    if accepted { "ACCEPTABLE" } else { "NOT ACCEPTABLE" }
+/// Format a risk level as a consistent string.
+pub const fn format_risk_status(risk: Risk) -> &'static str {
+    match risk {
+        Risk::Low => "LOW RISK",
+        Risk::Medium => "MEDIUM RISK",
+        Risk::High => "HIGH RISK",
+    }
 }
 
 /// Group metrics by category.
@@ -212,9 +217,10 @@ mod tests {
     }
 
     #[test]
-    fn test_format_acceptance_status() {
-        assert_eq!(format_acceptance_status(true), "ACCEPTABLE");
-        assert_eq!(format_acceptance_status(false), "NOT ACCEPTABLE");
+    fn test_format_risk_status() {
+        assert_eq!(format_risk_status(Risk::Low), "LOW RISK");
+        assert_eq!(format_risk_status(Risk::Medium), "MEDIUM RISK");
+        assert_eq!(format_risk_status(Risk::High), "HIGH RISK");
     }
 
     #[test]

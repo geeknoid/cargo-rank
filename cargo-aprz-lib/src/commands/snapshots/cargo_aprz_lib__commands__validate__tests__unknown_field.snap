@@ -1,9 +1,10 @@
 ---
 source: cargo-aprz-lib/src/commands/validate.rs
+assertion_line: 220
 expression: snapshot_content
 ---
-TOML parse error at line 5, column 1
+TOML parse error at line 4, column 1
   |
-5 | unknown_field = "value"
+4 | unknown_field = "value"
   | ^^^^^^^^^^^^^
-unknown field `unknown_field`, expected one of `deny_if_any`, `accept_if_any`, `accept_if_all`, `crates_cache_ttl`, `hosting_cache_ttl`, `codebase_cache_ttl`, `coverage_cache_ttl`, `advisories_cache_ttl`
+unknown field `unknown_field`, expected one of `high_risk_if_any`, `eval`, `medium_risk_threshold`, `low_risk_threshold`, `crates_cache_ttl`, `hosting_cache_ttl`, `codebase_cache_ttl`, `coverage_cache_ttl`, `advisories_cache_ttl`

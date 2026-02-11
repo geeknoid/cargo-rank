@@ -1,5 +1,13 @@
 # cargo-aprz
 
+## 0.3.0 2026-02-10
+
+### Changed
+
+- Replaced binary accept/deny evaluation model with three-level risk assessment (`Low`, `Medium`, `High`).
+- Renamed the `deny_if_any` expressions in config to `high_risk_if_any`.
+- Replaced the `accept_if_all' and `accept_if_any` expressions in config with `eval'
+
 ## 0.2.0 2026-02-09
 
 ### Added

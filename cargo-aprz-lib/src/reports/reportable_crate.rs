@@ -1,4 +1,4 @@
-use crate::expr::EvaluationOutcome;
+use crate::expr::Appraisal;
 use crate::metrics::Metric;
 use semver::Version;
 
@@ -8,18 +8,18 @@ pub struct ReportableCrate {
     pub name: String,
     pub version: Version,
     pub metrics: Vec<Metric>,
-    pub evaluation: Option<EvaluationOutcome>,
+    pub appraisal: Option<Appraisal>,
 }
 
 impl ReportableCrate {
     #[must_use]
     #[expect(clippy::missing_const_for_fn, reason = "Cannot be const due to non-const parameter types")]
-    pub fn new(name: String, version: Version, metrics: Vec<Metric>, evaluation: Option<EvaluationOutcome>) -> Self {
+    pub fn new(name: String, version: Version, metrics: Vec<Metric>, appraisal: Option<Appraisal>) -> Self {
         Self {
             name,
             version,
             metrics,
-            evaluation,
+            appraisal,
         }
     }
 }

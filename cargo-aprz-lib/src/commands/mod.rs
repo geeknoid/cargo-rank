@@ -32,8 +32,8 @@
 //! color mode handling, and the main report generation logic that coordinates
 //! multiple output formats.
 //!
-//! Configuration is managed through a TOML file with three expression lists
-//! (`deny_if_any`, `accept_if_any`, `accept_if_all`) that define the evaluation policy.
+//! Configuration is managed through a TOML file with two expression lists
+//! (`high_risk_if_any`, `eval`) that define the evaluation policy.
 
 mod common;
 mod config;

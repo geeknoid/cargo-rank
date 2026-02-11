@@ -310,7 +310,7 @@ async fn test_crates_command_with_check_flag() {
     assert_eq!(crates.len(), 1);
     assert_eq!(crates[0]["name"].as_str(), Some("serde"));
 
-    // With --check, the evaluation field should be present
-    let eval = &crates[0]["evaluation"];
-    assert!(!eval.is_null(), "evaluation should be present when --check is used");
+    // With --check, the appraisal field should be present
+    let eval = &crates[0]["appraisal"];
+    assert!(!eval.is_null(), "appraisal should be present when --check is used");
 }

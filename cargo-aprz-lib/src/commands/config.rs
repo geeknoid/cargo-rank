@@ -2,7 +2,7 @@ use crate::Result;
 use crate::expr::Expression;
 use camino::{Utf8Path, Utf8PathBuf};
 use core::time::Duration;
-use ohno::IntoAppError;
+use ohno::{IntoAppError, app_err};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
@@ -13,17 +13,21 @@ pub const DEFAULT_CONFIG_TOML: &str = include_str!("../../default_config.toml");
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    /// Expressions that if ANY evaluate to true, the crate is denied/rejected
+    /// Expressions that if ANY evaluate to true, the crate is flagged as high risk
     #[serde(default)]
-    pub deny_if_any: Vec<Expression>,
-
-    /// Expressions that if ANY evaluate to true, the crate is accepted (bypassing other checks)
-    #[serde(default)]
-    pub accept_if_any: Vec<Expression>,
+    pub high_risk_if_any: Vec<Expression>,
 
     /// Expressions that must ALL evaluate to true for the crate to be accepted
     #[serde(default)]
-    pub accept_if_all: Vec<Expression>,
+    pub eval: Vec<Expression>,
+
+    /// Score threshold below which a crate is considered medium risk (0..100)
+    #[serde(default = "default_medium_risk_threshold")]
+    pub medium_risk_threshold: f64,
+
+    /// Score threshold at or above which a crate is considered low risk (0..100)
+    #[serde(default = "default_low_risk_threshold")]
+    pub low_risk_threshold: f64,
 
     /// Duration to keep crates.io cache data before re-downloading
     #[serde(default = "default_crates_cache_ttl", with = "humantime_serde")]
@@ -44,6 +48,14 @@ pub struct Config {
     /// Duration to keep the advisory database cached before re-downloading
     #[serde(default = "default_advisories_cache_ttl", with = "humantime_serde")]
     pub advisories_cache_ttl: Duration,
+}
+
+const fn default_medium_risk_threshold() -> f64 {
+    30.0
+}
+
+const fn default_low_risk_threshold() -> f64 {
+    70.0
 }
 
 const fn default_crates_cache_ttl() -> Duration {
@@ -90,6 +102,7 @@ impl Config {
         };
 
         let config: Self = toml::from_str(&text).into_app_err_with(|| format!("parsing configuration from {final_path}"))?;
+        config.validate()?;
 
         Ok(config)
     }
@@ -101,6 +114,37 @@ impl Config {
     /// Returns an error if the file cannot be written
     pub fn save_default(output_path: &Utf8Path) -> Result<()> {
         fs::write(output_path, DEFAULT_CONFIG_TOML).into_app_err_with(|| format!("writing default configuration to {output_path}"))?;
+        Ok(())
+    }
+
+    /// Validate configuration values
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if threshold values are out of range or inconsistent
+    fn validate(&self) -> Result<()> {
+        if !(0.0..=100.0).contains(&self.medium_risk_threshold) {
+            return Err(app_err!(
+                "medium_risk_threshold must be between 0 and 100, got {}",
+                self.medium_risk_threshold
+            ));
+        }
+
+        if !(0.0..=100.0).contains(&self.low_risk_threshold) {
+            return Err(app_err!(
+                "low_risk_threshold must be between 0 and 100, got {}",
+                self.low_risk_threshold
+            ));
+        }
+
+        if self.medium_risk_threshold >= self.low_risk_threshold {
+            return Err(app_err!(
+                "medium_risk_threshold ({}) must be less than low_risk_threshold ({})",
+                self.medium_risk_threshold,
+                self.low_risk_threshold
+            ));
+        }
+
         Ok(())
     }
 }

@@ -1,5 +1,6 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
+assertion_line: 209
 expression: output
 ---
 <!DOCTYPE html>
@@ -78,16 +79,18 @@ expression: output
     .metric-row td:first-child { font-weight: 500; background-color: var(--metric-cell-bg); position: sticky; left: 0; z-index: 5; border-right: 1px solid var(--border-color); }
     .metric-row:hover td:first-child { background-color: var(--hover-bg); }
     .metric-row:last-child td { border-bottom: none; }
-    .accepted { background-color: #c8e6c9; color: #2e7d32; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
-    .denied { background-color: #ffcdd2; color: #c62828; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+    .low-risk { background-color: #c8e6c9; color: #2e7d32; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+    .medium-risk { background-color: #fff9c4; color: #f57f17; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+    .high-risk { background-color: #ffcdd2; color: #c62828; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
     .not-evaluated { background-color: #fff9c4; color: #f57f17; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
     .na { color: #a0aec0; font-style: italic; font-size: 13px; }
     .table-container { overflow-x: auto; max-height: calc(100vh - 160px); }
     a { color: var(--accent-color); text-decoration: none; }
     a:hover { text-decoration: underline; }
     @media (prefers-color-scheme: dark) {
-      .accepted { background-color: #1b5e20; color: #a5d6a7; }
-      .denied { background-color: #b71c1c; color: #ef9a9a; }
+      .low-risk { background-color: #1b5e20; color: #a5d6a7; }
+      .medium-risk { background-color: #f57f17; color: #212121; }
+      .high-risk { background-color: #b71c1c; color: #ef9a9a; }
       .not-evaluated { background-color: #f57f17; color: #212121; }
       .na { color: #8b949e; }
     }
@@ -97,7 +100,7 @@ expression: output
   <div class="header">
     <div class="header-content">
       <h1>Crate Metrics</h1>
-      <p class="subtitle">Produced by cargo-aprz 0.2.0 on 2024-01-15</p>
+      <p class="subtitle">Produced by cargo-aprz 0.3.0 on 2024-01-15</p>
     </div>
     <svg class="ferris" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
       <g>
@@ -142,15 +145,15 @@ expression: output
       <table>
         <tbody>
           <tr class="metric-row">
-            <td><strong>Evaluation Result</strong></td>
-            <td><span class="accepted">ACCEPTABLE</span></td>
-            <td><span class="denied">NOT ACCEPTABLE</span></td>
+            <td><strong>Appraisals</strong></td>
+            <td><span class="low-risk">LOW RISK</span></td>
+            <td><span class="high-risk">HIGH RISK</span></td>
             <td><span class="na">n/a</span></td>
           </tr>
           <tr class="metric-row">
             <td><strong>Reasons</strong></td>
-            <td>High stars and good coverage</td>
-            <td>Low star count</td>
+            <td><span title="High stars and good coverage">✔️high_stars</span></td>
+            <td><span title="Low star count">🗙low_stars</span></td>
             <td><span class="na">n/a</span></td>
           </tr>
           <tr class="category-spacer">

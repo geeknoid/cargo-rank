@@ -1,6 +1,6 @@
 use super::{ReportableCrate, common};
 use crate::Result;
-use crate::expr::EvaluationOutcome;
+use crate::expr::{Appraisal, Risk};
 use crate::metrics::{Metric, MetricCategory, MetricValue};
 use rust_xlsxwriter::{Color, DocProperties, Format, FormatAlign, Workbook};
 use std::io::Write;
@@ -23,11 +23,15 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
         .set_background_color(Color::RGB(0x00FE_D7AA))
         .set_align(FormatAlign::Left);
     let left_align_format = Format::new().set_align(FormatAlign::Left);
-    let acceptable_format = Format::new()
+    let low_risk_format = Format::new()
         .set_background_color(Color::RGB(0x00C8_E6C9))
         .set_font_color(Color::RGB(0x002E_7D32))
         .set_bold();
-    let not_acceptable_format = Format::new()
+    let medium_risk_format = Format::new()
+        .set_background_color(Color::RGB(0x00FF_F9C4))
+        .set_font_color(Color::RGB(0x00F5_7F17))
+        .set_bold();
+    let high_risk_format = Format::new()
         .set_background_color(Color::RGB(0x00FF_CDD2))
         .set_font_color(Color::RGB(0x00C6_2828))
         .set_bold();
@@ -51,18 +55,18 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
     // Write metrics as rows, grouped by category
     let mut row = 1;
 
-    // Add evaluation rows if any crate has an evaluation
-    let has_evaluations = crates.iter().any(|c| c.evaluation.is_some());
-    if has_evaluations {
+    // Add appraisal rows if any crate has one
+    let has_appraisals = crates.iter().any(|c| c.appraisal.is_some());
+    if has_appraisals {
         // Result row with colored cells
-        worksheet.write_string_with_format(row, 0, "Evaluation Result", &bold_format)?;
+        worksheet.write_string_with_format(row, 0, "Appraisals", &bold_format)?;
         for (col_idx, crate_info) in crates.iter().enumerate() {
-            if let Some(eval) = &crate_info.evaluation {
-                let value = common::format_acceptance_status(eval.accepted);
-                let format = if eval.accepted {
-                    &acceptable_format
-                } else {
-                    &not_acceptable_format
+            if let Some(eval) = &crate_info.appraisal {
+                let value = common::format_risk_status(eval.risk);
+                let format = match eval.risk {
+                    Risk::Low => &low_risk_format,
+                    Risk::Medium => &medium_risk_format,
+                    Risk::High => &high_risk_format,
                 };
                 #[expect(clippy::cast_possible_truncation, reason = "Column index limited by Excel's u16 column limit")]
                 worksheet.write_string_with_format(row, (col_idx + 1) as u16, value, format)?;
@@ -72,7 +76,13 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
 
         // Reasons row
         worksheet.write_string_with_format(row, 0, "Reasons", &bold_format)?;
-        write_eval_row(worksheet, row, crates, |eval| eval.reasons.join("; "))?;
+        write_eval_row(worksheet, row, crates, |eval| eval.expression_outcomes.iter().map(|o| {
+            if o.result {
+                "✔️".to_owned() + &*o.name.clone()
+            } else {
+                "🗙".to_owned() + &*o.name.clone()
+            }
+        }).collect::<Vec<_>>().join("; "))?;
         row += 1;
 
         // Add blank row after evaluation
@@ -174,10 +184,10 @@ fn write_metric_value(
 #[expect(unused_results, reason = "rust_xlsxwriter methods return &mut Worksheet for chaining")]
 fn write_eval_row<F>(worksheet: &mut rust_xlsxwriter::Worksheet, row: u32, crates: &[ReportableCrate], extract_value: F) -> Result<()>
 where
-    F: Fn(&EvaluationOutcome) -> String,
+    F: Fn(&Appraisal) -> String,
 {
     for (col_idx, crate_info) in crates.iter().enumerate() {
-        if let Some(eval) = &crate_info.evaluation {
+        if let Some(eval) = &crate_info.appraisal {
             let value = extract_value(eval);
             #[expect(clippy::cast_possible_truncation, reason = "Column index limited by Excel's u16 column limit")]
             worksheet.write_string(row, (col_idx + 1) as u16, &value)?;
@@ -189,6 +199,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expr::ExpressionOutcome;
     use crate::metrics::MetricDef;
 
     static NAME_DEF: MetricDef = MetricDef {
@@ -207,7 +218,7 @@ mod tests {
         default_value: || None,
     };
 
-    fn create_test_crate(name: &str, version: &str, evaluation: Option<EvaluationOutcome>) -> ReportableCrate {
+    fn create_test_crate(name: &str, version: &str, evaluation: Option<Appraisal>) -> ReportableCrate {
         let metrics = vec![
             Metric::with_value(&NAME_DEF, MetricValue::String(name.into())),
             Metric::with_value(&VERSION_DEF, MetricValue::String(version.into())),
@@ -242,9 +253,9 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime (rust_xlsxwriter)")]
     fn test_generate_single_crate_with_evaluation() {
-        let eval = EvaluationOutcome {
-            accepted: true,
-            reasons: vec!["Good".to_string()],
+        let eval = Appraisal {
+            risk: Risk::Low,
+            expression_outcomes: vec![ExpressionOutcome::new("good".to_string(), "Good".to_string(), true)],
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = Vec::new();
@@ -272,9 +283,9 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime (rust_xlsxwriter)")]
     fn test_generate_denied_status() {
-        let eval = EvaluationOutcome {
-            accepted: false,
-            reasons: vec!["Security issue".to_string()],
+        let eval = Appraisal {
+            risk: Risk::High,
+            expression_outcomes: vec![ExpressionOutcome::new("security".to_string(), "Security issue".to_string(), false)],
         };
         let crates = vec![create_test_crate("bad_crate", "1.0.0", Some(eval))];
         let mut output = Vec::new();

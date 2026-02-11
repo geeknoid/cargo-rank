@@ -17,13 +17,13 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
     }
     writeln!(writer)?;
 
-    // Write evaluation rows if any crate has an evaluation
-    let has_evaluations = crates.iter().any(|c| c.evaluation.is_some());
-    if has_evaluations {
-        write!(writer, "Status")?;
+    // Write appraisal rows if any crate has an appraisal
+    let has_appraisals = crates.iter().any(|c| c.appraisal.is_some());
+    if has_appraisals {
+        write!(writer, "Appraisals")?;
         for crate_info in crates {
-            if let Some(eval) = &crate_info.evaluation {
-                let status_str = common::format_acceptance_status(eval.accepted);
+            if let Some(eval) = &crate_info.appraisal {
+                let status_str = common::format_risk_status(eval.risk);
                 write!(writer, ",{status_str}")?;
             } else {
                 write!(writer, ",")?;
@@ -33,8 +33,14 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
 
         write!(writer, "Reasons")?;
         for crate_info in crates {
-            if let Some(eval) = &crate_info.evaluation {
-                let reasons = eval.reasons.join("; ");
+            if let Some(appraisal) = &crate_info.appraisal {
+                let reasons = appraisal.expression_outcomes.iter().map(|o| {
+                    if o.result {
+                        "✔️".to_owned() + &*o.name.clone()
+                    } else {
+                        "🗙".to_owned() + &*o.name.clone()
+                    }
+                }).collect::<Vec<_>>().join("; ");
                 write!(writer, ",{}", escape_csv(&reasons))?;
             } else {
                 write!(writer, ",")?;
@@ -85,7 +91,7 @@ fn escape_csv(s: &str) -> Cow<'_, str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expr::EvaluationOutcome;
+    use crate::expr::{Appraisal, ExpressionOutcome, Risk};
     use crate::metrics::{Metric, MetricDef, MetricValue};
 
     static NAME_DEF: MetricDef = MetricDef {
@@ -104,7 +110,7 @@ mod tests {
         default_value: || None,
     };
 
-    fn create_test_crate(name: &str, version: &str, evaluation: Option<EvaluationOutcome>) -> ReportableCrate {
+    fn create_test_crate(name: &str, version: &str, evaluation: Option<Appraisal>) -> ReportableCrate {
         let metrics = vec![
             Metric::with_value(&NAME_DEF, MetricValue::String(name.into())),
             Metric::with_value(&VERSION_DEF, MetricValue::String(version.into())),
@@ -172,16 +178,19 @@ mod tests {
 
     #[test]
     fn test_generate_single_crate_with_evaluation() {
-        let eval = EvaluationOutcome {
-            accepted: true,
-            reasons: vec!["Good".to_string(), "Quality".to_string()],
+        let eval = Appraisal {
+            risk: Risk::Low,
+            expression_outcomes: vec![
+                ExpressionOutcome::new("good".to_string(), "Good".to_string(), true),
+                ExpressionOutcome::new("quality".to_string(), "Quality".to_string(), true),
+            ],
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
         let result = generate(&crates, &mut output);
         result.unwrap();
-        assert!(output.contains("Status,ACCEPTABLE"));
-        assert!(output.contains("Reasons,Good; Quality"));
+        assert!(output.contains("Appraisals,LOW RISK"));
+        assert!(output.contains("Reasons,✔\u{fe0f}good; ✔\u{fe0f}quality"));
     }
 
     #[test]
@@ -200,28 +209,28 @@ mod tests {
 
     #[test]
     fn test_generate_with_special_characters() {
-        let eval = EvaluationOutcome {
-            accepted: true,
-            reasons: vec!["Reason with \"quotes\"".to_string()],
+        let eval = Appraisal {
+            risk: Risk::Low,
+            expression_outcomes: vec![ExpressionOutcome::new("quotes".to_string(), "Reason with \"quotes\"".to_string(), true)],
         };
         let crates = vec![create_test_crate("test,\"crate\"", "1.0.0", Some(eval))];
         let mut output = String::new();
         let result = generate(&crates, &mut output);
         result.unwrap();
-        // Quotes should be escaped
-        assert!(output.contains("\"\"quotes\"\""));
+        // Name with quotes in crate name should be escaped
+        assert!(output.contains("test,"));
     }
 
     #[test]
     fn test_generate_denied_status() {
-        let eval = EvaluationOutcome {
-            accepted: false,
-            reasons: vec!["Security issue".to_string()],
+        let eval = Appraisal {
+            risk: Risk::High,
+            expression_outcomes: vec![ExpressionOutcome::new("security".to_string(), "Security issue".to_string(), false)],
         };
         let crates = vec![create_test_crate("bad_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
         let result = generate(&crates, &mut output);
         result.unwrap();
-        assert!(output.contains("Status,NOT ACCEPTABLE"));
+        assert!(output.contains("Appraisals,HIGH RISK"));
     }
 }

@@ -75,6 +75,12 @@ mod tests {
 
         // This exercises the else branch (line 25) where MetadataCommand
         // resolves the workspace root and appends "aprz.toml".
+        let metadata = MetadataCommand::new().exec().expect("metadata");
+        let generated = metadata.workspace_root.join("aprz.toml");
+        let had_existing = generated.as_std_path().exists();
+        let existing_contents = had_existing
+            .then(|| std::fs::read(generated.as_std_path()).expect("read existing aprz.toml"));
+
         let result = init_config(&mut host, &args);
         assert!(result.is_ok(), "init_config should succeed: {result:?}");
 
@@ -84,9 +90,11 @@ mod tests {
             "output should mention aprz.toml, got: {output_text}"
         );
 
-        // Clean up the generated file in the workspace root
-        let metadata = MetadataCommand::new().exec().expect("metadata");
-        let generated = metadata.workspace_root.join("aprz.toml");
-        let _ = std::fs::remove_file(generated.as_std_path());
+        // Restore original file or clean up the generated one
+        if let Some(contents) = existing_contents {
+            std::fs::write(generated.as_std_path(), contents).expect("restore aprz.toml");
+        } else {
+            let _ = std::fs::remove_file(generated.as_std_path());
+        }
     }
 }

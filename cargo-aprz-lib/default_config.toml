@@ -2,22 +2,24 @@
 # =============================
 #
 # This file controls how cargo-aprz behaves. In particular, this is where
-# you define expressions to evaluate the relative quality of crate dependencies.
+# you define expressions to appraise the relative quality of crate dependencies.
 #
 # Visit https://github.com/geeknoid/cargo-aprz for more information
 
 # ----------------------------------------------------------------------------
-# Expressions
+# Risk Thresholds
+#
+# These thresholds determine the risk level assigned to a crate based on its
+# evaluation score (0-100). Crates scoring below medium_risk_threshold are
+# high risk, between medium and low thresholds are medium risk, and at or
+# above low_risk_threshold are low risk.
 # ----------------------------------------------------------------------------
 
-# Expressions that if ANY evaluate to true, the crate is denied
-deny_if_any = []
+# Score threshold below which a crate is considered medium risk
+medium_risk_threshold = 30.0
 
-# Expressions that if ANY evaluate to true, the crate is accepted
-accept_if_any = []
-
-# Expressions that must ALL evaluate to true for the crate to be accepted
-accept_if_all = []
+# Score threshold at or above which a crate is considered low risk
+low_risk_threshold = 70.0
 
 # ----------------------------------------------------------------------------
 # Cache Configuration
@@ -44,3 +46,16 @@ coverage_cache_ttl = "1 week"
 
 # Duration to keep the advisory database cached before re-downloading
 advisories_cache_ttl = "1 week"
+
+# ----------------------------------------------------------------------------
+# Expressions
+# ----------------------------------------------------------------------------
+
+# Expressions that if ANY evaluate to true, the crate is flagged as high risk
+high_risk_if_any = []
+
+# Each eval expression has a point value (default 1). All expressions are
+# evaluated and a score is computed as granted_points / total_points * 100.
+# The score is compared against the risk thresholds below to determine the
+# crate's risk level.
+eval = []

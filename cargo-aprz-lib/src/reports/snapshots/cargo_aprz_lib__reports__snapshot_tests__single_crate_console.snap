@@ -1,12 +1,12 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
+assertion_line: 299
 expression: console_output
 ---
-Evaluation Result: ACCEPTABLE
-Reasons          :
-  - Excellent coverage
-  - Active development
-  - Well maintained
+comprehensive-crate v2.0.0 is appraised as LOW RISK
+  ✔️ coverage
+  ✔️ active
+  ✔️ maintained
 
 Metadata
   crate.name     : comprehensive-crate

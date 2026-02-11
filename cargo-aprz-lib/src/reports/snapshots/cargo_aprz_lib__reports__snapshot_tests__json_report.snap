@@ -1,15 +1,16 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
+assertion_line: 217
 expression: output
 ---
 {
   "crates": [
     {
-      "evaluation": {
+      "appraisal": {
         "reasons": [
-          "High stars and good coverage"
+          "✔️high_stars"
         ],
-        "result": "ACCEPTABLE"
+        "result": "LOW RISK"
       },
       "metrics": {
         "community.repo_stars": 20000,
@@ -28,11 +29,11 @@ expression: output
       "version": "1.35.0"
     },
     {
-      "evaluation": {
+      "appraisal": {
         "reasons": [
-          "Low star count"
+          "🗙low_stars"
         ],
-        "result": "NOT ACCEPTABLE"
+        "result": "HIGH RISK"
       },
       "metrics": {
         "community.repo_stars": 8000,

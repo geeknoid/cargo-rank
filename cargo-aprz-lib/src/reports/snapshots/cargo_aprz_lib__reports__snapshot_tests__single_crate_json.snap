@@ -1,17 +1,18 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
+assertion_line: 307
 expression: json_output
 ---
 {
   "crates": [
     {
-      "evaluation": {
+      "appraisal": {
         "reasons": [
-          "Excellent coverage",
-          "Active development",
-          "Well maintained"
+          "✔️coverage",
+          "✔️active",
+          "✔️maintained"
         ],
-        "result": "ACCEPTABLE"
+        "result": "LOW RISK"
       },
       "metrics": {
         "community.repo_stars": 12345,

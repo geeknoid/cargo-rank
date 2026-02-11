@@ -1,10 +1,11 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
+assertion_line: 201
 expression: output
 ---
 Metric,tokio v1.35.0,serde v1.0.195,anyhow v1.0.75
-Status,ACCEPTABLE,NOT ACCEPTABLE,
-Reasons,High stars and good coverage,Low star count,
+Appraisals,LOW RISK,HIGH RISK,
+Reasons,✔️high_stars,🗙low_stars,
 crate.name,tokio,serde,anyhow
 crate.version,1.35.0,1.0.195,1.0.75
 crate.keywords,"async, runtime",serialization,"error, handling"

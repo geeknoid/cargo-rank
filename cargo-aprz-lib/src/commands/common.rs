@@ -3,7 +3,7 @@
 use super::ProgressReporter;
 use super::config::Config;
 use crate::Result;
-use crate::expr::evaluate;
+use crate::expr::{Risk, evaluate};
 use crate::facts::{Collector, CrateFacts, CrateRef, ProviderResult};
 use crate::metrics::flatten;
 use crate::reports::ReportableCrate;
@@ -281,7 +281,7 @@ impl<'a, H: super::Host> Common<'a, H> {
 
         // Flatten crate facts into metrics and optionally evaluate, creating ReportableCrate instances
         let has_expressions =
-            !self.config.deny_if_any.is_empty() || !self.config.accept_if_any.is_empty() || !self.config.accept_if_all.is_empty();
+            !self.config.high_risk_if_any.is_empty() || !self.config.eval.is_empty();
         let should_eval = has_expressions || self.check;
 
         let mut reportable_crates: Vec<ReportableCrate> = if should_eval {
@@ -290,11 +290,12 @@ impl<'a, H: super::Host> Common<'a, H> {
                 .map(|facts| {
                     let metrics: Vec<_> = flatten(&facts).collect();
                     let evaluation = evaluate(
-                        &self.config.deny_if_any,
-                        &self.config.accept_if_any,
-                        &self.config.accept_if_all,
+                        &self.config.high_risk_if_any,
+                        &self.config.eval,
                         &metrics,
                         Local::now(),
+                        self.config.medium_risk_threshold,
+                        self.config.low_risk_threshold,
                     )
                     .map_err(|e| {
                         let _ = writeln!(
@@ -377,14 +378,14 @@ impl<'a, H: super::Host> Common<'a, H> {
             fs::write(filename, json_output)?;
         }
 
-        // If --check flag is set, return error if any crate is not accepted
+        // If --check flag is set, return error if any crate is high risk
         if self.check {
             let has_rejected = reportable_crates
                 .iter()
-                .any(|crate_info| crate_info.evaluation.as_ref().is_some_and(|eval| !eval.accepted));
+                .any(|crate_info| crate_info.appraisal.as_ref().is_some_and(|eval| eval.risk == Risk::High));
 
             if has_rejected {
-                return Err(ohno::AppError::new("one or more crates were not accepted"));
+                return Err(ohno::AppError::new("one or more crates were flagged as high risk"));
             }
         }
 

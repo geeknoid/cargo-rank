@@ -1,10 +1,10 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
+assertion_line: 185
 expression: output
 ---
-Evaluation Result: [1m[32mACCEPTABLE[39m[0m
-Reasons          :
-  - High stars and good coverage
+tokio v1.35.0 is appraised as [1m[32mLOW RISK[39m[0m
+  ✔️ high_stars
 
 [1mMetadata[0m
   crate.name     : tokio
@@ -26,9 +26,8 @@ Reasons          :
 
 ═══════════════════════════════════════
 
-Evaluation Result: [1m[31mNOT ACCEPTABLE[39m[0m
-Reasons          :
-  - Low star count
+serde v1.0.195 is appraised as [1m[31mHIGH RISK[39m[0m
+  🗙 low_stars
 
 [1mMetadata[0m
   crate.name     : serde

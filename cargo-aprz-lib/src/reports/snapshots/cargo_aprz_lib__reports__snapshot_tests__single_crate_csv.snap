@@ -1,10 +1,11 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
+assertion_line: 303
 expression: csv_output
 ---
 Metric,comprehensive-crate v2.0.0
-Status,ACCEPTABLE
-Reasons,Excellent coverage; Active development; Well maintained
+Appraisals,LOW RISK
+Reasons,✔️coverage; ✔️active; ✔️maintained
 crate.name,comprehensive-crate
 crate.version,2.0.0
 crate.keywords,"test, comprehensive, snapshot"

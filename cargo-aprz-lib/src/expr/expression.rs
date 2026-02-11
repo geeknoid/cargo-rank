@@ -45,12 +45,11 @@ impl Expression {
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
-/*
     #[must_use]
     pub const fn points(&self) -> Option<u32> {
         self.points
     }
-*/
+
     #[must_use]
     pub fn expression(&self) -> &str {
         &self.expression_string
@@ -88,6 +87,7 @@ impl<'de> Deserialize<'de> for Expression {
         D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
         struct ExpressionData {
             name: String,
             description: Option<String>,
@@ -235,5 +235,12 @@ mod tests {
     fn test_expression_with_functions() {
         let expr = Expression::new("func_test".to_string(), None, "size(mylist) > 0".to_string(), None);
         let _ = expr.unwrap();
+    }
+
+    #[test]
+    fn test_deserialize_rejects_unknown_fields() {
+        let json = r#"{"name": "test", "descriptiono": "typo", "expression": "x > 5"}"#;
+        let result: Result<Expression, _> = serde_json::from_str(json);
+        assert!(result.is_err(), "misspelled field should be rejected");
     }
 }

@@ -13,11 +13,17 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
         crate_obj.insert("name".to_string(), json!(crate_info.name));
         crate_obj.insert("version".to_string(), json!(crate_info.version.to_string()));
 
-        if let Some(eval) = &crate_info.evaluation {
+        if let Some(appraisal) = &crate_info.appraisal {
             let mut eval_obj = serde_json::Map::new();
-            eval_obj.insert("result".to_string(), json!(common::format_acceptance_status(eval.accepted)));
-            eval_obj.insert("reasons".to_string(), json!(eval.reasons));
-            crate_obj.insert("evaluation".to_string(), json!(eval_obj));
+            eval_obj.insert("result".to_string(), json!(common::format_risk_status(appraisal.risk)));
+            eval_obj.insert("reasons".to_string(), json!(appraisal.expression_outcomes.iter().map(|o| {
+                if o.result {
+                    "✔️".to_owned() + &*o.name.clone()
+                } else {
+                    "🗙".to_owned() + &*o.name.clone()
+                }
+            }).collect::<Vec<_>>()));
+            crate_obj.insert("appraisal".to_string(), json!(eval_obj));
         }
 
         let mut metrics_obj = serde_json::Map::new();
@@ -57,7 +63,7 @@ fn metric_value_to_json(value: &MetricValue) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expr::EvaluationOutcome;
+    use crate::expr::{Appraisal, ExpressionOutcome, Risk};
     use crate::metrics::{Metric, MetricCategory, MetricDef};
     use chrono::{DateTime, Utc};
 
@@ -77,7 +83,7 @@ mod tests {
         default_value: || None,
     };
 
-    fn create_test_crate(name: &str, version: &str, evaluation: Option<EvaluationOutcome>) -> ReportableCrate {
+    fn create_test_crate(name: &str, version: &str, evaluation: Option<Appraisal>) -> ReportableCrate {
         let metrics = vec![
             Metric::with_value(&NAME_DEF, MetricValue::String(name.into())),
             Metric::with_value(&VERSION_DEF, MetricValue::String(version.into())),
@@ -141,17 +147,17 @@ mod tests {
 
     #[test]
     fn test_generate_single_crate_with_evaluation() {
-        let eval = EvaluationOutcome {
-            accepted: true,
-            reasons: vec!["Good".to_string()],
+        let eval = Appraisal {
+            risk: Risk::Low,
+            expression_outcomes: vec![ExpressionOutcome::new("good".to_string(), "Good".to_string(), true)],
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
         let result = generate(&crates, &mut output);
         result.unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-        assert_eq!(parsed["crates"][0]["evaluation"]["result"], "ACCEPTABLE");
-        assert_eq!(parsed["crates"][0]["evaluation"]["reasons"][0], "Good");
+        assert_eq!(parsed["crates"][0]["appraisal"]["result"], "LOW RISK");
+        assert_eq!(parsed["crates"][0]["appraisal"]["reasons"][0], "✔\u{fe0f}good");
     }
 
     #[test]
@@ -171,16 +177,16 @@ mod tests {
 
     #[test]
     fn test_generate_denied_status() {
-        let eval = EvaluationOutcome {
-            accepted: false,
-            reasons: vec!["Security issue".to_string()],
+        let eval = Appraisal {
+            risk: Risk::High,
+            expression_outcomes: vec![ExpressionOutcome::new("security".to_string(), "Security issue".to_string(), false)],
         };
         let crates = vec![create_test_crate("bad_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
         let result = generate(&crates, &mut output);
         result.unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-        assert_eq!(parsed["crates"][0]["evaluation"]["result"], "NOT ACCEPTABLE");
+        assert_eq!(parsed["crates"][0]["appraisal"]["result"], "HIGH RISK");
     }
 
     #[test]

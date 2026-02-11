@@ -1,5 +1,6 @@
 use super::{ReportableCrate, common};
 use crate::Result;
+use crate::expr::Risk;
 use crate::metrics::{Metric, MetricCategory};
 use chrono::{DateTime, Local};
 use core::fmt::Write;
@@ -140,11 +141,15 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
     writeln!(writer, "    .metric-row:last-child td {{ border-bottom: none; }}")?;
     writeln!(
         writer,
-        "    .accepted {{ background-color: #c8e6c9; color: #2e7d32; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }}"
+        "    .low-risk {{ background-color: #c8e6c9; color: #2e7d32; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }}"
     )?;
     writeln!(
         writer,
-        "    .denied {{ background-color: #ffcdd2; color: #c62828; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }}"
+        "    .medium-risk {{ background-color: #fff9c4; color: #f57f17; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }}"
+    )?;
+    writeln!(
+        writer,
+        "    .high-risk {{ background-color: #ffcdd2; color: #c62828; font-weight: 600; padding: 3px 8px; border-radius: 4px; font-size: 11px; }}"
     )?;
     writeln!(
         writer,
@@ -158,8 +163,9 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
     writeln!(writer, "    a {{ color: var(--accent-color); text-decoration: none; }}")?;
     writeln!(writer, "    a:hover {{ text-decoration: underline; }}")?;
     writeln!(writer, "    @media (prefers-color-scheme: dark) {{")?;
-    writeln!(writer, "      .accepted {{ background-color: #1b5e20; color: #a5d6a7; }}")?;
-    writeln!(writer, "      .denied {{ background-color: #b71c1c; color: #ef9a9a; }}")?;
+    writeln!(writer, "      .low-risk {{ background-color: #1b5e20; color: #a5d6a7; }}")?;
+    writeln!(writer, "      .medium-risk {{ background-color: #f57f17; color: #212121; }}")?;
+    writeln!(writer, "      .high-risk {{ background-color: #b71c1c; color: #ef9a9a; }}")?;
     writeln!(writer, "      .not-evaluated {{ background-color: #f57f17; color: #212121; }}")?;
     writeln!(writer, "      .na {{ color: #8b949e; }}")?;
     writeln!(writer, "    }}")?;
@@ -266,17 +272,20 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
     writeln!(writer, "      <table>")?;
     writeln!(writer, "        <tbody>")?;
 
-    // Add evaluation results if any crate has an evaluation
-    let has_evaluations = crates.iter().any(|c| c.evaluation.is_some());
-    if has_evaluations {
-        // Evaluation Result row
+    // Add appraisal results if any crate has some
+    let has_appraisals = crates.iter().any(|c| c.appraisal.is_some());
+    if has_appraisals {
         writeln!(writer, "          <tr class=\"metric-row\">")?;
-        writeln!(writer, "            <td><strong>Evaluation Result</strong></td>")?;
+        writeln!(writer, "            <td><strong>Appraisals</strong></td>")?;
         for crate_info in crates {
             write!(writer, "            <td>")?;
-            if let Some(eval) = &crate_info.evaluation {
-                let status_str = common::format_acceptance_status(eval.accepted);
-                let class = if eval.accepted { "accepted" } else { "denied" };
+            if let Some(eval) = &crate_info.appraisal {
+                let status_str = common::format_risk_status(eval.risk);
+                let class = match eval.risk {
+                    Risk::Low => "low-risk",
+                    Risk::Medium => "medium-risk",
+                    Risk::High => "high-risk",
+                };
                 write!(writer, "<span class=\"{class}\">{status_str}</span>")?;
             } else {
                 write!(writer, "<span class=\"na\">n/a</span>")?;
@@ -290,15 +299,23 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
         writeln!(writer, "            <td><strong>Reasons</strong></td>")?;
         for crate_info in crates {
             write!(writer, "            <td>")?;
-            if let Some(eval) = &crate_info.evaluation {
-                if eval.reasons.is_empty() {
+            if let Some(eval) = &crate_info.appraisal {
+                if eval.expression_outcomes.is_empty() {
                     write!(writer, "<span class=\"na\">n/a</span>")?;
                 } else {
-                    for (i, reason) in eval.reasons.iter().enumerate() {
+                    for (i, outcome) in eval.expression_outcomes.iter().enumerate() {
                         if i > 0 {
                             write!(writer, "<br>")?;
                         }
-                        write!(writer, "{}", html_escape(reason))?;
+
+                        let icon = if outcome.result { "✔️" } else { "🗙" };
+                        write!(
+                            writer,
+                            "<span title=\"{}\">{}{}</span>",
+                            html_escape(&outcome.description),
+                            icon,
+                            html_escape(&outcome.name)
+                        )?;
                     }
                 }
             } else {
@@ -495,7 +512,7 @@ fn format_keywords_or_categories<W: Write>(value: &str, url_type: &str, writer: 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expr::EvaluationOutcome;
+    use crate::expr::Appraisal;
     use crate::metrics::{MetricDef, MetricValue};
     use chrono::TimeZone;
 
@@ -519,7 +536,7 @@ mod tests {
         default_value: || None,
     };
 
-    fn create_test_crate(name: &str, version: &str, evaluation: Option<EvaluationOutcome>) -> ReportableCrate {
+    fn create_test_crate(name: &str, version: &str, evaluation: Option<Appraisal>) -> ReportableCrate {
         let metrics = vec![
             Metric::with_value(&NAME_DEF, MetricValue::String(name.into())),
             Metric::with_value(&VERSION_DEF, MetricValue::String(version.into())),

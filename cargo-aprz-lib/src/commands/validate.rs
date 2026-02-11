@@ -30,15 +30,16 @@ fn validate_config_inner(workspace_root: &Utf8Path, config_path: Option<&Utf8Pat
     let config = Config::load(workspace_root, config_path)?;
 
     // Validate that all expressions can be evaluated against default metrics (only if any are defined)
-    if !config.deny_if_any.is_empty() || !config.accept_if_any.is_empty() || !config.accept_if_all.is_empty() {
+    if !config.high_risk_if_any.is_empty() || !config.eval.is_empty() {
         let metrics: Vec<_> = default_metrics().collect();
 
         let _ = evaluate(
-            &config.deny_if_any,
-            &config.accept_if_any,
-            &config.accept_if_all,
+            &config.high_risk_if_any,
+            &config.eval,
             &metrics,
             Local::now(),
+            config.medium_risk_threshold,
+            config.low_risk_threshold,
         )
         .into_app_err("evaluating configuration expressions")?;
     }
@@ -167,7 +168,7 @@ mod tests {
             &config_path,
             r#"
 # Missing closing bracket
-[[deny_if_any]
+[[high_risk_if_any]
 name = "test"
 expression = "true"
 "#,
@@ -198,9 +199,8 @@ expression = "true"
         std::fs::write(
             &config_path,
             r#"
-deny_if_any = []
-accept_if_any = []
-accept_if_all = []
+high_risk_if_any = []
+eval = []
 unknown_field = "value"
 "#,
         )
@@ -230,7 +230,7 @@ unknown_field = "value"
         std::fs::write(
             &config_path,
             r#"
-[[deny_if_any]]
+[[high_risk_if_any]]
 name = "invalid_syntax"
 description = "Invalid CEL syntax"
 expression = "this is not a valid CEL expression !!!"
@@ -291,7 +291,7 @@ crates_cache_ttl = "not a valid duration"
         std::fs::write(
             &config_path,
             r#"
-[[accept_if_all]]
+[[eval]]
 name = "nonexistent_metric"
 description = "Reference to nonexistent metric"
 expression = "this_metric_does_not_exist > 100"
@@ -323,7 +323,7 @@ expression = "this_metric_does_not_exist > 100"
         std::fs::write(
             &config_path,
             r#"
-[[deny_if_any]]
+[[high_risk_if_any]]
 name = "type_mismatch"
 description = "Type mismatch in expression"
 expression = "crates.downloads + 'string'"
@@ -355,7 +355,7 @@ expression = "crates.downloads + 'string'"
         std::fs::write(
             &config_path,
             r#"
-[[accept_if_all]]
+[[eval]]
 name = "non_boolean"
 description = "Expression returns integer not boolean"
 expression = "crates.downloads"
@@ -424,5 +424,142 @@ advisories_cache_ttl = "5h"
             result.is_ok(),
             "Config with only TTLs should be valid (expressions default to empty)"
         );
+    }
+
+    #[test]
+    fn test_medium_risk_threshold_below_range() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
+
+        std::fs::write(&config_path, "medium_risk_threshold = -1.0\n").expect("Failed to write test config");
+
+        let mut host = TestHost::new();
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
+        let result = validate_config(&mut host, &args);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("medium_risk_threshold must be between 0 and 100"));
+    }
+
+    #[test]
+    fn test_medium_risk_threshold_above_range() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
+
+        std::fs::write(&config_path, "medium_risk_threshold = 101.0\n").expect("Failed to write test config");
+
+        let mut host = TestHost::new();
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
+        let result = validate_config(&mut host, &args);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("medium_risk_threshold must be between 0 and 100"));
+    }
+
+    #[test]
+    fn test_low_risk_threshold_below_range() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
+
+        std::fs::write(&config_path, "low_risk_threshold = -5.0\n").expect("Failed to write test config");
+
+        let mut host = TestHost::new();
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
+        let result = validate_config(&mut host, &args);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("low_risk_threshold must be between 0 and 100"));
+    }
+
+    #[test]
+    fn test_low_risk_threshold_above_range() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
+
+        std::fs::write(&config_path, "low_risk_threshold = 200.0\n").expect("Failed to write test config");
+
+        let mut host = TestHost::new();
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
+        let result = validate_config(&mut host, &args);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("low_risk_threshold must be between 0 and 100"));
+    }
+
+    #[test]
+    fn test_medium_threshold_not_less_than_low_threshold() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
+
+        std::fs::write(
+            &config_path,
+            "medium_risk_threshold = 80.0\nlow_risk_threshold = 50.0\n",
+        )
+        .expect("Failed to write test config");
+
+        let mut host = TestHost::new();
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
+        let result = validate_config(&mut host, &args);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("medium_risk_threshold (80) must be less than low_risk_threshold (50)"));
+    }
+
+    #[test]
+    fn test_equal_thresholds_rejected() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
+
+        std::fs::write(
+            &config_path,
+            "medium_risk_threshold = 50.0\nlow_risk_threshold = 50.0\n",
+        )
+        .expect("Failed to write test config");
+
+        let mut host = TestHost::new();
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
+        let result = validate_config(&mut host, &args);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must be less than"));
+    }
+
+    #[test]
+    fn test_valid_custom_thresholds() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("custom_thresholds.toml");
+
+        std::fs::write(
+            &config_path,
+            "medium_risk_threshold = 25.0\nlow_risk_threshold = 75.0\n",
+        )
+        .expect("Failed to write test config");
+
+        let mut host = TestHost::new();
+        let args = ValidateArgs {
+            config: Some(config_path),
+            manifest_path: Utf8PathBuf::from("Cargo.toml"),
+        };
+        let result = validate_config(&mut host, &args);
+
+        assert!(result.is_ok(), "Valid custom thresholds should pass validation: {result:?}");
     }
 }

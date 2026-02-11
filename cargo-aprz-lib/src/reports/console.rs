@@ -1,5 +1,6 @@
 use super::{ReportableCrate, common};
 use crate::Result;
+use crate::expr::Risk;
 use crate::metrics::{Metric, MetricCategory};
 use core::fmt::Write;
 use owo_colors::OwoColorize;
@@ -15,24 +16,25 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], use_colors: bool, writer: 
             writeln!(writer)?;
         }
 
-        // Show acceptance status if evaluation was performed
-        if let Some(eval) = &crate_info.evaluation {
-            let status_str = common::format_acceptance_status(eval.accepted);
+        // Show appraisal if one is available
+        if let Some(eval) = &crate_info.appraisal {
+            let status_str = common::format_risk_status(eval.risk);
             let colored_status = if use_colors {
-                if eval.accepted {
-                    status_str.green().bold().to_string()
-                } else {
-                    status_str.red().bold().to_string()
+                match eval.risk {
+                    Risk::Low => status_str.green().bold().to_string(),
+                    Risk::Medium => status_str.yellow().bold().to_string(),
+                    Risk::High => status_str.red().bold().to_string(),
                 }
             } else {
                 status_str.to_string()
             };
-            writeln!(writer, "Evaluation Result: {colored_status}")?;
+            writeln!(writer, "{} v{} is appraised as {colored_status}", crate_info.name, crate_info.version)?;
 
-            if !eval.reasons.is_empty() {
-                writeln!(writer, "Reasons          :")?;
-                for reason in &eval.reasons {
-                    writeln!(writer, "  - {reason}")?;
+            for outcome in &eval.expression_outcomes {
+                if outcome.result {
+                    writeln!(writer, "  ✔️ {}", outcome.name)?;
+                } else {
+                    writeln!(writer, "  🗙 {}", outcome.name)?;
                 }
             }
         }
@@ -151,7 +153,7 @@ fn wrap_text(text: &str, width: usize, indent: usize) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expr::EvaluationOutcome;
+    use crate::expr::{Appraisal, ExpressionOutcome, Risk};
     use crate::metrics::{MetricDef, MetricValue};
 
     static NAME_DEF: MetricDef = MetricDef {
@@ -170,7 +172,7 @@ mod tests {
         default_value: || None,
     };
 
-    fn create_test_crate(name: &str, version: &str, evaluation: Option<EvaluationOutcome>) -> ReportableCrate {
+    fn create_test_crate(name: &str, version: &str, evaluation: Option<Appraisal>) -> ReportableCrate {
         let metrics = vec![
             Metric::with_value(&NAME_DEF, MetricValue::String(name.into())),
             Metric::with_value(&VERSION_DEF, MetricValue::String(version.into())),
@@ -195,35 +197,35 @@ mod tests {
         result.unwrap();
         // Output should contain crate information but no evaluation
         assert!(!output.contains("Evaluation Result"));
-        assert!(!output.contains("ACCEPTABLE"));
+        assert!(!output.contains("RISK"));
     }
 
     #[test]
     fn test_generate_single_crate_with_evaluation_accepted() {
-        let eval = EvaluationOutcome {
-            accepted: true,
-            reasons: vec!["Good quality".to_string()],
+        let eval = Appraisal {
+            risk: Risk::Low,
+            expression_outcomes: vec![ExpressionOutcome::new("quality".to_string(), "Good quality".to_string(), true)],
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
         let result = generate(&crates, false, &mut output);
         result.unwrap();
-        assert!(output.contains("Evaluation Result"));
-        assert!(output.contains("ACCEPTABLE"));
+        assert!(output.contains("appraised as"));
+        assert!(output.contains("LOW RISK"));
     }
 
     #[test]
     fn test_generate_single_crate_with_evaluation_denied() {
-        let eval = EvaluationOutcome {
-            accepted: false,
-            reasons: vec!["Security issues".to_string()],
+        let eval = Appraisal {
+            risk: Risk::High,
+            expression_outcomes: vec![ExpressionOutcome::new("security".to_string(), "Security issues".to_string(), false)],
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
         let result = generate(&crates, false, &mut output);
         result.unwrap();
-        assert!(output.contains("Evaluation Result"));
-        assert!(output.contains("NOT ACCEPTABLE"));
+        assert!(output.contains("appraised as"));
+        assert!(output.contains("HIGH RISK"));
     }
 
     #[test]
@@ -238,9 +240,9 @@ mod tests {
 
     #[test]
     fn test_generate_color_mode_never() {
-        let eval = EvaluationOutcome {
-            accepted: true,
-            reasons: vec![],
+        let eval = Appraisal {
+            risk: Risk::Low,
+            expression_outcomes: vec![],
         };
         let crates = vec![create_test_crate("test", "1.0.0", Some(eval))];
         let mut output = String::new();

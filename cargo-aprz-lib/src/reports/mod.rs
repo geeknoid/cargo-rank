@@ -44,7 +44,7 @@ pub use reportable_crate::ReportableCrate;
 #[cfg(test)]
 mod snapshot_tests {
     use super::*;
-    use crate::expr::EvaluationOutcome;
+    use crate::expr::{Appraisal, ExpressionOutcome, Risk};
     use crate::metrics::{Metric, MetricCategory, MetricDef, MetricValue};
     use chrono::{DateTime, Local, TimeZone, Utc};
     use semver::Version;
@@ -139,7 +139,7 @@ mod snapshot_tests {
                         MetricValue::List(vec![MetricValue::String("async".into()), MetricValue::String("runtime".into())]),
                     ),
                 ],
-                Some(EvaluationOutcome::new(true, vec!["High stars and good coverage".to_string()])),
+                Some(Appraisal::new(Risk::Low, vec![ExpressionOutcome::new("high_stars".to_string(), "High stars and good coverage".to_string(), true)])),
             ),
             ReportableCrate::new(
                 "serde".to_string(),
@@ -154,7 +154,7 @@ mod snapshot_tests {
                     Metric::with_value(&HAS_CI_DEF, MetricValue::Boolean(true)),
                     Metric::with_value(&KEYWORDS_DEF, MetricValue::List(vec![MetricValue::String("serialization".into())])),
                 ],
-                Some(EvaluationOutcome::new(false, vec!["Low star count".to_string()])),
+                Some(Appraisal::new(Risk::High, vec![ExpressionOutcome::new("low_stars".to_string(), "Low star count".to_string(), false)])),
             ),
             ReportableCrate::new(
                 "anyhow".to_string(),
@@ -281,12 +281,12 @@ mod snapshot_tests {
                     ]),
                 ),
             ],
-            Some(EvaluationOutcome::new(
-                true,
+            Some(Appraisal::new(
+                Risk::Low,
                 vec![
-                    "Excellent coverage".to_string(),
-                    "Active development".to_string(),
-                    "Well maintained".to_string(),
+                    ExpressionOutcome::new("coverage".to_string(), "Excellent coverage".to_string(), true),
+                    ExpressionOutcome::new("active".to_string(), "Active development".to_string(), true),
+                    ExpressionOutcome::new("maintained".to_string(), "Well maintained".to_string(), true),
                 ],
             )),
         );
