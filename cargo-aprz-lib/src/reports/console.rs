@@ -19,7 +19,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], use_colors: bool, writer: 
 
         // Show appraisal if one is available
         if let Some(eval) = &crate_info.appraisal {
-            let status_str = common::format_risk_status(eval.risk);
+            let status_str = common::format_appraisal_status(eval);
             let colored_status: Cow<'_, str> = if use_colors {
                 match eval.risk {
                     Risk::Low => status_str.green().bold().to_string().into(),
@@ -27,7 +27,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], use_colors: bool, writer: 
                     Risk::High => status_str.red().bold().to_string().into(),
                 }
             } else {
-                Cow::Borrowed(status_str)
+                Cow::Owned(status_str)
             };
             writeln!(writer, "{} v{} is appraised as {colored_status}", crate_info.name, crate_info.version)?;
 
@@ -150,7 +150,7 @@ fn wrap_text(text: &str, width: usize, indent: usize) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expr::{Appraisal, ExpressionOutcome, Risk};
+    use crate::expr::{Appraisal, ExpressionDisposition, ExpressionOutcome, Risk};
     use crate::metrics::{MetricDef, MetricValue};
     use std::sync::Arc;
 
@@ -202,7 +202,10 @@ mod tests {
     fn test_generate_single_crate_with_evaluation_accepted() {
         let eval = Appraisal {
             risk: Risk::Low,
-            expression_outcomes: vec![ExpressionOutcome::new("quality".into(), "Good quality".into(), true)],
+            expression_outcomes: vec![ExpressionOutcome::new("quality".into(), "Good quality".into(), ExpressionDisposition::True)],
+            available_points: 1,
+            awarded_points: 1,
+            score: 100.0,
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
@@ -216,7 +219,10 @@ mod tests {
     fn test_generate_single_crate_with_evaluation_denied() {
         let eval = Appraisal {
             risk: Risk::High,
-            expression_outcomes: vec![ExpressionOutcome::new("security".into(), "Security issues".into(), false)],
+            expression_outcomes: vec![ExpressionOutcome::new("security".into(), "Security issues".into(), ExpressionDisposition::False)],
+            available_points: 1,
+            awarded_points: 0,
+            score: 0.0,
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
@@ -241,6 +247,9 @@ mod tests {
         let eval = Appraisal {
             risk: Risk::Low,
             expression_outcomes: vec![],
+            available_points: 0,
+            awarded_points: 0,
+            score: 100.0,
         };
         let crates = vec![create_test_crate("test", "1.0.0", Some(eval))];
         let mut output = String::new();

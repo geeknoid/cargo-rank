@@ -62,7 +62,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
         worksheet.write_string_with_format(row, 0, "Appraisals", &bold_format)?;
         for (col_idx, crate_info) in crates.iter().enumerate() {
             if let Some(eval) = &crate_info.appraisal {
-                let value = common::format_risk_status(eval.risk);
+                let value = common::format_appraisal_status(eval);
                 let format = match eval.risk {
                     Risk::Low => &low_risk_format,
                     Risk::Medium => &medium_risk_format,
@@ -194,7 +194,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expr::ExpressionOutcome;
+    use crate::expr::{ExpressionDisposition, ExpressionOutcome};
     use crate::metrics::{Metric, MetricDef};
     use std::sync::Arc;
 
@@ -251,7 +251,10 @@ mod tests {
     fn test_generate_single_crate_with_evaluation() {
         let eval = Appraisal {
             risk: Risk::Low,
-            expression_outcomes: vec![ExpressionOutcome::new("good".into(), "Good".into(), true)],
+            expression_outcomes: vec![ExpressionOutcome::new("good".into(), "Good".into(), ExpressionDisposition::True)],
+            available_points: 1,
+            awarded_points: 1,
+            score: 100.0,
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = Vec::new();
@@ -281,7 +284,10 @@ mod tests {
     fn test_generate_denied_status() {
         let eval = Appraisal {
             risk: Risk::High,
-            expression_outcomes: vec![ExpressionOutcome::new("security".into(), "Security issue".into(), false)],
+            expression_outcomes: vec![ExpressionOutcome::new("security".into(), "Security issue".into(), ExpressionDisposition::False)],
+            available_points: 1,
+            awarded_points: 0,
+            score: 0.0,
         };
         let crates = vec![create_test_crate("bad_crate", "1.0.0", Some(eval))];
         let mut output = Vec::new();

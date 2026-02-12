@@ -1,13 +1,13 @@
 use super::Host;
 use super::config::Config;
 use crate::Result;
-use crate::expr::evaluate;
+use crate::expr::{ExpressionDisposition, evaluate};
 use crate::metrics::default_metrics;
 use camino::{Utf8Path, Utf8PathBuf};
 use cargo_metadata::MetadataCommand;
 use chrono::Local;
 use clap::Parser;
-use ohno::IntoAppError;
+use ohno::{IntoAppError, app_err};
 use std::io::Write;
 
 #[derive(Parser, Debug)]
@@ -31,15 +31,21 @@ fn validate_config_inner(workspace_root: &Utf8Path, config_path: Option<&Utf8Pat
 
     // Validate that all expressions can be evaluated against default metrics (only if any are defined)
     if !config.high_risk_if_any.is_empty() || !config.eval.is_empty() {
-        let _ = evaluate(
+        let appraisal = evaluate(
             &config.high_risk_if_any,
             &config.eval,
             default_metrics(),
             Local::now(),
             config.medium_risk_threshold,
             config.low_risk_threshold,
-        )
-        .into_app_err("evaluating configuration expressions")?;
+        );
+
+        // Check if any expression evaluation failed
+        for outcome in &appraisal.expression_outcomes {
+            if let ExpressionDisposition::Failed(msg) = &outcome.disposition {
+                return Err(app_err!("Expression '{}' failed: {msg}", outcome.name));
+            }
+        }
     }
 
     Ok(())

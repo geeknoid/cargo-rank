@@ -1,9 +1,8 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
-assertion_line: 186
 expression: output
 ---
-tokio v1.35.0 is appraised as [1m[32mLOW RISK[39m[0m
+tokio v1.35.0 is appraised as [1m[32mLOW RISK (score = 100, awarded points = 1, available points = 1)[39m[0m
   ✔️ high_stars
 
 [1mMetadata[0m
@@ -26,7 +25,7 @@ tokio v1.35.0 is appraised as [1m[32mLOW RISK[39m[0m
 
 ═══════════════════════════════════════
 
-serde v1.0.195 is appraised as [1m[31mHIGH RISK[39m[0m
+serde v1.0.195 is appraised as [1m[31mHIGH RISK (score = 0, awarded points = 0, available points = 1)[39m[0m
   ❌ low_stars
 
 [1mMetadata[0m

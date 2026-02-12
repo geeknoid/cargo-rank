@@ -2,4 +2,4 @@
 source: cargo-aprz-lib/src/commands/validate.rs
 expression: snapshot_content
 ---
-Undeclared reference to 'crates'
+Expression 'type_mismatch' failed: Undeclared reference to 'crates'

@@ -1,10 +1,9 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
-assertion_line: 304
 expression: csv_output
 ---
 Metric,comprehensive-crate v2.0.0
-Appraisals,LOW RISK
+Appraisals,LOW RISK (score = 100, awarded points = 3, available points = 3)
 Reasons,✔️ coverage; ✔️ active; ✔️ maintained
 crate.name,comprehensive-crate
 crate.version,2.0.0

@@ -278,7 +278,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
         for crate_info in crates {
             write!(writer, "            <td>")?;
             if let Some(eval) = &crate_info.appraisal {
-                let status_str = common::format_risk_status(eval.risk);
+                let status_str = common::format_appraisal_status(eval);
                 let class = match eval.risk {
                     Risk::Low => "low-risk",
                     Risk::Medium => "medium-risk",

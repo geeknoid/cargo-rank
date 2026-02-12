@@ -1,10 +1,9 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
-assertion_line: 202
 expression: output
 ---
 Metric,tokio v1.35.0,serde v1.0.195,anyhow v1.0.75
-Appraisals,LOW RISK,HIGH RISK,
+Appraisals,LOW RISK (score = 100, awarded points = 1, available points = 1),HIGH RISK (score = 0, awarded points = 0, available points = 1),
 Reasons,✔️ high_stars,❌ low_stars,
 crate.name,tokio,serde,anyhow
 crate.version,1.35.0,1.0.195,1.0.75

@@ -25,7 +25,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], writer: &mut W) -> Result<
         write!(writer, "Appraisals")?;
         for crate_info in crates {
             if let Some(eval) = &crate_info.appraisal {
-                let status_str = common::format_risk_status(eval.risk);
+                let status_str = common::format_appraisal_status(eval);
                 write!(writer, ",{status_str}")?;
             } else {
                 write!(writer, ",")?;
@@ -91,7 +91,7 @@ fn escape_csv(s: &str) -> Cow<'_, str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expr::{Appraisal, ExpressionOutcome, Risk};
+    use crate::expr::{Appraisal, ExpressionDisposition, ExpressionOutcome, Risk};
     use crate::metrics::{Metric, MetricDef, MetricValue};
     use std::sync::Arc;
 
@@ -182,9 +182,12 @@ mod tests {
         let eval = Appraisal {
             risk: Risk::Low,
             expression_outcomes: vec![
-                ExpressionOutcome::new("good".into(), "Good".into(), true),
-                ExpressionOutcome::new("quality".into(), "Quality".into(), true),
+                ExpressionOutcome::new("good".into(), "Good".into(), ExpressionDisposition::True),
+                ExpressionOutcome::new("quality".into(), "Quality".into(), ExpressionDisposition::True),
             ],
+            available_points: 2,
+            awarded_points: 2,
+            score: 100.0,
         };
         let crates = vec![create_test_crate("test_crate", "1.0.0", Some(eval))];
         let mut output = String::new();
@@ -212,7 +215,10 @@ mod tests {
     fn test_generate_with_special_characters() {
         let eval = Appraisal {
             risk: Risk::Low,
-            expression_outcomes: vec![ExpressionOutcome::new("quotes".into(), "Reason with \"quotes\"".into(), true)],
+            expression_outcomes: vec![ExpressionOutcome::new("quotes".into(), "Reason with \"quotes\"".into(), ExpressionDisposition::True)],
+            available_points: 1,
+            awarded_points: 1,
+            score: 100.0,
         };
         let crates = vec![create_test_crate("test,\"crate\"", "1.0.0", Some(eval))];
         let mut output = String::new();
@@ -226,7 +232,10 @@ mod tests {
     fn test_generate_denied_status() {
         let eval = Appraisal {
             risk: Risk::High,
-            expression_outcomes: vec![ExpressionOutcome::new("security".into(), "Security issue".into(), false)],
+            expression_outcomes: vec![ExpressionOutcome::new("security".into(), "Security issue".into(), ExpressionDisposition::False)],
+            available_points: 1,
+            awarded_points: 0,
+            score: 0.0,
         };
         let crates = vec![create_test_crate("bad_crate", "1.0.0", Some(eval))];
         let mut output = String::new();

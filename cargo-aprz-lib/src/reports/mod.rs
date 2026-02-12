@@ -44,7 +44,7 @@ pub use reportable_crate::ReportableCrate;
 #[cfg(test)]
 mod snapshot_tests {
     use super::*;
-    use crate::expr::{Appraisal, ExpressionOutcome, Risk};
+    use crate::expr::{Appraisal, ExpressionDisposition, ExpressionOutcome, Risk};
     use crate::metrics::{Metric, MetricCategory, MetricDef, MetricValue};
     use chrono::{DateTime, Local, TimeZone, Utc};
     use semver::Version;
@@ -140,7 +140,7 @@ mod snapshot_tests {
                         MetricValue::List(vec![MetricValue::String("async".into()), MetricValue::String("runtime".into())]),
                     ),
                 ],
-                Some(Appraisal::new(Risk::Low, vec![ExpressionOutcome::new("high_stars".into(), "High stars and good coverage".into(), true)])),
+                Some(Appraisal::new(Risk::Low, vec![ExpressionOutcome::new("high_stars".into(), "High stars and good coverage".into(), ExpressionDisposition::True)], 1, 1, 100.0)),
             ),
             ReportableCrate::new(
                 "serde".into(),
@@ -155,7 +155,7 @@ mod snapshot_tests {
                     Metric::with_value(&HAS_CI_DEF, MetricValue::Boolean(true)),
                     Metric::with_value(&KEYWORDS_DEF, MetricValue::List(vec![MetricValue::String("serialization".into())])),
                 ],
-                Some(Appraisal::new(Risk::High, vec![ExpressionOutcome::new("low_stars".into(), "Low star count".into(), false)])),
+                Some(Appraisal::new(Risk::High, vec![ExpressionOutcome::new("low_stars".into(), "Low star count".into(), ExpressionDisposition::False)], 1, 0, 0.0)),
             ),
             ReportableCrate::new(
                 "anyhow".into(),
@@ -285,10 +285,13 @@ mod snapshot_tests {
             Some(Appraisal::new(
                 Risk::Low,
                 vec![
-                    ExpressionOutcome::new("coverage".into(), "Excellent coverage".into(), true),
-                    ExpressionOutcome::new("active".into(), "Active development".into(), true),
-                    ExpressionOutcome::new("maintained".into(), "Well maintained".into(), true),
+                    ExpressionOutcome::new("coverage".into(), "Excellent coverage".into(), ExpressionDisposition::True),
+                    ExpressionOutcome::new("active".into(), "Active development".into(), ExpressionDisposition::True),
+                    ExpressionOutcome::new("maintained".into(), "Well maintained".into(), ExpressionDisposition::True),
                 ],
+                3,
+                3,
+                100.0,
             )),
         );
 

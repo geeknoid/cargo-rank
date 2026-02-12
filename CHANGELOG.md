@@ -82,6 +82,8 @@
   - `activity.merged_pr_age_last_365_days_p90`
   - `activity.merged_pr_age_last_365_days_p95`
 
+- Expression evaluation errors are now reported as such instead of failing overall appraisal.
+
 ### Removed
 
 - Removed metrics (replaced by new naming convention above):

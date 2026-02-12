@@ -1,6 +1,5 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
-assertion_line: 210
 expression: output
 ---
 <!DOCTYPE html>
@@ -101,7 +100,7 @@ expression: output
   <div class="header">
     <div class="header-content">
       <h1>Crate Metrics</h1>
-      <p class="subtitle">Produced by cargo-aprz 0.3.0 on 2024-01-15</p>
+      <p class="subtitle">Produced by cargo-aprz 0.4.0 on 2024-01-15</p>
     </div>
     <svg class="ferris" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
       <g>
@@ -147,8 +146,8 @@ expression: output
         <tbody>
           <tr class="metric-row">
             <td><strong>Appraisals</strong></td>
-            <td><span class="low-risk">LOW RISK</span></td>
-            <td><span class="high-risk">HIGH RISK</span></td>
+            <td><span class="low-risk">LOW RISK (score = 100, awarded points = 1, available points = 1)</span></td>
+            <td><span class="high-risk">HIGH RISK (score = 0, awarded points = 0, available points = 1)</span></td>
             <td><span class="na">n/a</span></td>
           </tr>
           <tr class="metric-row">

@@ -293,23 +293,13 @@ impl<'a, H: super::Host> Common<'a, H> {
                         Local::now(),
                         self.config.medium_risk_threshold,
                         self.config.low_risk_threshold,
-                    )
-                    .map_err(|e| {
-                        let _ = writeln!(
-                            self.host.error(),
-                            "Warning: Could not evaluate crate '{}': {}",
-                            facts.crate_spec.name(),
-                            e
-                        );
-                        e
-                    })
-                    .ok();
+                    );
 
                     ReportableCrate::new(
                         Arc::clone(facts.crate_spec.name_arc()),
                         Arc::clone(facts.crate_spec.version_arc()),
                         metrics,
-                        evaluation,
+                        Some(evaluation),
                     )
                 })
                 .collect()

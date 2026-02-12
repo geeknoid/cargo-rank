@@ -1,6 +1,6 @@
 //! Common utilities shared across report generators.
 
-use crate::expr::{ExpressionOutcome, Risk};
+use crate::expr::{Appraisal, ExpressionDisposition, ExpressionOutcome, Risk};
 use crate::metrics::{Metric, MetricCategory, MetricValue};
 use core::fmt;
 use std::collections::{HashMap, HashSet};
@@ -96,9 +96,24 @@ pub const fn format_risk_status(risk: Risk) -> &'static str {
     }
 }
 
+/// Format an appraisal as a detailed status string including score and points.
+pub fn format_appraisal_status(appraisal: &Appraisal) -> String {
+    format!(
+        "{} (score = {:.0}, awarded points = {}, available points = {})",
+        format_risk_status(appraisal.risk),
+        appraisal.score,
+        appraisal.awarded_points,
+        appraisal.available_points,
+    )
+}
+
 /// Returns the pass/fail icon for an expression outcome.
 pub const fn outcome_icon(outcome: &ExpressionOutcome) -> &'static str {
-    if outcome.result { "✔\u{fe0f}" } else { "❌" }
+    match outcome.disposition {
+        ExpressionDisposition::True => "✔️",
+        ExpressionDisposition::False => "❌",
+        ExpressionDisposition::Failed(_) => "➖",
+    }
 }
 
 /// Returns a displayable `icon + name` value (no allocation until formatted).
@@ -112,7 +127,11 @@ pub struct IconName<'a>(&'a ExpressionOutcome);
 
 impl fmt::Display for IconName<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", outcome_icon(self.0), self.0.name)
+        write!(f, "{} {}", outcome_icon(self.0), self.0.name)?;
+        if let ExpressionDisposition::Failed(reason) = &self.0.disposition {
+            write!(f, " (failure to evaluate: {reason})")?;
+        }
+        Ok(())
     }
 }
 

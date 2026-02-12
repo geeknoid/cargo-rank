@@ -1,6 +1,5 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
-assertion_line: 218
 expression: output
 ---
 {
@@ -10,7 +9,7 @@ expression: output
         "reasons": [
           "high_stars"
         ],
-        "result": "LOW RISK"
+        "result": "LOW RISK (score = 100, awarded points = 1, available points = 1)"
       },
       "metrics": {
         "community.repo_stars": 20000,
@@ -33,7 +32,7 @@ expression: output
         "reasons": [
           "low_stars"
         ],
-        "result": "HIGH RISK"
+        "result": "HIGH RISK (score = 0, awarded points = 0, available points = 1)"
       },
       "metrics": {
         "community.repo_stars": 8000,

@@ -34,5 +34,5 @@ mod risk;
 pub use appraisal::Appraisal;
 pub use evaluator::evaluate;
 pub use expression::Expression;
-pub use expression_outcome::ExpressionOutcome;
+pub use expression_outcome::{ExpressionDisposition, ExpressionOutcome};
 pub use risk::Risk;

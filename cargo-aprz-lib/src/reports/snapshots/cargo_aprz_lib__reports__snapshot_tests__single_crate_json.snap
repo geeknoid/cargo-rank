@@ -1,6 +1,5 @@
 ---
 source: cargo-aprz-lib/src/reports/mod.rs
-assertion_line: 308
 expression: json_output
 ---
 {
@@ -12,7 +11,7 @@ expression: json_output
           "active",
           "maintained"
         ],
-        "result": "LOW RISK"
+        "result": "LOW RISK (score = 100, awarded points = 3, available points = 3)"
       },
       "metrics": {
         "community.repo_stars": 12345,
