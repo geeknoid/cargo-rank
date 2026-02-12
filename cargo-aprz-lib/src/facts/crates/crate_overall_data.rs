@@ -82,4 +82,18 @@ pub struct CrateOverallData {
     /// **Source**: Computed from `versions.csv` from the `versions` table
     /// - Count versions for this `crate_id` where `created_at` is within the last 90 days
     pub versions_last_90_days: u64,
+
+    /// Number of different versions of this crate published within the last 180 days.
+    /// This helps assess the release frequency and stability of the crate over a longer period.
+    ///
+    /// **Source**: Computed from `versions.csv` from the `versions` table
+    /// - Count versions for this `crate_id` where `created_at` is within the last 180 days
+    pub versions_last_180_days: u64,
+
+    /// Number of different versions of this crate published within the last 365 days.
+    /// This helps assess the release frequency and stability of the crate over the past year.
+    ///
+    /// **Source**: Computed from `versions.csv` from the `versions` table
+    /// - Count versions for this `crate_id` where `created_at` is within the last 365 days
+    pub versions_last_365_days: u64,
 }

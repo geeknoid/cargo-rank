@@ -354,6 +354,26 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
+        "stability.versions_last_180_days",
+        "Number of versions published in the last 180 days",
+        Stability,
+        |facts| facts
+            .crates_data
+            .as_ref()
+            .map(|data| MetricValue::UInt(data.overall_data.versions_last_180_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "stability.versions_last_365_days",
+        "Number of versions published in the last 365 days",
+        Stability,
+        |facts| facts
+            .crates_data
+            .as_ref()
+            .map(|data| MetricValue::UInt(data.overall_data.versions_last_365_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
         "crate.owners",
         "List of owner usernames",
         Metadata,
@@ -402,6 +422,16 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
             .codebase_data
             .as_ref()
             .map(|data| MetricValue::UInt(data.commits_last_90_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.commits_last_180_days",
+        "Number of commits to the repository in the last 180 days",
+        Activity,
+        |facts| facts
+            .codebase_data
+            .as_ref()
+            .map(|data| MetricValue::UInt(data.commits_last_180_days)),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(

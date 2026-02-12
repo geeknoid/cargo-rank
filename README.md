@@ -274,14 +274,16 @@ The sections below show the full set of metrics collected.
 
 ### Stability Metrics
 
-| Metric                            | Description                                                |
-|-----------------------------------|------------------------------------------------------------|
-| `stability.crate_created_at`      | When the crate was first published to crates.io            |
-| `stability.crate_updated_at`      | When the crate's metadata was last updated on crates.io    |
-| `stability.version_created_at`    | When this version was first published to crates.io         |
-| `stability.version_updated_at`    | When this version's metadata was last updated on crates.io |
-| `stability.yanked`                | Whether this version has been yanked from crates.io        |
-| `stability.versions_last_90_days` | Number of versions published in the last 90 days           |
+| Metric                             | Description                                                |
+|------------------------------------|------------------------------------------------------------|
+| `stability.crate_created_at`       | When the crate was first published to crates.io            |
+| `stability.crate_updated_at`       | When the crate's metadata was last updated on crates.io    |
+| `stability.version_created_at`     | When this version was first published to crates.io         |
+| `stability.version_updated_at`     | When this version's metadata was last updated on crates.io |
+| `stability.yanked`                 | Whether this version has been yanked from crates.io        |
+| `stability.versions_last_90_days`  | Number of versions published in the last 90 days           |
+| `stability.versions_last_180_days` | Number of versions published in the last 180 days          |
+| `stability.versions_last_365_days` | Number of versions published in the last 365 days          |
 
 ### Community Metrics
 
@@ -297,6 +299,7 @@ The sections below show the full set of metrics collected.
 | Metric                                       | Description                                                    |
 |----------------------------------------------|----------------------------------------------------------------|
 | `activity.commits_last_90_days`              | Number of commits to the repository in the last 90 days        |
+| `activity.commits_last_180_days`             | Number of commits to the repository in the last 180 days       |
 | `activity.commits_last_365_days`             | Number of commits to the repository in the last 365 days       |
 | `activity.commit_count`                      | Total number of commits in the repository                      |
 | `activity.last_commit_at`                    | Timestamp of the most recent commit in the repository          |

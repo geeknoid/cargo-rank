@@ -1,5 +1,11 @@
 # cargo-aprz
 
+## 0.4.0 [TBD]
+
+### Added
+
+- New metrics: `stability.versions_last_180_days`, `stability.versions_last_365_days`, and `activity.commits_last_180_days`.
+
 ## 0.3.0 2026-02-10
 
 ### Changed

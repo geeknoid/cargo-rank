@@ -38,6 +38,7 @@ struct RepoData {
     workflows: GitHubWorkflowInfo,
     contributor_count: u64,
     commits_last_90_days: u64,
+    commits_last_180_days: u64,
     commits_last_365_days: u64,
     commit_count: u64,
     last_commit_at: DateTime<Utc>,
@@ -242,21 +243,8 @@ impl Provider {
 
         log::debug!(target: LOG_TARGET, "Counting recent commits in repository '{repo_spec}'");
 
-        let commits_last_90_days = match git::count_recent_commits(&repo_path, 90).await {
-            Ok(count) => count,
-            Err(e) => {
-                log::warn!(target: LOG_TARGET, "Could not count recent commits for '{repo_spec}': {e:#}");
-                0
-            }
-        };
-
-        let commits_last_365_days = match git::count_recent_commits(&repo_path, 365).await {
-            Ok(count) => count,
-            Err(e) => {
-                log::warn!(target: LOG_TARGET, "Could not count commits in last year for '{repo_spec}': {e:#}");
-                0
-            }
-        };
+        let (commits_last_90_days, commits_last_180_days, commits_last_365_days) =
+            Self::count_recent_commits(&repo_path, repo_spec).await;
 
         let commit_count = match git::count_all_commits(&repo_path).await {
             Ok(count) => count,
@@ -293,10 +281,39 @@ impl Provider {
             workflows,
             contributor_count,
             commits_last_90_days,
+            commits_last_180_days,
             commits_last_365_days,
             commit_count,
             last_commit_at,
         })
+    }
+
+    async fn count_recent_commits(repo_path: &Path, repo_spec: &RepoSpec) -> (u64, u64, u64) {
+        let commits_last_90_days = match git::count_recent_commits(repo_path, 90).await {
+            Ok(count) => count,
+            Err(e) => {
+                log::warn!(target: LOG_TARGET, "Could not count recent commits for '{repo_spec}': {e:#}");
+                0
+            }
+        };
+
+        let commits_last_180_days = match git::count_recent_commits(repo_path, 180).await {
+            Ok(count) => count,
+            Err(e) => {
+                log::warn!(target: LOG_TARGET, "Could not count commits in last 180 days for '{repo_spec}': {e:#}");
+                0
+            }
+        };
+
+        let commits_last_365_days = match git::count_recent_commits(repo_path, 365).await {
+            Ok(count) => count,
+            Err(e) => {
+                log::warn!(target: LOG_TARGET, "Could not count commits in last year for '{repo_spec}': {e:#}");
+                0
+            }
+        };
+
+        (commits_last_90_days, commits_last_180_days, commits_last_365_days)
     }
 
     /// Analyze a single crate
@@ -345,6 +362,7 @@ impl Provider {
             clippy_detected: repo_data.workflows.clippy_detected,
             contributors: repo_data.contributor_count,
             commits_last_90_days: repo_data.commits_last_90_days,
+            commits_last_180_days: repo_data.commits_last_180_days,
             commits_last_365_days: repo_data.commits_last_365_days,
             commit_count: repo_data.commit_count,
             last_commit_at: repo_data.last_commit_at,

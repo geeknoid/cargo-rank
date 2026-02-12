@@ -115,6 +115,8 @@ mod tests {
                     downloads: 5000,
                     dependents: 10,
                     versions_last_90_days: 0,
+                    versions_last_180_days: 0,
+                    versions_last_365_days: 0,
                 },
             )),
             hosting_data: ProviderResult::Found(HostingData {
@@ -176,6 +178,7 @@ mod tests {
                 clippy_detected: true,
                 contributors: 5,
                 commits_last_90_days: 50,
+                commits_last_180_days: 100,
                 commits_last_365_days: 200,
                 commit_count: 1000,
                 last_commit_at: now,

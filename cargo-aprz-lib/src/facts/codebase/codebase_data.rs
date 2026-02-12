@@ -17,6 +17,7 @@ pub struct CodebaseData {
     pub clippy_detected: bool,
     pub contributors: u64,
     pub commits_last_90_days: u64,
+    pub commits_last_180_days: u64,
     pub commits_last_365_days: u64,
     pub commit_count: u64,
     pub last_commit_at: DateTime<Utc>,

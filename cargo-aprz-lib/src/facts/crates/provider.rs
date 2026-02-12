@@ -50,6 +50,8 @@ struct PerCrateData {
     downloads: u64,
     dependents: u64,
     versions_last_90_days: u64,
+    versions_last_180_days: u64,
+    versions_last_365_days: u64,
 }
 
 // Type aliases for complex return types from phase methods
@@ -262,6 +264,8 @@ impl Provider {
                             downloads: 0,
                             dependents: 0,
                             versions_last_90_days: 0,
+                            versions_last_180_days: 0,
+                            versions_last_365_days: 0,
                         },
                     );
 
@@ -434,15 +438,23 @@ impl Provider {
         let remaining_latest = need_latest_version.len();
         let mut remaining_mappings = needed_version_ids.len();
 
-        // Calculate cutoff date for counting versions in the last 90 days
-        let cutoff_date = self.now - chrono::Duration::days(90);
+        // Calculate cutoff dates for counting versions in the last 90/180/365 days
+        let cutoff_90 = self.now - chrono::Duration::days(90);
+        let cutoff_180 = self.now - chrono::Duration::days(180);
+        let cutoff_365 = self.now - chrono::Duration::days(365);
 
         for (row, index) in self.table_mgr.versions_table().iter() {
-            // Count versions created in the last 90 days for our crates
+            // Count versions created in the last 90/180/365 days for our crates
             if let Some(data) = crate_data.get_mut(&row.crate_id)
-                && row.created_at >= cutoff_date
+                && row.created_at >= cutoff_365
             {
-                data.versions_last_90_days += 1;
+                data.versions_last_365_days += 1;
+                if row.created_at >= cutoff_180 {
+                    data.versions_last_180_days += 1;
+                    if row.created_at >= cutoff_90 {
+                        data.versions_last_90_days += 1;
+                    }
+                }
             }
             // Check if this is one of our requested versions
             if remaining_versions > 0
@@ -895,6 +907,8 @@ impl Provider {
                 downloads: per_crate_data.downloads,
                 dependents: per_crate_data.dependents,
                 versions_last_90_days: per_crate_data.versions_last_90_days,
+                versions_last_180_days: per_crate_data.versions_last_180_days,
+                versions_last_365_days: per_crate_data.versions_last_365_days,
             },
         )
     }
