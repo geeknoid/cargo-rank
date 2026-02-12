@@ -76,7 +76,7 @@ mod tests {
     use crate::facts::CrateSpec;
     use crate::facts::advisories::AdvisoryCounts;
     use crate::facts::docs::DocsMetrics;
-    use crate::facts::hosting::{AgeStats, IssueStats};
+    use crate::facts::hosting::{AgeStats, TimeWindowStats};
     use chrono::Utc;
     use semver::Version;
     use std::collections::BTreeMap;
@@ -124,30 +124,35 @@ mod tests {
                 stars: 100,
                 forks: 20,
                 subscribers: 5,
-                issues: IssueStats {
-                    open_count: 5,
-                    closed_count: 20,
-                    open_age: AgeStats {
-                        avg: 10,
-                        p50: 8,
-                        p75: 15,
-                        p90: 20,
-                        p95: 25,
-                    },
-                    closed_age: AgeStats::default(),
+                open_issues: 5,
+                open_prs: 2,
+                issues_opened: TimeWindowStats::default(),
+                issues_closed: TimeWindowStats::default(),
+                prs_opened: TimeWindowStats::default(),
+                prs_merged: TimeWindowStats::default(),
+                prs_closed: TimeWindowStats::default(),
+                open_issue_age: AgeStats {
+                    avg: 10,
+                    p50: 8,
+                    p75: 15,
+                    p90: 20,
+                    p95: 25,
                 },
-                pulls: IssueStats {
-                    open_count: 2,
-                    closed_count: 15,
-                    open_age: AgeStats {
-                        avg: 5,
-                        p50: 4,
-                        p75: 7,
-                        p90: 10,
-                        p95: 12,
-                    },
-                    closed_age: AgeStats::default(),
+                open_pr_age: AgeStats {
+                    avg: 5,
+                    p50: 4,
+                    p75: 7,
+                    p90: 10,
+                    p95: 12,
                 },
+                closed_issue_age: AgeStats::default(),
+                closed_issue_age_last_90_days: AgeStats::default(),
+                closed_issue_age_last_180_days: AgeStats::default(),
+                closed_issue_age_last_365_days: AgeStats::default(),
+                merged_pr_age: AgeStats::default(),
+                merged_pr_age_last_90_days: AgeStats::default(),
+                merged_pr_age_last_180_days: AgeStats::default(),
+                merged_pr_age_last_365_days: AgeStats::default(),
             }),
             advisory_data: ProviderResult::Found(AdvisoryData {
                 timestamp: now,
@@ -181,6 +186,7 @@ mod tests {
                 commits_last_180_days: 100,
                 commits_last_365_days: 200,
                 commit_count: 1000,
+                first_commit_at: now,
                 last_commit_at: now,
             }),
             coverage_data: ProviderResult::Found(CoverageData {

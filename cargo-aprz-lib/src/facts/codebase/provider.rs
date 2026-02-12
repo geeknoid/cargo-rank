@@ -41,6 +41,7 @@ struct RepoData {
     commits_last_180_days: u64,
     commits_last_365_days: u64,
     commit_count: u64,
+    first_commit_at: DateTime<Utc>,
     last_commit_at: DateTime<Utc>,
 }
 
@@ -254,6 +255,14 @@ impl Provider {
             }
         };
 
+        let first_commit_at = match git::get_first_commit_time(&repo_path).await {
+            Ok(dt) => dt,
+            Err(e) => {
+                log::warn!(target: LOG_TARGET, "Could not get first commit time for '{repo_spec}': {e:#}");
+                DateTime::UNIX_EPOCH
+            }
+        };
+
         let last_commit_at = match git::get_last_commit_time(&repo_path).await {
             Ok(dt) => dt,
             Err(e) => {
@@ -284,6 +293,7 @@ impl Provider {
             commits_last_180_days,
             commits_last_365_days,
             commit_count,
+            first_commit_at,
             last_commit_at,
         })
     }
@@ -365,6 +375,7 @@ impl Provider {
             commits_last_180_days: repo_data.commits_last_180_days,
             commits_last_365_days: repo_data.commits_last_365_days,
             commit_count: repo_data.commit_count,
+            first_commit_at: repo_data.first_commit_at,
             last_commit_at: repo_data.last_commit_at,
         };
 

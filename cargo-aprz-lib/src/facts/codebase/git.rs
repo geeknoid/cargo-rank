@@ -143,6 +143,24 @@ pub async fn count_all_commits(repo_path: &Path) -> Result<u64> {
 }
 
 /// Get the timestamp of the most recent commit
+/// Get the timestamp of the first (oldest) commit in the repository.
+pub async fn get_first_commit_time(repo_path: &Path) -> Result<DateTime<Utc>> {
+    let path_str = path_str(repo_path)?;
+
+    let output = run_git_with_timeout(&["-C", path_str, "log", "--reverse", "--format=%aI"]).await?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git log failed: {stderr}");
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let first_line = stdout.lines().next().unwrap_or("").trim();
+    let dt = DateTime::parse_from_rfc3339(first_line).into_app_err("could not parse first commit timestamp")?;
+
+    Ok(dt.to_utc())
+}
+
 pub async fn get_last_commit_time(repo_path: &Path) -> Result<DateTime<Utc>> {
     let path_str = path_str(repo_path)?;
 

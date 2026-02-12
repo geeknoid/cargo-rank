@@ -296,23 +296,86 @@ The sections below show the full set of metrics collected.
 
 ### Activity Metrics
 
-| Metric                                       | Description                                                    |
-|----------------------------------------------|----------------------------------------------------------------|
-| `activity.commits_last_90_days`              | Number of commits to the repository in the last 90 days        |
-| `activity.commits_last_180_days`             | Number of commits to the repository in the last 180 days       |
-| `activity.commits_last_365_days`             | Number of commits to the repository in the last 365 days       |
-| `activity.commit_count`                      | Total number of commits in the repository                      |
-| `activity.last_commit_at`                    | Timestamp of the most recent commit in the repository          |
-| `activity.open_issues`                       | Number of currently open issues                                |
-| `activity.closed_issues`                     | Total number of issues that have been closed (all time)        |
-| `activity.avg_open_issue_age_days`           | Average age in days of open issues                             |
-| `activity.median_open_issue_age_days`        | Median age in days of open issues (50th percentile)            |
-| `activity.p90_open_issue_age_days`           | 90th percentile age in days of open issues                     |
-| `activity.open_pull_requests`                | Number of currently open pull requests                         |
-| `activity.closed_pull_requests`              | Total number of pull requests that have been closed (all time) |
-| `activity.avg_open_pull_request_age_days`    | Average age in days of open pull requests                      |
-| `activity.median_open_pull_request_age_days` | Median age in days of open pull requests (50th percentile)     |
-| `activity.p90_open_pull_request_age_days`    | 90th percentile age in days of open pull requests              |
+| Metric                                               | Description                                                              |
+|------------------------------------------------------|--------------------------------------------------------------------------|
+| `activity.commits_last_90_days`                      | Number of commits to the repository in the last 90 days                  |
+| `activity.commits_last_180_days`                     | Number of commits to the repository in the last 180 days                 |
+| `activity.commits_last_365_days`                     | Number of commits to the repository in the last 365 days                 |
+| `activity.commit_count`                              | Total number of commits in the repository                                |
+| `activity.first_commit_at`                           | Timestamp of the first commit in the repository                          |
+| `activity.last_commit_at`                            | Timestamp of the most recent commit in the repository                    |
+| `activity.open_issues`                               | Number of currently open issues                                          |
+| `activity.open_issue_age_avg`                        | Average age in days of open issues                                       |
+| `activity.open_issue_age_p50`                        | Median age in days of open issues                                        |
+| `activity.open_issue_age_p75`                        | 75th percentile age in days of open issues                               |
+| `activity.open_issue_age_p90`                        | 90th percentile age in days of open issues                               |
+| `activity.open_issue_age_p95`                        | 95th percentile age in days of open issues                               |
+| `activity.issues_opened_last_90_days`                | Number of issues opened in the last 90 days                              |
+| `activity.issues_opened_last_180_days`               | Number of issues opened in the last 180 days                             |
+| `activity.issues_opened_last_365_days`               | Number of issues opened in the last 365 days                             |
+| `activity.issues_opened_total`                       | Total number of issues opened (all time)                                 |
+| `activity.issues_closed_last_90_days`                | Number of issues closed in the last 90 days                              |
+| `activity.issues_closed_last_180_days`               | Number of issues closed in the last 180 days                             |
+| `activity.issues_closed_last_365_days`               | Number of issues closed in the last 365 days                             |
+| `activity.issues_closed_total`                       | Total number of issues closed (all time)                                 |
+| `activity.closed_issue_age_avg`                      | Average age in days of closed issues                                     |
+| `activity.closed_issue_age_p50`                      | Median age in days of closed issues                                      |
+| `activity.closed_issue_age_p75`                      | 75th percentile age in days of closed issues                             |
+| `activity.closed_issue_age_p90`                      | 90th percentile age in days of closed issues                             |
+| `activity.closed_issue_age_p95`                      | 95th percentile age in days of closed issues                             |
+| `activity.closed_issue_age_last_90_days_avg`         | Average age in days of issues closed in the last 90 days                 |
+| `activity.closed_issue_age_last_90_days_p50`         | Median age in days of issues closed in the last 90 days                  |
+| `activity.closed_issue_age_last_90_days_p75`         | 75th percentile age in days of issues closed in the last 90 days         |
+| `activity.closed_issue_age_last_90_days_p90`         | 90th percentile age in days of issues closed in the last 90 days         |
+| `activity.closed_issue_age_last_90_days_p95`         | 95th percentile age in days of issues closed in the last 90 days         |
+| `activity.closed_issue_age_last_180_days_avg`        | Average age in days of issues closed in the last 180 days                |
+| `activity.closed_issue_age_last_180_days_p50`        | Median age in days of issues closed in the last 180 days                 |
+| `activity.closed_issue_age_last_180_days_p75`        | 75th percentile age in days of issues closed in the last 180 days        |
+| `activity.closed_issue_age_last_180_days_p90`        | 90th percentile age in days of issues closed in the last 180 days        |
+| `activity.closed_issue_age_last_180_days_p95`        | 95th percentile age in days of issues closed in the last 180 days        |
+| `activity.closed_issue_age_last_365_days_avg`        | Average age in days of issues closed in the last 365 days                |
+| `activity.closed_issue_age_last_365_days_p50`        | Median age in days of issues closed in the last 365 days                 |
+| `activity.closed_issue_age_last_365_days_p75`        | 75th percentile age in days of issues closed in the last 365 days        |
+| `activity.closed_issue_age_last_365_days_p90`        | 90th percentile age in days of issues closed in the last 365 days        |
+| `activity.closed_issue_age_last_365_days_p95`        | 95th percentile age in days of issues closed in the last 365 days        |
+| `activity.open_prs`                                  | Number of currently open pull requests                                   |
+| `activity.open_pr_age_avg`                           | Average age in days of open pull requests                                |
+| `activity.open_pr_age_p50`                           | Median age in days of open pull requests                                 |
+| `activity.open_pr_age_p75`                           | 75th percentile age in days of open pull requests                        |
+| `activity.open_pr_age_p90`                           | 90th percentile age in days of open pull requests                        |
+| `activity.open_pr_age_p95`                           | 95th percentile age in days of open pull requests                        |
+| `activity.prs_opened_last_90_days`                   | Number of pull requests opened in the last 90 days                       |
+| `activity.prs_opened_last_180_days`                  | Number of pull requests opened in the last 180 days                      |
+| `activity.prs_opened_last_365_days`                  | Number of pull requests opened in the last 365 days                      |
+| `activity.prs_opened_total`                          | Total number of pull requests opened (all time)                          |
+| `activity.prs_merged_last_90_days`                   | Number of pull requests merged in the last 90 days                       |
+| `activity.prs_merged_last_180_days`                  | Number of pull requests merged in the last 180 days                      |
+| `activity.prs_merged_last_365_days`                  | Number of pull requests merged in the last 365 days                      |
+| `activity.prs_merged_total`                          | Total number of pull requests merged (all time)                          |
+| `activity.prs_closed_last_90_days`                   | Number of pull requests closed in the last 90 days                       |
+| `activity.prs_closed_last_180_days`                  | Number of pull requests closed in the last 180 days                      |
+| `activity.prs_closed_last_365_days`                  | Number of pull requests closed in the last 365 days                      |
+| `activity.prs_closed_total`                          | Total number of pull requests closed (all time)                          |
+| `activity.merged_pr_age_avg`                         | Average age in days of merged pull requests                              |
+| `activity.merged_pr_age_p50`                         | Median age in days of merged pull requests                               |
+| `activity.merged_pr_age_p75`                         | 75th percentile age in days of merged pull requests                      |
+| `activity.merged_pr_age_p90`                         | 90th percentile age in days of merged pull requests                      |
+| `activity.merged_pr_age_p95`                         | 95th percentile age in days of merged pull requests                      |
+| `activity.merged_pr_age_last_90_days_avg`            | Average age in days of pull requests merged in the last 90 days          |
+| `activity.merged_pr_age_last_90_days_p50`            | Median age in days of pull requests merged in the last 90 days           |
+| `activity.merged_pr_age_last_90_days_p75`            | 75th percentile age in days of pull requests merged in the last 90 days  |
+| `activity.merged_pr_age_last_90_days_p90`            | 90th percentile age in days of pull requests merged in the last 90 days  |
+| `activity.merged_pr_age_last_90_days_p95`            | 95th percentile age in days of pull requests merged in the last 90 days  |
+| `activity.merged_pr_age_last_180_days_avg`           | Average age in days of pull requests merged in the last 180 days         |
+| `activity.merged_pr_age_last_180_days_p50`           | Median age in days of pull requests merged in the last 180 days          |
+| `activity.merged_pr_age_last_180_days_p75`           | 75th percentile age in days of pull requests merged in the last 180 days |
+| `activity.merged_pr_age_last_180_days_p90`           | 90th percentile age in days of pull requests merged in the last 180 days |
+| `activity.merged_pr_age_last_180_days_p95`           | 95th percentile age in days of pull requests merged in the last 180 days |
+| `activity.merged_pr_age_last_365_days_avg`           | Average age in days of pull requests merged in the last 365 days         |
+| `activity.merged_pr_age_last_365_days_p50`           | Median age in days of pull requests merged in the last 365 days          |
+| `activity.merged_pr_age_last_365_days_p75`           | 75th percentile age in days of pull requests merged in the last 365 days |
+| `activity.merged_pr_age_last_365_days_p90`           | 90th percentile age in days of pull requests merged in the last 365 days |
+| `activity.merged_pr_age_last_365_days_p95`           | 95th percentile age in days of pull requests merged in the last 365 days |
 
 ### Documentation Metrics
 

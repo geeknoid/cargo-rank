@@ -452,98 +452,526 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
+        "activity.first_commit_at",
+        "Timestamp of the first commit in the repository",
+        Activity,
+        |facts| facts.codebase_data.as_ref().map(|data| MetricValue::DateTime(data.first_commit_at)),
+        || Some(MetricValue::DateTime(DateTime::UNIX_EPOCH))
+    ),
+    metric_def!(
         "activity.last_commit_at",
         "Timestamp of the most recent commit in the repository",
         Activity,
         |facts| facts.codebase_data.as_ref().map(|data| MetricValue::DateTime(data.last_commit_at)),
         || Some(MetricValue::DateTime(DateTime::UNIX_EPOCH))
     ),
+    // Issues
+
     metric_def!(
         "activity.open_issues",
         "Number of currently open issues",
         Activity,
-        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues.open_count)),
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.open_issues)),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
-        "activity.closed_issues",
-        "Total number of issues that have been closed (all time)",
-        Activity,
-        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues.closed_count)),
-        || Some(MetricValue::UInt(0))
-    ),
-    metric_def!(
-        "activity.avg_open_issue_age_days",
+        "activity.open_issue_age_avg",
         "Average age in days of open issues",
         Activity,
-        |facts| facts
-            .hosting_data
-            .as_ref()
-            .map(|data| MetricValue::UInt(u64::from(data.issues.open_age.avg))),
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_issue_age.avg))),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
-        "activity.median_open_issue_age_days",
-        "Median age in days of open issues (50th percentile)",
+        "activity.open_issue_age_p50",
+        "Median age in days of open issues",
         Activity,
-        |facts| facts
-            .hosting_data
-            .as_ref()
-            .map(|data| MetricValue::UInt(u64::from(data.issues.open_age.p50))),
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_issue_age.p50))),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
-        "activity.p90_open_issue_age_days",
+        "activity.open_issue_age_p75",
+        "75th percentile age in days of open issues",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_issue_age.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.open_issue_age_p90",
         "90th percentile age in days of open issues",
         Activity,
-        |facts| facts
-            .hosting_data
-            .as_ref()
-            .map(|data| MetricValue::UInt(u64::from(data.issues.open_age.p90))),
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_issue_age.p90))),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
-        "activity.open_pull_requests",
+        "activity.open_issue_age_p95",
+        "95th percentile age in days of open issues",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_issue_age.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.issues_opened_last_90_days",
+        "Number of issues opened in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues_opened.last_90_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.issues_opened_last_180_days",
+        "Number of issues opened in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues_opened.last_180_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.issues_opened_last_365_days",
+        "Number of issues opened in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues_opened.last_365_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.issues_opened_total",
+        "Total number of issues opened (all time)",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues_opened.total)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.issues_closed_last_90_days",
+        "Number of issues closed in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues_closed.last_90_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.issues_closed_last_180_days",
+        "Number of issues closed in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues_closed.last_180_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.issues_closed_last_365_days",
+        "Number of issues closed in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues_closed.last_365_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.issues_closed_total",
+        "Total number of issues closed (all time)",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.issues_closed.total)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_avg",
+        "Average age in days of closed issues",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age.avg))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_p50",
+        "Median age in days of closed issues",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age.p50))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_p75",
+        "75th percentile age in days of closed issues",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_p90",
+        "90th percentile age in days of closed issues",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_p95",
+        "95th percentile age in days of closed issues",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_90_days_avg",
+        "Average age in days of issues closed in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_90_days.avg))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_90_days_p50",
+        "Median age in days of issues closed in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_90_days.p50))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_90_days_p75",
+        "75th percentile age in days of issues closed in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_90_days.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_90_days_p90",
+        "90th percentile age in days of issues closed in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_90_days.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_90_days_p95",
+        "95th percentile age in days of issues closed in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_90_days.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_180_days_avg",
+        "Average age in days of issues closed in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_180_days.avg))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_180_days_p50",
+        "Median age in days of issues closed in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_180_days.p50))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_180_days_p75",
+        "75th percentile age in days of issues closed in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_180_days.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_180_days_p90",
+        "90th percentile age in days of issues closed in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_180_days.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_180_days_p95",
+        "95th percentile age in days of issues closed in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_180_days.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_365_days_avg",
+        "Average age in days of issues closed in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_365_days.avg))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_365_days_p50",
+        "Median age in days of issues closed in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_365_days.p50))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_365_days_p75",
+        "75th percentile age in days of issues closed in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_365_days.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_365_days_p90",
+        "90th percentile age in days of issues closed in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_365_days.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.closed_issue_age_last_365_days_p95",
+        "95th percentile age in days of issues closed in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.closed_issue_age_last_365_days.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+
+    // Pull Requests
+
+    metric_def!(
+        "activity.open_prs",
         "Number of currently open pull requests",
         Activity,
-        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.pulls.open_count)),
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.open_prs)),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
-        "activity.closed_pull_requests",
-        "Total number of pull requests that have been closed (all time)",
-        Activity,
-        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.pulls.closed_count)),
-        || Some(MetricValue::UInt(0))
-    ),
-    metric_def!(
-        "activity.avg_open_pull_request_age_days",
+        "activity.open_pr_age_avg",
         "Average age in days of open pull requests",
         Activity,
-        |facts| facts
-            .hosting_data
-            .as_ref()
-            .map(|data| MetricValue::UInt(u64::from(data.pulls.open_age.avg))),
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_pr_age.avg))),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
-        "activity.median_open_pull_request_age_days",
-        "Median age in days of open pull requests (50th percentile)",
+        "activity.open_pr_age_p50",
+        "Median age in days of open pull requests",
         Activity,
-        |facts| facts
-            .hosting_data
-            .as_ref()
-            .map(|data| MetricValue::UInt(u64::from(data.pulls.open_age.p50))),
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_pr_age.p50))),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(
-        "activity.p90_open_pull_request_age_days",
+        "activity.open_pr_age_p75",
+        "75th percentile age in days of open pull requests",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_pr_age.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.open_pr_age_p90",
         "90th percentile age in days of open pull requests",
         Activity,
-        |facts| facts
-            .hosting_data
-            .as_ref()
-            .map(|data| MetricValue::UInt(u64::from(data.pulls.open_age.p90))),
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_pr_age.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.open_pr_age_p95",
+        "95th percentile age in days of open pull requests",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.open_pr_age.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_opened_last_90_days",
+        "Number of pull requests opened in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_opened.last_90_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_opened_last_180_days",
+        "Number of pull requests opened in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_opened.last_180_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_opened_last_365_days",
+        "Number of pull requests opened in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_opened.last_365_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_opened_total",
+        "Total number of pull requests opened (all time)",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_opened.total)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_merged_last_90_days",
+        "Number of pull requests merged in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_merged.last_90_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_merged_last_180_days",
+        "Number of pull requests merged in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_merged.last_180_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_merged_last_365_days",
+        "Number of pull requests merged in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_merged.last_365_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_merged_total",
+        "Total number of pull requests merged (all time)",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_merged.total)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_closed_last_90_days",
+        "Number of pull requests closed in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_closed.last_90_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_closed_last_180_days",
+        "Number of pull requests closed in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_closed.last_180_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_closed_last_365_days",
+        "Number of pull requests closed in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_closed.last_365_days)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.prs_closed_total",
+        "Total number of pull requests closed (all time)",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(data.prs_closed.total)),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_avg",
+        "Average age in days of merged pull requests",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age.avg))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_p50",
+        "Median age in days of merged pull requests",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age.p50))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_p75",
+        "75th percentile age in days of merged pull requests",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_p90",
+        "90th percentile age in days of merged pull requests",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_p95",
+        "95th percentile age in days of merged pull requests",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_90_days_avg",
+        "Average age in days of pull requests merged in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_90_days.avg))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_90_days_p50",
+        "Median age in days of pull requests merged in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_90_days.p50))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_90_days_p75",
+        "75th percentile age in days of pull requests merged in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_90_days.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_90_days_p90",
+        "90th percentile age in days of pull requests merged in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_90_days.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_90_days_p95",
+        "95th percentile age in days of pull requests merged in the last 90 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_90_days.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_180_days_avg",
+        "Average age in days of pull requests merged in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_180_days.avg))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_180_days_p50",
+        "Median age in days of pull requests merged in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_180_days.p50))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_180_days_p75",
+        "75th percentile age in days of pull requests merged in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_180_days.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_180_days_p90",
+        "90th percentile age in days of pull requests merged in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_180_days.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_180_days_p95",
+        "95th percentile age in days of pull requests merged in the last 180 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_180_days.p95))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_365_days_avg",
+        "Average age in days of pull requests merged in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_365_days.avg))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_365_days_p50",
+        "Median age in days of pull requests merged in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_365_days.p50))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_365_days_p75",
+        "75th percentile age in days of pull requests merged in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_365_days.p75))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_365_days_p90",
+        "90th percentile age in days of pull requests merged in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_365_days.p90))),
+        || Some(MetricValue::UInt(0))
+    ),
+    metric_def!(
+        "activity.merged_pr_age_last_365_days_p95",
+        "95th percentile age in days of pull requests merged in the last 365 days",
+        Activity,
+        |facts| facts.hosting_data.as_ref().map(|data| MetricValue::UInt(u64::from(data.merged_pr_age_last_365_days.p95))),
         || Some(MetricValue::UInt(0))
     ),
     metric_def!(

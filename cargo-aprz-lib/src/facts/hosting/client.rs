@@ -36,14 +36,12 @@ pub enum IssueState {
     Closed,
 }
 
-/// Marker type to detect if an issue is actually a pull request
-/// We don't need any fields, just presence/absence
+/// Marker type to detect if an issue is actually a pull request.
+/// The `merged_at` field is populated by GitHub's issues endpoint when the PR has been merged.
 #[derive(Debug, Deserialize)]
-#[expect(
-    clippy::empty_structs_with_brackets,
-    reason = "empty braces needed for serde to deserialize PR objects"
-)]
-pub struct PullRequestMarker {}
+pub struct PullRequestMarker {
+    pub merged_at: Option<DateTime<Utc>>,
+}
 
 /// Rate limit information from response headers
 #[derive(Debug, Clone, Copy)]

@@ -4,7 +4,96 @@
 
 ### Added
 
-- New metrics: `stability.versions_last_180_days`, `stability.versions_last_365_days`, and `activity.commits_last_180_days`.
+- New metrics:
+  - `stability.versions_last_180_days`
+  - `stability.versions_last_365_days`
+  - `activity.commits_last_180_days`
+  - `activity.first_commit_at`
+  - `activity.open_issues`
+  - `activity.open_issue_age_avg`
+  - `activity.open_issue_age_p50`
+  - `activity.open_issue_age_p75`
+  - `activity.open_issue_age_p90`
+  - `activity.open_issue_age_p95`
+  - `activity.issues_opened_last_90_days`
+  - `activity.issues_opened_last_180_days`
+  - `activity.issues_opened_last_365_days`
+  - `activity.issues_opened_total`
+  - `activity.issues_closed_last_90_days`
+  - `activity.issues_closed_last_180_days`
+  - `activity.issues_closed_last_365_days`
+  - `activity.issues_closed_total`
+  - `activity.closed_issue_age_avg`
+  - `activity.closed_issue_age_p50`
+  - `activity.closed_issue_age_p75`
+  - `activity.closed_issue_age_p90`
+  - `activity.closed_issue_age_p95`
+  - `activity.closed_issue_age_last_90_days_avg`
+  - `activity.closed_issue_age_last_90_days_p50`
+  - `activity.closed_issue_age_last_90_days_p75`
+  - `activity.closed_issue_age_last_90_days_p90`
+  - `activity.closed_issue_age_last_90_days_p95`
+  - `activity.closed_issue_age_last_180_days_avg`
+  - `activity.closed_issue_age_last_180_days_p50`
+  - `activity.closed_issue_age_last_180_days_p75`
+  - `activity.closed_issue_age_last_180_days_p90`
+  - `activity.closed_issue_age_last_180_days_p95`
+  - `activity.closed_issue_age_last_365_days_avg`
+  - `activity.closed_issue_age_last_365_days_p50`
+  - `activity.closed_issue_age_last_365_days_p75`
+  - `activity.closed_issue_age_last_365_days_p90`
+  - `activity.closed_issue_age_last_365_days_p95`
+  - `activity.open_prs`
+  - `activity.open_pr_age_avg`
+  - `activity.open_pr_age_p50`
+  - `activity.open_pr_age_p75`
+  - `activity.open_pr_age_p90`
+  - `activity.open_pr_age_p95`
+  - `activity.prs_opened_last_90_days`
+  - `activity.prs_opened_last_180_days`
+  - `activity.prs_opened_last_365_days`
+  - `activity.prs_opened_total`
+  - `activity.prs_merged_last_90_days`
+  - `activity.prs_merged_last_180_days`
+  - `activity.prs_merged_last_365_days`
+  - `activity.prs_merged_total`
+  - `activity.prs_closed_last_90_days`
+  - `activity.prs_closed_last_180_days`
+  - `activity.prs_closed_last_365_days`
+  - `activity.prs_closed_total`
+  - `activity.merged_pr_age_avg`
+  - `activity.merged_pr_age_p50`
+  - `activity.merged_pr_age_p75`
+  - `activity.merged_pr_age_p90`
+  - `activity.merged_pr_age_p95`
+  - `activity.merged_pr_age_last_90_days_avg`
+  - `activity.merged_pr_age_last_90_days_p50`
+  - `activity.merged_pr_age_last_90_days_p75`
+  - `activity.merged_pr_age_last_90_days_p90`
+  - `activity.merged_pr_age_last_90_days_p95`
+  - `activity.merged_pr_age_last_180_days_avg`
+  - `activity.merged_pr_age_last_180_days_p50`
+  - `activity.merged_pr_age_last_180_days_p75`
+  - `activity.merged_pr_age_last_180_days_p90`
+  - `activity.merged_pr_age_last_180_days_p95`
+  - `activity.merged_pr_age_last_365_days_avg`
+  - `activity.merged_pr_age_last_365_days_p50`
+  - `activity.merged_pr_age_last_365_days_p75`
+  - `activity.merged_pr_age_last_365_days_p90`
+  - `activity.merged_pr_age_last_365_days_p95`
+
+### Removed
+
+- Removed metrics (replaced by new naming convention above):
+  - `activity.closed_issues`
+  - `activity.closed_pull_requests`
+  - `activity.open_pull_requests`
+  - `activity.avg_open_issue_age_days`
+  - `activity.median_open_issue_age_days`
+  - `activity.p90_open_issue_age_days`
+  - `activity.avg_open_pull_request_age_days`
+  - `activity.median_open_pull_request_age_days`
+  - `activity.p90_open_pull_request_age_days`
 
 ## 0.3.0 2026-02-10
 

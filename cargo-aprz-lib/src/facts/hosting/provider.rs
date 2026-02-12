@@ -1,5 +1,5 @@
 use super::client::{Client, HostingApiResult, Issue, IssueState, RateLimitInfo, Repository};
-use super::{AgeStats, HostingData, IssueStats};
+use super::{AgeStats, HostingData, TimeWindowStats};
 use crate::Result;
 use crate::facts::ProviderResult;
 use crate::facts::RepoSpec;
@@ -13,6 +13,7 @@ use core::time::Duration;
 use futures_util::future::join_all;
 use ohno::EnrichableExt;
 use reqwest::header::LINK;
+use core::borrow::Borrow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -375,7 +376,7 @@ impl Provider {
 
         // Check for rate limiting or permanent failures in each result
         let (repo_data, repo_rate_limit) = unwrap_repo_result!(repo_res, repo_spec, "core info");
-        let ((issues, pulls), issues_rate_limit) = unwrap_repo_result!(issues_res, repo_spec, "issues and pull request info", "issues/PRs");
+        let (issue_pull_stats, issues_rate_limit) = unwrap_repo_result!(issues_res, repo_spec, "issues and pull request info", "issues/PRs");
 
         // Use the most conservative rate limit info (the one with the least remaining quota)
         let rate_limit = [issues_rate_limit, repo_rate_limit]
@@ -397,8 +398,23 @@ impl Provider {
             stars: u64::from(repo_data.stargazers_count.unwrap_or(0)),
             forks: u64::from(repo_data.forks_count.unwrap_or(0)),
             subscribers,
-            issues,
-            pulls,
+            open_issues: issue_pull_stats.open_issues,
+            open_prs: issue_pull_stats.open_prs,
+            issues_opened: issue_pull_stats.issues_opened,
+            issues_closed: issue_pull_stats.issues_closed,
+            prs_opened: issue_pull_stats.prs_opened,
+            prs_merged: issue_pull_stats.prs_merged,
+            prs_closed: issue_pull_stats.prs_closed,
+            open_issue_age: issue_pull_stats.open_issue_age,
+            open_pr_age: issue_pull_stats.open_pr_age,
+            closed_issue_age: issue_pull_stats.closed_issue_age,
+            closed_issue_age_last_90_days: issue_pull_stats.closed_issue_age_last_90_days,
+            closed_issue_age_last_180_days: issue_pull_stats.closed_issue_age_last_180_days,
+            closed_issue_age_last_365_days: issue_pull_stats.closed_issue_age_last_365_days,
+            merged_pr_age: issue_pull_stats.merged_pr_age,
+            merged_pr_age_last_90_days: issue_pull_stats.merged_pr_age_last_90_days,
+            merged_pr_age_last_180_days: issue_pull_stats.merged_pr_age_last_180_days,
+            merged_pr_age_last_365_days: issue_pull_stats.merged_pr_age_last_365_days,
         };
 
         log::debug!(target: LOG_TARGET, "Completed hosting API requests for repository '{repo_spec}'");
@@ -434,7 +450,7 @@ impl Provider {
         }
     }
 
-    async fn get_issues_and_pulls(&self, client: &Client, owner: &str, repo: &str) -> HostingApiResult<(IssueStats, IssueStats)> {
+    async fn get_issues_and_pulls(&self, client: &Client, owner: &str, repo: &str) -> HostingApiResult<IssueAndPullStats> {
         let since = self.now - chrono::Duration::days(ISSUE_LOOKBACK_DAYS);
         let since_str = since.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
 
@@ -483,38 +499,20 @@ impl Provider {
             }
         }
 
-        let mut open_issues = Vec::new();
-        let mut closed_issues = Vec::new();
-        let mut open_pulls = Vec::new();
-        let mut closed_pulls = Vec::new();
+        let stats = compute_all_stats(&all_issues, self.now);
 
-        for issue in all_issues {
-            let is_pr = issue.pull_request.is_some();
-            let is_open = issue.state == IssueState::Open;
-
-            let target = match (is_pr, is_open) {
-                (true, true) => &mut open_pulls,
-                (true, false) => &mut closed_pulls,
-                (false, true) => &mut open_issues,
-                (false, false) => &mut closed_issues,
-            };
-            target.push(issue);
-        }
-
-        let issues_stats = compute_issue_stats(&open_issues, &closed_issues, self.now);
-        let pulls_stats = compute_issue_stats(&open_pulls, &closed_pulls, self.now);
-
-        HostingApiResult::Success((issues_stats, pulls_stats), latest_rate_limit)
+        HostingApiResult::Success(stats, latest_rate_limit)
     }
 }
 
 #[expect(clippy::cast_precision_loss, reason = "it happens")]
 #[expect(clippy::cast_possible_truncation, reason = "it happens")]
 #[expect(clippy::cast_sign_loss, reason = "it happens")]
-fn compute_age(issues: &[Issue], is_open: bool, now: DateTime<Utc>) -> AgeStats {
+fn compute_age<I: Borrow<Issue>>(issues: &[I], is_open: bool, now: DateTime<Utc>) -> AgeStats {
     let mut seconds: Vec<f64> = issues
         .iter()
         .filter_map(|issue| {
+            let issue = issue.borrow();
             let age_seconds = if is_open {
                 (now - issue.created_at).num_seconds() as f64
             } else {
@@ -557,13 +555,194 @@ fn percentile(sorted_data: &[f64], percentile: f64) -> f64 {
     sorted_data[idx]
 }
 
-/// Helper to create `IssueStats` from open and closed issue lists
-fn compute_issue_stats(open: &[Issue], closed: &[Issue], now: DateTime<Utc>) -> IssueStats {
-    IssueStats {
-        open_count: open.len() as u64,
-        closed_count: closed.len() as u64,
-        open_age: compute_age(open, true, now),
-        closed_age: compute_age(closed, false, now),
+/// All computed statistics from the issues/pulls API data.
+struct IssueAndPullStats {
+    open_issues: u64,
+    open_prs: u64,
+    issues_opened: TimeWindowStats,
+    issues_closed: TimeWindowStats,
+    prs_opened: TimeWindowStats,
+    prs_merged: TimeWindowStats,
+    prs_closed: TimeWindowStats,
+    open_issue_age: AgeStats,
+    open_pr_age: AgeStats,
+    closed_issue_age: AgeStats,
+    closed_issue_age_last_90_days: AgeStats,
+    closed_issue_age_last_180_days: AgeStats,
+    closed_issue_age_last_365_days: AgeStats,
+    merged_pr_age: AgeStats,
+    merged_pr_age_last_90_days: AgeStats,
+    merged_pr_age_last_180_days: AgeStats,
+    merged_pr_age_last_365_days: AgeStats,
+}
+
+/// Count events within time windows based on an extracted timestamp.
+fn count_windowed(items: &[Issue], cutoff_90: DateTime<Utc>, cutoff_180: DateTime<Utc>, cutoff_365: DateTime<Utc>, timestamp_fn: impl Fn(&Issue) -> Option<DateTime<Utc>>) -> TimeWindowStats {
+    let mut stats = TimeWindowStats {
+        total: 0,
+        last_365_days: 0,
+        last_180_days: 0,
+        last_90_days: 0,
+    };
+    for item in items {
+        if let Some(ts) = timestamp_fn(item) {
+            stats.total += 1;
+            if ts >= cutoff_365 {
+                stats.last_365_days += 1;
+                if ts >= cutoff_180 {
+                    stats.last_180_days += 1;
+                    if ts >= cutoff_90 {
+                        stats.last_90_days += 1;
+                    }
+                }
+            }
+        }
+    }
+    stats
+}
+
+/// Compute age stats for merged PRs from a filtered list.
+#[expect(clippy::cast_precision_loss, reason = "it happens")]
+#[expect(clippy::cast_possible_truncation, reason = "it happens")]
+#[expect(clippy::cast_sign_loss, reason = "it happens")]
+fn compute_merged_pr_age(prs: &[&Issue]) -> AgeStats {
+    let mut seconds: Vec<f64> = prs
+        .iter()
+        .filter_map(|pr| {
+            let merged_at = pr.pull_request.as_ref()?.merged_at?;
+            let age = (merged_at - pr.created_at).num_seconds() as f64;
+            (age.is_finite() && age >= 0.0).then_some(age)
+        })
+        .collect();
+
+    if seconds.is_empty() {
+        return AgeStats::default();
+    }
+
+    seconds.sort_by(|a, b| a.partial_cmp(b).expect("no NaN values should be present"));
+
+    AgeStats {
+        avg: (seconds.iter().sum::<f64>() / seconds.len() as f64 / SECONDS_PER_DAY) as u32,
+        p50: (percentile(&seconds, 50.0) / SECONDS_PER_DAY) as u32,
+        p75: (percentile(&seconds, 75.0) / SECONDS_PER_DAY) as u32,
+        p90: (percentile(&seconds, 90.0) / SECONDS_PER_DAY) as u32,
+        p95: (percentile(&seconds, 95.0) / SECONDS_PER_DAY) as u32,
+    }
+}
+
+fn compute_merged_pr_age_since(prs: &[&Issue], cutoff: DateTime<Utc>) -> AgeStats {
+    let filtered: Vec<&Issue> = prs
+        .iter()
+        .filter(|pr| {
+            pr.pull_request
+                .as_ref()
+                .and_then(|p| p.merged_at)
+                .is_some_and(|t| t >= cutoff)
+        })
+        .copied()
+        .collect();
+    compute_merged_pr_age(&filtered)
+}
+
+/// Compute all issue and PR statistics from the raw issue list.
+fn compute_all_stats(all_issues: &[Issue], now: DateTime<Utc>) -> IssueAndPullStats {
+    let mut open_issues = Vec::new();
+    let mut closed_issues = Vec::new();
+    let mut open_pulls = Vec::new();
+    let mut closed_pulls = Vec::new();
+
+    for issue in all_issues {
+        let is_pr = issue.pull_request.is_some();
+        let is_open = issue.state == IssueState::Open;
+
+        let target = match (is_pr, is_open) {
+            (true, true) => &mut open_pulls,
+            (true, false) => &mut closed_pulls,
+            (false, true) => &mut open_issues,
+            (false, false) => &mut closed_issues,
+        };
+        target.push(issue);
+    }
+
+    let open_issue_age = compute_age(&open_issues, true, now);
+    let open_pr_age = compute_age(&open_pulls, true, now);
+
+    let cutoff_90 = now - chrono::Duration::days(90);
+    let cutoff_180 = now - chrono::Duration::days(180);
+    let cutoff_365 = now - chrono::Duration::days(365);
+
+    let issues_opened = count_windowed(all_issues, cutoff_90, cutoff_180, cutoff_365, |i| {
+        (i.pull_request.is_none()).then_some(i.created_at)
+    });
+    let issues_closed = count_windowed(all_issues, cutoff_90, cutoff_180, cutoff_365, |i| {
+        if i.pull_request.is_none() { i.closed_at } else { None }
+    });
+    let prs_opened = count_windowed(all_issues, cutoff_90, cutoff_180, cutoff_365, |i| {
+        i.pull_request.as_ref().map(|_| i.created_at)
+    });
+    let prs_merged = count_windowed(all_issues, cutoff_90, cutoff_180, cutoff_365, |i| {
+        let pr = i.pull_request.as_ref()?;
+        pr.merged_at
+    });
+    let prs_closed = count_windowed(all_issues, cutoff_90, cutoff_180, cutoff_365, |i| {
+        if i.pull_request.is_some() { i.closed_at } else { None }
+    });
+
+    // Closed issue age stats per window
+    let closed_issue_age = compute_age(&closed_issues, false, now);
+
+    let closed_issues_90: Vec<&Issue> = closed_issues
+        .iter()
+        .filter(|i| i.closed_at.is_some_and(|t| t >= cutoff_90))
+        .copied()
+        .collect();
+    let closed_issue_age_last_90_days = compute_age(&closed_issues_90, false, now);
+
+    let closed_issues_180: Vec<&Issue> = closed_issues
+        .iter()
+        .filter(|i| i.closed_at.is_some_and(|t| t >= cutoff_180))
+        .copied()
+        .collect();
+    let closed_issue_age_last_180_days = compute_age(&closed_issues_180, false, now);
+
+    let closed_issues_365: Vec<&Issue> = closed_issues
+        .iter()
+        .filter(|i| i.closed_at.is_some_and(|t| t >= cutoff_365))
+        .copied()
+        .collect();
+    let closed_issue_age_last_365_days = compute_age(&closed_issues_365, false, now);
+
+    // Merged PR age stats per window
+    let all_pulls_flat: Vec<&Issue> = open_pulls.iter().chain(closed_pulls.iter()).copied().collect();
+    let merged_prs_all: Vec<&Issue> = all_pulls_flat
+        .iter()
+        .filter(|pr| pr.pull_request.as_ref().is_some_and(|p| p.merged_at.is_some()))
+        .copied()
+        .collect();
+
+    let merged_pr_age = compute_merged_pr_age(&merged_prs_all);
+    let merged_pr_age_last_90_days = compute_merged_pr_age_since(&merged_prs_all, cutoff_90);
+    let merged_pr_age_last_180_days = compute_merged_pr_age_since(&merged_prs_all, cutoff_180);
+    let merged_pr_age_last_365_days = compute_merged_pr_age_since(&merged_prs_all, cutoff_365);
+
+    IssueAndPullStats {
+        open_issues: open_issues.len() as u64,
+        open_prs: open_pulls.len() as u64,
+        issues_opened,
+        issues_closed,
+        prs_opened,
+        prs_merged,
+        prs_closed,
+        open_issue_age,
+        open_pr_age,
+        closed_issue_age,
+        closed_issue_age_last_90_days,
+        closed_issue_age_last_180_days,
+        closed_issue_age_last_365_days,
+        merged_pr_age,
+        merged_pr_age_last_90_days,
+        merged_pr_age_last_180_days,
+        merged_pr_age_last_365_days,
     }
 }
 
@@ -667,40 +846,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
-    fn test_compute_issue_stats() {
-        let now = Utc::now();
-        let open = vec![
-            Issue {
-                created_at: now - chrono::Duration::days(10),
-                closed_at: None,
-                state: IssueState::Open,
-                pull_request: None,
-            },
-            Issue {
-                created_at: now - chrono::Duration::days(5),
-                closed_at: None,
-                state: IssueState::Open,
-                pull_request: None,
-            },
-        ];
-
-        let closed = vec![Issue {
-            created_at: now - chrono::Duration::days(30),
-            closed_at: Some(now - chrono::Duration::days(25)),
-            state: IssueState::Closed,
-            pull_request: None,
-        }];
-
-        let stats = compute_issue_stats(&open, &closed, now);
-
-        assert_eq!(stats.open_count, 2);
-        assert_eq!(stats.closed_count, 1);
-        assert!(stats.open_age.avg >= 7 && stats.open_age.avg <= 8);
-        assert!(stats.closed_age.avg >= 4 && stats.closed_age.avg <= 6);
-    }
-
-    #[test]
     fn test_get_cache_path() {
         let now = Utc::now();
         let provider = Provider::new(None, None, "test_cache", Duration::from_secs(3600), now).unwrap();
@@ -745,18 +890,23 @@ mod tests {
             stars: 1000,
             forks: 200,
             subscribers: 50,
-            issues: IssueStats {
-                open_count: 10,
-                closed_count: 100,
-                open_age: AgeStats::default(),
-                closed_age: AgeStats::default(),
-            },
-            pulls: IssueStats {
-                open_count: 5,
-                closed_count: 50,
-                open_age: AgeStats::default(),
-                closed_age: AgeStats::default(),
-            },
+            open_issues: 10,
+            open_prs: 5,
+            issues_opened: TimeWindowStats::default(),
+            issues_closed: TimeWindowStats::default(),
+            prs_opened: TimeWindowStats::default(),
+            prs_merged: TimeWindowStats::default(),
+            prs_closed: TimeWindowStats::default(),
+            open_issue_age: AgeStats::default(),
+            open_pr_age: AgeStats::default(),
+            closed_issue_age: AgeStats::default(),
+            closed_issue_age_last_90_days: AgeStats::default(),
+            closed_issue_age_last_180_days: AgeStats::default(),
+            closed_issue_age_last_365_days: AgeStats::default(),
+            merged_pr_age: AgeStats::default(),
+            merged_pr_age_last_90_days: AgeStats::default(),
+            merged_pr_age_last_180_days: AgeStats::default(),
+            merged_pr_age_last_365_days: AgeStats::default(),
         };
 
         let repo_data = RepoData::from_cache(repo_spec.clone(), hosting_data);
@@ -776,18 +926,23 @@ mod tests {
             stars: 1000,
             forks: 200,
             subscribers: 50,
-            issues: IssueStats {
-                open_count: 10,
-                closed_count: 100,
-                open_age: AgeStats::default(),
-                closed_age: AgeStats::default(),
-            },
-            pulls: IssueStats {
-                open_count: 5,
-                closed_count: 50,
-                open_age: AgeStats::default(),
-                closed_age: AgeStats::default(),
-            },
+            open_issues: 10,
+            open_prs: 5,
+            issues_opened: TimeWindowStats::default(),
+            issues_closed: TimeWindowStats::default(),
+            prs_opened: TimeWindowStats::default(),
+            prs_merged: TimeWindowStats::default(),
+            prs_closed: TimeWindowStats::default(),
+            open_issue_age: AgeStats::default(),
+            open_pr_age: AgeStats::default(),
+            closed_issue_age: AgeStats::default(),
+            closed_issue_age_last_90_days: AgeStats::default(),
+            closed_issue_age_last_180_days: AgeStats::default(),
+            closed_issue_age_last_365_days: AgeStats::default(),
+            merged_pr_age: AgeStats::default(),
+            merged_pr_age_last_90_days: AgeStats::default(),
+            merged_pr_age_last_180_days: AgeStats::default(),
+            merged_pr_age_last_365_days: AgeStats::default(),
         };
 
         let rate_limit = Some(RateLimitInfo {
