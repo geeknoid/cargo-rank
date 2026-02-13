@@ -851,6 +851,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_get_cache_path() {
         let now = Utc::now();
         let provider = Provider::new(None, None, "test_cache", Duration::from_secs(3600), now, false).unwrap();
@@ -863,6 +864,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_get_cache_path_sanitized() {
         let now = Utc::now();
         let provider = Provider::new(None, None, "test_cache", Duration::from_secs(3600), now, false).unwrap();
@@ -876,6 +878,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_repo_url() {
         let client = Client::new(None, "https://api.github.com", Utc::now()).unwrap();
 
@@ -964,6 +967,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_provider_new() {
         let now = Utc::now();
         let provider = Provider::new(None, None, "test_cache", Duration::from_secs(3600), now, false).unwrap();
@@ -971,6 +975,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_provider_new_with_tokens() {
         let now = Utc::now();
         let provider = Provider::new(

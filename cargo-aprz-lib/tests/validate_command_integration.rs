@@ -44,6 +44,7 @@ impl Host for TestHost {
 /// Validate without `--config` so the workspace root is resolved via
 /// `MetadataCommand` (covers validate.rs line 59).
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
 async fn test_validate_without_explicit_config() {
     let mut host = TestHost::new();
     let result = cargo_aprz_lib::run(

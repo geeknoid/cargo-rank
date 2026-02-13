@@ -123,6 +123,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_default_config_is_valid() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("test_config.toml");
@@ -164,6 +165,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_invalid_toml_syntax() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("invalid_syntax.toml");
@@ -196,6 +198,7 @@ expression = "true"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_unknown_field() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("unknown_field.toml");
@@ -227,6 +230,7 @@ unknown_field = "value"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_invalid_expression_syntax() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("invalid_expression.toml");
@@ -259,6 +263,7 @@ expression = "this is not a valid CEL expression !!!"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_invalid_duration_format() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("invalid_duration.toml");
@@ -288,6 +293,7 @@ crates_cache_ttl = "not a valid duration"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_expression_with_nonexistent_metric() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("nonexistent_metric.toml");
@@ -320,6 +326,7 @@ expression = "this_metric_does_not_exist > 100"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_expression_with_type_mismatch() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("type_mismatch.toml");
@@ -352,6 +359,7 @@ expression = "crates.downloads + 'string'"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_expression_returning_non_boolean() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("non_boolean.toml");
@@ -384,6 +392,7 @@ expression = "crates.downloads"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_empty_config_is_valid() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("empty.toml");
@@ -401,6 +410,7 @@ expression = "crates.downloads"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_config_with_only_ttls() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("only_ttls.toml");
@@ -431,6 +441,7 @@ advisories_cache_ttl = "5h"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_medium_risk_threshold_below_range() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
@@ -449,6 +460,7 @@ advisories_cache_ttl = "5h"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_medium_risk_threshold_above_range() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
@@ -467,6 +479,7 @@ advisories_cache_ttl = "5h"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_low_risk_threshold_below_range() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
@@ -485,6 +498,7 @@ advisories_cache_ttl = "5h"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_low_risk_threshold_above_range() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
@@ -503,6 +517,7 @@ advisories_cache_ttl = "5h"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_medium_threshold_not_less_than_low_threshold() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
@@ -525,6 +540,7 @@ advisories_cache_ttl = "5h"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_equal_thresholds_rejected() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("bad_threshold.toml");
@@ -547,6 +563,7 @@ advisories_cache_ttl = "5h"
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn test_valid_custom_thresholds() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = Utf8PathBuf::from(temp_dir.path().to_string_lossy().to_string()).join("custom_thresholds.toml");

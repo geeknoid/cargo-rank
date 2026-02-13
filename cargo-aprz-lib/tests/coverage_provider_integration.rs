@@ -30,6 +30,7 @@ fn fixture_exists() -> bool {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
 async fn test_coverage_provider_with_fixture() {
     // Skip test if fixture doesn't exist
     if !fixture_exists() {
@@ -112,6 +113,7 @@ async fn test_coverage_provider_with_fixture() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
 async fn test_coverage_provider_not_found_main() {
     // Start wiremock server
     let mock_server = MockServer::start().await;
@@ -161,6 +163,7 @@ async fn test_coverage_provider_not_found_main() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
 async fn test_coverage_provider_unknown_coverage() {
     // Skip test if fixture doesn't exist
     if !fixture_exists() {
@@ -216,6 +219,7 @@ async fn test_coverage_provider_unknown_coverage() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
 async fn test_coverage_provider_uses_cache() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
@@ -265,6 +269,7 @@ async fn test_coverage_provider_uses_cache() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
 async fn test_coverage_provider_ignore_cached_bypasses_cache() {
     if !fixture_exists() {
         eprintln!("Skipping test: fixture file {FIXTURE_PATH} not found");

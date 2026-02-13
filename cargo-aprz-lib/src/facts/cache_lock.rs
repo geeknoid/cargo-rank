@@ -53,6 +53,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     async fn test_acquire_lock_creates_lock_file() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let lock_path = temp_dir.path().join("cache.lock");
@@ -67,6 +68,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     async fn test_lock_released_on_drop() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
@@ -80,6 +82,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     async fn test_acquire_lock_twice_sequentially() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
@@ -91,6 +94,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetFullPathNameW")]
     async fn test_acquire_lock_nonexistent_directory() {
         let path = Path::new("this_directory_does_not_exist_at_all_98765");
         let result = acquire_cache_lock(path).await;
@@ -98,6 +102,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     async fn test_lock_guard_debug() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let guard = acquire_cache_lock(temp_dir.path()).await.unwrap();
@@ -106,6 +111,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     async fn test_exclusive_lock_blocks_concurrent_access() {
         use std::sync::Arc;
         use tokio::sync::Barrier;

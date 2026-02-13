@@ -300,18 +300,21 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_client_new_without_token() {
         let client = Client::new(None, "https://api.github.com", Utc::now()).unwrap();
         assert_eq!(client.base_url(), "https://api.github.com");
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_client_new_with_token() {
         let client = Client::new(Some("test_token"), "https://api.github.com", Utc::now()).unwrap();
         assert_eq!(client.base_url(), "https://api.github.com");
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_client_base_url() {
         let client = Client::new(None, "https://codeberg.org/api/v1", Utc::now()).unwrap();
         assert_eq!(client.base_url(), "https://codeberg.org/api/v1");

@@ -179,6 +179,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_console_report_with_colors() {
         let crates = create_test_crates();
         let mut output = String::new();
@@ -187,6 +188,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_console_report_no_colors() {
         let crates = create_test_crates();
         let mut output = String::new();
@@ -195,6 +197,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_csv_report() {
         let crates = create_test_crates();
         let mut output = String::new();
@@ -203,6 +206,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_html_report() {
         let crates = create_test_crates();
         let mut output = String::new();
@@ -211,6 +215,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_json_report() {
         let crates = create_test_crates();
         let mut output = String::new();
@@ -219,6 +224,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_excel_report() {
         let crates = create_test_crates();
         let mut output = Cursor::new(Vec::new());
@@ -235,6 +241,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_empty_crates_console() {
         let crates: Vec<ReportableCrate> = vec![];
         let mut output = String::new();
@@ -243,6 +250,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_empty_crates_csv() {
         let crates: Vec<ReportableCrate> = vec![];
         let mut output = String::new();
@@ -251,6 +259,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_empty_crates_json() {
         let crates: Vec<ReportableCrate> = vec![];
         let mut output = String::new();
@@ -259,6 +268,7 @@ mod snapshot_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_single_crate_all_metrics() {
         let created_at = Utc.with_ymd_and_hms(2023, 6, 1, 12, 0, 0).unwrap();
 

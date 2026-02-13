@@ -66,6 +66,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
     fn test_init_config_default_output_path() {
         let mut host = TestHost::new();
         let args = InitArgs {

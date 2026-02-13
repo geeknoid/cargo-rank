@@ -581,6 +581,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
     fn test_generate_empty_crates() {
         let crates: Vec<ReportableCrate> = vec![];
         let mut output = String::new();
@@ -593,6 +594,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
     fn test_generate_single_crate() {
         let crates = vec![create_test_crate("test_crate", "1.2.3", None)];
         let mut output = String::new();
@@ -604,6 +606,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
     fn test_generate_contains_ferris() {
         let crates = vec![create_test_crate("test", "1.0.0", None)];
         let mut output = String::new();
@@ -614,6 +617,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
     fn test_generate_contains_theme_toggle() {
         let crates = vec![create_test_crate("test", "1.0.0", None)];
         let mut output = String::new();
@@ -626,6 +630,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
     fn test_generate_contains_css_styles() {
         let crates = vec![create_test_crate("test", "1.0.0", None)];
         let mut output = String::new();
