@@ -2,7 +2,6 @@ name: main
 
 permissions:
   contents: read
-  pull-requests: read
 
 on:
   pull_request:
@@ -38,7 +37,7 @@ jobs:
         if: success() || failure()
         env:
           RUSTDOCFLAGS: "--cfg docsrs -D warnings"
-        run: cargo +${{ env.RUST_NIGHTLY }} doc --no-deps --verbose --workspace --all-features
+        run: cargo +${{ env.RUST_NIGHTLY }} doc --no-deps --verbose --workspace --all-features --locked
       - name: Doc Tests
         if: success() || failure()
         run: cargo test --doc --verbose --workspace --all-features
@@ -83,7 +82,7 @@ jobs:
 
       # execute
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: Source Format
         if: success() || failure()
         run: cargo fmt -- --check

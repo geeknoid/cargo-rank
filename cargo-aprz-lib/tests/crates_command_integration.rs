@@ -49,6 +49,7 @@ impl Host for TestHost {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_crates_command_all_report_types() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -118,6 +119,7 @@ async fn test_crates_command_all_report_types() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_crates_command_csv_output() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let csv_path = temp_dir.path().join("report.csv");
@@ -153,6 +155,7 @@ async fn test_crates_command_csv_output() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_crates_command_console_output() {
     let mut host = TestHost::new();
     let result = cargo_aprz_lib::run(
@@ -168,6 +171,7 @@ async fn test_crates_command_console_output() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_crates_command_multiple_crates() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -203,6 +207,7 @@ async fn test_crates_command_multiple_crates() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_crates_command_nonexistent_crate() {
     let mut host = TestHost::new();
     let result = cargo_aprz_lib::run(
@@ -229,6 +234,7 @@ async fn test_crates_command_nonexistent_crate() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_crates_command_misspelled_crate_shows_suggestions() {
     let mut host = TestHost::new();
     let result = cargo_aprz_lib::run(
@@ -252,6 +258,7 @@ async fn test_crates_command_misspelled_crate_shows_suggestions() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_crates_command_nonexistent_version() {
     let mut host = TestHost::new();
     let result = cargo_aprz_lib::run(
@@ -279,6 +286,7 @@ async fn test_crates_command_nonexistent_version() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_crates_command_with_error_if_high_risk_flag() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");

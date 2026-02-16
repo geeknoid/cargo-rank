@@ -7,7 +7,7 @@ version = "0.6.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/geeknoid/cargo-aprz"
-rust-version = "1.93"
+rust-version = "1.93.0"
 homepage = "https://github.com/geeknoid/cargo-aprz"
 
 [workspace.lints.rust]

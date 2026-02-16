@@ -53,6 +53,7 @@ impl Host for TestHost {
 const FIXTURE_MANIFEST: &str = "tests/fixtures/tiny-crate/Cargo.toml";
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_all_report_types() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -131,6 +132,7 @@ async fn test_deps_command_all_report_types() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_console_output() {
     let mut host = TestHost::new();
     let result = cargo_aprz_lib::run(
@@ -156,6 +158,7 @@ async fn test_deps_command_console_output() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_csv_output() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let csv_path = temp_dir.path().join("report.csv");
@@ -188,6 +191,7 @@ async fn test_deps_command_csv_output() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_standard_deps_only() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -227,6 +231,7 @@ async fn test_deps_command_standard_deps_only() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_dev_deps_only() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -265,6 +270,7 @@ async fn test_deps_command_dev_deps_only() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_nonexistent_package() {
     let mut host = TestHost::new();
     let result = cargo_aprz_lib::run(
@@ -296,6 +302,7 @@ async fn test_deps_command_nonexistent_package() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_with_package_flag() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -333,6 +340,7 @@ async fn test_deps_command_with_package_flag() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_with_workspace_flag() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -372,6 +380,7 @@ async fn test_deps_command_with_workspace_flag() {
 const VIRTUAL_WS_MANIFEST: &str = "tests/fixtures/tiny-virtual-workspace/Cargo.toml";
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_virtual_workspace() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -409,6 +418,7 @@ async fn test_deps_command_virtual_workspace() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_all_features() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -449,6 +459,7 @@ async fn test_deps_command_all_features() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_no_default_features() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");
@@ -492,6 +503,7 @@ async fn test_deps_command_no_default_features() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_deps_command_explicit_features() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let json_path = temp_dir.path().join("report.json");

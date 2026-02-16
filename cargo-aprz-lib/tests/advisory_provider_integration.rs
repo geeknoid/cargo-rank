@@ -71,6 +71,7 @@ fn make_spec(name: &str, version: &str) -> CrateSpec {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_advisory_provider_known_vulnerable_crate() {
     let provider = shared_provider().await;
 
@@ -102,6 +103,7 @@ async fn test_advisory_provider_known_vulnerable_crate() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_advisory_provider_clean_crate() {
     let provider = shared_provider().await;
 
@@ -130,6 +132,7 @@ async fn test_advisory_provider_clean_crate() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_advisory_provider_multiple_crates() {
     let provider = shared_provider().await;
 
@@ -155,6 +158,7 @@ async fn test_advisory_provider_multiple_crates() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_advisory_provider_nonexistent_crate() {
     let provider = shared_provider().await;
 
@@ -184,6 +188,7 @@ async fn test_advisory_provider_nonexistent_crate() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_advisory_provider_empty_input() {
     let provider = shared_provider().await;
 
@@ -194,6 +199,7 @@ async fn test_advisory_provider_empty_input() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_advisory_provider_historical_vs_per_version() {
     let provider = shared_provider().await;
 
@@ -229,6 +235,7 @@ async fn test_advisory_provider_historical_vs_per_version() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore = "Miri cannot call mkdir")]
 async fn test_advisory_provider_cache_reuse() {
     // This test uses its own temp dir to verify the caching logic:
     // creating a second Provider from the same cache dir should not re-download.
