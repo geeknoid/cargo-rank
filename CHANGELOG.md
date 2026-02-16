@@ -1,5 +1,11 @@
 # cargo-aprz
 
+## 0.6.1 2026-02-16
+
+### Fixed
+
+- Fixed `--version` displaying incorrect program name.
+
 ## 0.6.0 2026-02-13
 
 ### Added
