@@ -1,7 +1,7 @@
 //! Integration tests for the docs provider using real fixtures and wiremock
 
-use cargo_aprz_lib::facts::docs::{DocMetricState, DocsData, DocsMetrics, Provider};
-use cargo_aprz_lib::facts::{CrateSpec, Progress, ProviderResult, RequestTracker};
+use cargo_aprz_lib::facts::docs::{DocsData, DocsMetrics, Provider};
+use cargo_aprz_lib::facts::{CacheEnvelope, CrateSpec, Progress, ProviderResult, RequestTracker};
 use chrono::Utc;
 use semver::Version;
 use std::fs;
@@ -78,8 +78,6 @@ async fn test_docs_provider_with_fixture() {
     match result_data {
         ProviderResult::Found(docs_data) => {
             // Verify basic structure exists
-            assert!(docs_data.timestamp.timestamp() > 0);
-            // The metrics should be parseable (not an error state)
             eprintln!("Successfully parsed docs for anyhow 1.0.100: {:?}", docs_data.metrics);
         }
         ProviderResult::Error(e) => {
@@ -90,6 +88,9 @@ async fn test_docs_provider_with_fixture() {
         }
         ProviderResult::VersionNotFound => {
             panic!("Expected Found result, got VersionNotFound");
+        }
+        ProviderResult::Unavailable(reason) => {
+            panic!("Expected Found result, got Unavailable: {reason}");
         }
     }
 }
@@ -125,22 +126,21 @@ async fn test_docs_provider_not_found() {
     assert_eq!(results.len(), 1);
     let (_, result_data) = &results[0];
 
-    // Should be CrateNotFound
-    assert!(matches!(result_data, ProviderResult::CrateNotFound(_)));
+    // Should be Unavailable since docs.rs returned 404
+    assert!(matches!(result_data, ProviderResult::Unavailable(_)));
 }
 
 /// Helper to create a sentinel `DocsData` for cache tests
-fn make_sentinel_docs_data() -> DocsData {
+const fn make_sentinel_docs_data() -> DocsData {
     DocsData {
-        timestamp: Utc::now(),
-        metrics: DocMetricState::Found(DocsMetrics {
+        metrics: DocsMetrics {
             doc_coverage_percentage: 42.0,
             public_api_elements: 100,
             undocumented_elements: 58,
             examples_in_docs: 5,
             has_crate_level_docs: true,
             broken_doc_links: 0,
-        }),
+        },
     }
 }
 
@@ -152,7 +152,8 @@ async fn test_docs_provider_uses_cache() {
     // Pre-populate cache with sentinel data
     let cached_data = make_sentinel_docs_data();
     let cache_path = temp_dir.path().join("anyhow@1.0.100.json");
-    let json = serde_json::to_string(&cached_data).expect("serialize");
+    let envelope = CacheEnvelope::data(Utc::now(), cached_data);
+    let json = serde_json::to_string(&envelope).expect("serialize");
     fs::write(&cache_path, json).expect("write cache file");
 
     // Create provider with ignore_cached=false and no mock server (would fail if it tried to fetch)
@@ -168,11 +169,7 @@ async fn test_docs_provider_uses_cache() {
     match &results[0].1 {
         ProviderResult::Found(data) => {
             // Verify we got the sentinel cached data back
-            if let DocMetricState::Found(metrics) = &data.metrics {
-                assert!((metrics.doc_coverage_percentage - 42.0).abs() < f64::EPSILON);
-            } else {
-                panic!("Expected Found metrics from cache");
-            }
+            assert!((data.metrics.doc_coverage_percentage - 42.0).abs() < f64::EPSILON);
         }
         other => panic!("Expected Found, got {other:?}"),
     }
@@ -195,7 +192,8 @@ async fn test_docs_provider_ignore_cached_bypasses_cache() {
     // Pre-populate cache with sentinel data
     let cached_data = make_sentinel_docs_data();
     let cache_path = temp_dir.path().join("anyhow@1.0.100.json");
-    let json = serde_json::to_string(&cached_data).expect("serialize");
+    let envelope = CacheEnvelope::data(Utc::now(), cached_data);
+    let json = serde_json::to_string(&envelope).expect("serialize");
     fs::write(&cache_path, json).expect("write cache file");
 
     // Set up mock server with real fixture
@@ -223,15 +221,11 @@ async fn test_docs_provider_ignore_cached_bypasses_cache() {
     match &results[0].1 {
         ProviderResult::Found(data) => {
             // Verify we got fresh data, not the sentinel
-            if let DocMetricState::Found(metrics) = &data.metrics {
-                assert!(
-                    (metrics.doc_coverage_percentage - 42.0).abs() > f64::EPSILON,
-                    "Expected fresh data different from sentinel, got {}",
-                    metrics.doc_coverage_percentage
-                );
-            } else {
-                panic!("Expected Found metrics from fresh fetch");
-            }
+            assert!(
+                (data.metrics.doc_coverage_percentage - 42.0).abs() > f64::EPSILON,
+                "Expected fresh data different from sentinel, got {}",
+                data.metrics.doc_coverage_percentage
+            );
         }
         other => panic!("Expected Found, got {other:?}"),
     }

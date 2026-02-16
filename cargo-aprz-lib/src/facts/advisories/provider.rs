@@ -1,7 +1,7 @@
 use super::AdvisoryData;
 use crate::Result;
 use crate::facts::ProviderResult;
-use crate::facts::cache_doc;
+use crate::facts::cache_doc::CacheEnvelope;
 use crate::facts::crate_spec::CrateSpec;
 use crate::facts::progress::Progress;
 use chrono::{DateTime, Utc};
@@ -12,7 +12,6 @@ use rustsec::{
     database::Database,
     repository::git::{DEFAULT_URL, Repository},
 };
-use serde::{Deserialize, Serialize};
 use crate::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -23,13 +22,6 @@ const LOG_TARGET: &str = "advisories";
 #[derive(Debug)]
 pub struct Provider {
     database: Arc<Database>,
-    _timestamp: DateTime<Utc>,
-    now: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct LastSynced {
-    pub timestamp: DateTime<Utc>,
 }
 
 const DATABASE_FETCH_TIMEOUT: Duration = Duration::from_secs(60);
@@ -46,28 +38,21 @@ impl Provider {
         let sync_path = cache_dir.join("last_synced.json");
         let repo_path = cache_dir.join("repo");
 
-        let timestamp = if ignore_cached {
-            None
+        let needs_fetch = if ignore_cached {
+            true
         } else {
-            cache_doc::load_with_ttl(&sync_path, cache_ttl, |data: &LastSynced| data.timestamp, now, "advisory database")
-                .map(|data| data.timestamp)
+            CacheEnvelope::<()>::load(&sync_path, cache_ttl, now, "advisory database").is_none()
         };
 
-        let timestamp = if let Some(ts) = timestamp {
-            ts
-        } else {
+        if needs_fetch {
             download_db(&repo_path, progress.as_ref())
                 .await
                 .into_app_err("downloading the advisory database")?;
-            let timestamp = now;
-            cache_doc::save(&LastSynced { timestamp }, &sync_path)?;
-            timestamp
-        };
+            CacheEnvelope::data(now, ()).save(&sync_path)?;
+        }
 
         Ok(Self {
             database: Arc::new(open_db(&repo_path, progress.as_ref()).await?),
-            _timestamp: timestamp,
-            now,
         })
     }
 
@@ -76,9 +61,8 @@ impl Provider {
         crates: impl IntoIterator<Item = CrateSpec> + Send + 'static,
     ) -> impl Iterator<Item = (CrateSpec, ProviderResult<AdvisoryData>)> {
         let database = Arc::clone(&self.database);
-        let now = self.now;
 
-        tokio::task::spawn_blocking(move || scan_advisories(&database, crates, now))
+        tokio::task::spawn_blocking(move || scan_advisories(&database, crates))
             .await
             .expect("tasks must not panic")
     }
@@ -87,7 +71,6 @@ impl Provider {
 fn scan_advisories<I>(
     database: &Database,
     crates: I,
-    now: DateTime<Utc>,
 ) -> impl Iterator<Item = (CrateSpec, ProviderResult<AdvisoryData>)> + use<I>
 where
     I: IntoIterator<Item = CrateSpec>,
@@ -99,10 +82,7 @@ where
     for crate_spec in crates {
         crate_map.entry(crate_spec.name().into()).or_default().push((
             crate_spec,
-            ProviderResult::Found(AdvisoryData {
-                timestamp: now,
-                ..Default::default()
-            }),
+            ProviderResult::Found(AdvisoryData::default()),
         ));
     }
 

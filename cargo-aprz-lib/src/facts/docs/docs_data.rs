@@ -1,27 +1,8 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DocsData {
-    pub timestamp: DateTime<Utc>,
-    pub metrics: DocMetricState,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum DocMetricState {
-    Found(DocsMetrics),
-    UnknownFormatVersion(u64),
-}
-
-impl DocMetricState {
-    /// Returns the metrics if available, or `None` for unknown format versions.
-    #[must_use]
-    pub const fn found(&self) -> Option<&DocsMetrics> {
-        match self {
-            Self::Found(metrics) => Some(metrics),
-            Self::UnknownFormatVersion(_) => None,
-        }
-    }
+    pub metrics: DocsMetrics,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -642,7 +642,7 @@ impl Provider {
         // Build the CrateSpec with the resolved version and repository information if available
         // Reuse the Arc pointers from crate_ref and version_arc (no allocations)
         let crate_spec = if let Some(repo_url) = &result.overall_data.repository {
-            if let Ok(repo_spec) = crate::facts::repo_spec::RepoSpec::parse(repo_url.clone()) {
+            if let Ok(repo_spec) = crate::facts::repo_spec::RepoSpec::parse(repo_url) {
                 CrateSpec::from_arcs_with_repo(crate_ref.name_arc(), version_arc, repo_spec)
             } else {
                 log::debug!(target: LOG_TARGET, "Could not parse repository URL for '{}': {}", crate_ref.name(), repo_url);

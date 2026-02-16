@@ -1,11 +1,9 @@
 use super::age_stats::AgeStats;
 use super::time_window_stats::TimeWindowStats;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostingData {
-    pub timestamp: DateTime<Utc>,
     pub stars: u64,
     pub forks: u64,
     pub subscribers: u64,

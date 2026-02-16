@@ -1,5 +1,20 @@
 # cargo-aprz
 
+## 0.7.0 2026-02-16
+
+### Fixed
+
+- Fixed codebase data cache not surviving process interruption. Previously, killing the tool during data 
+  collection caused all codebase analysis to be re-downloaded on restart. Cache files are now written
+  incrementally as each repository completes.
+- Fixed repository URL path stripping so that URLs containing paths like `/tree/master/subdir` are
+  correctly normalized to the base repository URL for hosting and codebase queries.
+
+### Changed
+
+- Added support for negative caching to avoid repeated 
+- requests for permanently unavailable data (e.g., missing docs, unsupported hosts, parse errors).
+
 ## 0.6.1 2026-02-16
 
 ### Fixed

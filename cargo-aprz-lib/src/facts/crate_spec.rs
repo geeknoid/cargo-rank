@@ -106,7 +106,7 @@ mod tests {
         let name: Arc<str> = Arc::from("tokio");
         let version = Arc::new(Version::parse("1.35.0").unwrap());
         let repo_url = Url::parse("https://github.com/tokio-rs/tokio").unwrap();
-        let repo_spec = RepoSpec::parse(repo_url).unwrap();
+        let repo_spec = RepoSpec::parse(&repo_url).unwrap();
 
         let spec = CrateSpec::from_arcs_with_repo(name, version, repo_spec);
 
@@ -175,8 +175,8 @@ mod tests {
 
     #[test]
     fn test_by_repo_groups_crates_correctly() {
-        let tokio_repo = RepoSpec::parse(Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
-        let serde_repo = RepoSpec::parse(Url::parse("https://github.com/serde-rs/serde").unwrap()).unwrap();
+        let tokio_repo = RepoSpec::parse(&Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
+        let serde_repo = RepoSpec::parse(&Url::parse("https://github.com/serde-rs/serde").unwrap()).unwrap();
 
         let tokio_spec =
             CrateSpec::from_arcs_with_repo(Arc::from("tokio"), Arc::new(Version::parse("1.35.0").unwrap()), tokio_repo.clone());
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn test_by_repo_ignores_crates_without_repo() {
-        let tokio_repo = RepoSpec::parse(Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
+        let tokio_repo = RepoSpec::parse(&Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
 
         let with_repo = CrateSpec::from_arcs_with_repo(Arc::from("tokio"), Arc::new(Version::parse("1.35.0").unwrap()), tokio_repo.clone());
 
@@ -238,7 +238,7 @@ mod tests {
         let name = Arc::from("tokio");
         let version = Arc::new(Version::parse("1.35.0").unwrap());
         let repo_url = Url::parse("https://github.com/tokio-rs/tokio").unwrap();
-        let repo_spec = RepoSpec::parse(repo_url).unwrap();
+        let repo_spec = RepoSpec::parse(&repo_url).unwrap();
 
         let spec1 = CrateSpec::from_arcs_with_repo(name, version, repo_spec);
         let spec2 = spec1.clone();
@@ -358,7 +358,7 @@ mod tests {
 
     #[test]
     fn test_serialize_with_repo() {
-        let repo = RepoSpec::parse(Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
+        let repo = RepoSpec::parse(&Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
         let spec = CrateSpec::from_arcs_with_repo(Arc::from("tokio"), Arc::new(Version::parse("1.35.0").unwrap()), repo);
 
         let json = serde_json::to_string(&spec).unwrap();
@@ -385,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_with_repo() {
-        let repo = RepoSpec::parse(Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
+        let repo = RepoSpec::parse(&Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
         let spec1 = CrateSpec::from_arcs_with_repo(Arc::from("tokio"), Arc::new(Version::parse("1.35.0").unwrap()), repo);
 
         let json = serde_json::to_string(&spec1).unwrap();

@@ -4,7 +4,7 @@ use super::metric_def::{METRIC_DEFINITIONS, MetricDef};
 use crate::facts::CrateFacts;
 
 #[cfg(test)]
-use crate::facts::{CratesData, DocMetricState, ProviderResult};
+use crate::facts::{CratesData, ProviderResult};
 
 #[cfg(test)]
 use crate::facts::advisories::AdvisoryData;
@@ -120,7 +120,6 @@ mod tests {
                 },
             )),
             hosting_data: ProviderResult::Found(HostingData {
-                timestamp: now,
                 stars: 100,
                 forks: 20,
                 subscribers: 5,
@@ -155,7 +154,6 @@ mod tests {
                 merged_pr_age_last_365_days: AgeStats::default(),
             }),
             advisory_data: ProviderResult::Found(AdvisoryData {
-                timestamp: now,
                 per_version: AdvisoryCounts::default(),
                 total: AdvisoryCounts {
                     low_vulnerability_count: 1,
@@ -169,7 +167,6 @@ mod tests {
                 },
             }),
             codebase_data: ProviderResult::Found(CodebaseData {
-                timestamp: now,
                 source_files_analyzed: 10,
                 source_files_with_errors: 0,
                 production_lines: 1000,
@@ -190,19 +187,17 @@ mod tests {
                 last_commit_at: now,
             }),
             coverage_data: ProviderResult::Found(CoverageData {
-                timestamp: now,
                 code_coverage_percentage: 85.5,
             }),
             docs_data: ProviderResult::Found(DocsData {
-                timestamp: now,
-                metrics: DocMetricState::Found(DocsMetrics {
+                metrics: DocsMetrics {
                     doc_coverage_percentage: 90.0,
                     public_api_elements: 100,
                     undocumented_elements: 10,
                     examples_in_docs: 25,
                     has_crate_level_docs: true,
                     broken_doc_links: 1,
-                }),
+                },
             }),
         }
     }

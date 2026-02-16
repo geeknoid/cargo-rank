@@ -3,7 +3,7 @@ use super::{AgeStats, HostingData, TimeWindowStats};
 use crate::Result;
 use crate::facts::ProviderResult;
 use crate::facts::RepoSpec;
-use crate::facts::cache_doc;
+use crate::facts::cache_doc::{CacheEnvelope, EnvelopePayload};
 use crate::facts::crate_spec::{self, CrateSpec};
 use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::request_tracker::{RequestTracker, TrackedTopic};
@@ -71,6 +71,7 @@ macro_rules! unwrap_or_return {
         match $expr {
             HostingApiResult::Success(data, rate_limit) => (data, rate_limit),
             HostingApiResult::RateLimited(rate_limit) => return HostingApiResult::RateLimited(rate_limit),
+            HostingApiResult::NotFound(rate_limit) => return HostingApiResult::NotFound(rate_limit),
             HostingApiResult::Failed(e, rate_limit) => return HostingApiResult::Failed(e, rate_limit),
         }
     };
@@ -80,7 +81,7 @@ macro_rules! unwrap_or_return {
 /// Takes operation name strings and constructs error messages
 /// Warning is optional - if provided, logs on failure
 macro_rules! unwrap_repo_result {
-    ($expr:expr, $repo_spec:expr, $operation:expr $(, $warn_operation:expr)?) => {
+    ($expr:expr, $repo_spec:expr, $operation:expr, $now:expr, $cache_path:expr $(, $warn_operation:expr)?) => {
         match $expr {
             HostingApiResult::Success(data, rate_limit) => (data, rate_limit),
             HostingApiResult::RateLimited(rate_limit) => {
@@ -89,6 +90,18 @@ macro_rules! unwrap_repo_result {
                     result: ProviderResult::Error(Arc::new(ohno::app_err!("rate limited"))),
                     rate_limit: Some(rate_limit),
                     is_rate_limited: true,
+                };
+            }
+            HostingApiResult::NotFound(rate_limit) => {
+                let reason = format!("repository '{}' not found", $repo_spec);
+                if let Err(e) = CacheEnvelope::<HostingData>::no_data($now, &reason).save(&$cache_path) {
+                    log::debug!(target: LOG_TARGET, "Could not save cache for '{}': {e:#}", $repo_spec);
+                }
+                return RepoData {
+                    repo_spec: $repo_spec,
+                    result: ProviderResult::Unavailable(reason.into()),
+                    rate_limit,
+                    is_rate_limited: false,
                 };
             }
             HostingApiResult::Failed(e, rate_limit) => {
@@ -118,10 +131,10 @@ struct RepoData {
 
 impl RepoData {
     /// Create `RepoData` from cached data
-    const fn from_cache(repo_spec: RepoSpec, data: HostingData) -> Self {
+    const fn from_cache(repo_spec: RepoSpec, result: ProviderResult<HostingData>) -> Self {
         Self {
             repo_spec,
-            result: ProviderResult::Found(data),
+            result,
             rate_limit: None,
             is_rate_limited: false,
         }
@@ -239,16 +252,15 @@ impl Provider {
 
         // Create error results for crates from unknown hosts
         let unknown_host_results = unknown_host_crates.into_iter().map(|(crate_spec, host_domain)| {
-            let error = Arc::new(ohno::app_err!("unsupported hosting provider: {}", host_domain));
-            (crate_spec, ProviderResult::Error(error))
+            (crate_spec, ProviderResult::Unavailable(format!("unsupported hosting provider: {host_domain}").into()))
         });
 
         // Chain all results together
         known_host_results.chain(unknown_host_results).inspect(|(crate_spec, result)| {
             if let ProviderResult::Error(e) = result {
                 log::error!(target: LOG_TARGET, "Could not fetch hosting data for {crate_spec}: {e:#}");
-            } else if matches!(result, ProviderResult::CrateNotFound(_)) {
-                log::warn!(target: LOG_TARGET, "Could not find {crate_spec}");
+            } else if let ProviderResult::Unavailable(reason) = result {
+                log::debug!(target: LOG_TARGET, "Hosting data unavailable for {crate_spec}: {reason}");
             }
         })
     }
@@ -361,15 +373,18 @@ impl Provider {
 
         let cache_path = self.get_cache_path(host.host_domain, owner, repo);
         if !self.ignore_cached
-            && let Some(data) = cache_doc::load_with_ttl(
+            && let Some(envelope) = CacheEnvelope::<HostingData>::load(
                 &cache_path,
                 self.cache_ttl,
-                |data: &HostingData| data.timestamp,
                 self.now,
                 format!("hosting data for repository '{repo_spec}'"),
             )
         {
-            return RepoData::from_cache(repo_spec, data);
+            let result = match envelope.payload {
+                EnvelopePayload::Data(data) => ProviderResult::Found(data),
+                EnvelopePayload::NoData(reason) => ProviderResult::Unavailable(reason.into()),
+            };
+            return RepoData::from_cache(repo_spec, result);
         }
 
         log::info!(target: LOG_TARGET, "Querying hosting API for information on repository '{repo_spec}'");
@@ -380,8 +395,8 @@ impl Provider {
         );
 
         // Check for rate limiting or permanent failures in each result
-        let (repo_data, repo_rate_limit) = unwrap_repo_result!(repo_res, repo_spec, "core info");
-        let (issue_pull_stats, issues_rate_limit) = unwrap_repo_result!(issues_res, repo_spec, "issues and pull request info", "issues/PRs");
+        let (repo_data, repo_rate_limit) = unwrap_repo_result!(repo_res, repo_spec, "core info", self.now, cache_path);
+        let (issue_pull_stats, issues_rate_limit) = unwrap_repo_result!(issues_res, repo_spec, "issues and pull request info", self.now, cache_path, "issues/PRs");
 
         // Use the most conservative rate limit info (the one with the least remaining quota)
         let rate_limit = [issues_rate_limit, repo_rate_limit]
@@ -399,7 +414,6 @@ impl Provider {
         .map_or(0, i64::cast_unsigned);
 
         let hosting_data = HostingData {
-            timestamp: self.now,
             stars: u64::from(repo_data.stargazers_count.unwrap_or(0)),
             forks: u64::from(repo_data.forks_count.unwrap_or(0)),
             subscribers,
@@ -424,7 +438,7 @@ impl Provider {
 
         log::debug!(target: LOG_TARGET, "Completed hosting API requests for repository '{repo_spec}'");
 
-        let result = match cache_doc::save(&hosting_data, &cache_path) {
+        let result = match CacheEnvelope::data(self.now, hosting_data.clone()).save(&cache_path) {
             Ok(()) => ProviderResult::Found(hosting_data),
             Err(e) => ProviderResult::Error(Arc::new(e)),
         };
@@ -892,9 +906,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_repo_data_from_cache() {
-        let repo_spec = RepoSpec::parse(url::Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
+        let repo_spec = RepoSpec::parse(&url::Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
         let hosting_data = HostingData {
-            timestamp: Utc::now(),
             stars: 1000,
             forks: 200,
             subscribers: 50,
@@ -917,7 +930,7 @@ mod tests {
             merged_pr_age_last_365_days: AgeStats::default(),
         };
 
-        let repo_data = RepoData::from_cache(repo_spec.clone(), hosting_data);
+        let repo_data = RepoData::from_cache(repo_spec.clone(), ProviderResult::Found(hosting_data));
 
         assert_eq!(repo_data.repo_spec, repo_spec);
         assert!(matches!(repo_data.result, ProviderResult::Found(_)));
@@ -928,9 +941,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_repo_data_success() {
-        let repo_spec = RepoSpec::parse(url::Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
+        let repo_spec = RepoSpec::parse(&url::Url::parse("https://github.com/tokio-rs/tokio").unwrap()).unwrap();
         let hosting_data = HostingData {
-            timestamp: Utc::now(),
             stars: 1000,
             forks: 200,
             subscribers: 50,

@@ -1,7 +1,7 @@
 use super::CoverageData;
 use crate::Result;
 use crate::facts::ProviderResult;
-use crate::facts::cache_doc;
+use crate::facts::cache_doc::{CacheEnvelope, EnvelopePayload};
 use crate::facts::crate_spec::{self, CrateSpec};
 use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::repo_spec::RepoSpec;
@@ -9,7 +9,7 @@ use crate::facts::request_tracker::{RequestTracker, TrackedTopic};
 use chrono::{DateTime, Utc};
 use core::time::Duration;
 use futures_util::future::join_all;
-use ohno::{EnrichableExt, IntoAppError};
+use ohno::EnrichableExt;
 use regex::Regex;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
@@ -71,8 +71,8 @@ impl Provider {
         .inspect(|(crate_spec, result)| {
             if let ProviderResult::Error(e) = result {
                 log::error!(target: LOG_TARGET, "Could not get code coverage data for {crate_spec}: {e:#}");
-            } else if matches!(result, ProviderResult::CrateNotFound(_)) {
-                log::warn!(target: LOG_TARGET, "Could not find coverage data for {crate_spec}");
+            } else if let ProviderResult::Unavailable(reason) = result {
+                log::debug!(target: LOG_TARGET, "Coverage unavailable for {crate_spec}: {reason}");
             }
         })
     }
@@ -89,15 +89,17 @@ impl Provider {
         let cache_path = self.get_cache_path(repo_spec);
 
         if !self.ignore_cached
-            && let Some(data) = cache_doc::load_with_ttl(
+            && let Some(envelope) = CacheEnvelope::<CoverageData>::load(
                 &cache_path,
                 self.cache_ttl,
-                |data: &CoverageData| data.timestamp,
                 self.now,
                 format!("coverage for repository '{repo_spec}'"),
             )
         {
-            return ProviderResult::Found(data);
+            return match envelope.payload {
+                EnvelopePayload::Data(data) => ProviderResult::Found(data),
+                EnvelopePayload::NoData(reason) => ProviderResult::Unavailable(reason.into()),
+            };
         }
 
         log::debug!(target: LOG_TARGET, "Fetching coverage data for repository '{repo_spec}'");
@@ -106,7 +108,12 @@ impl Provider {
             Ok(Some(coverage)) => coverage,
             Ok(None) => {
                 log::debug!(target: LOG_TARGET, "No coverage data found for repository '{repo_spec}'");
-                return ProviderResult::CrateNotFound(Arc::new([]));
+                let reason = format!("no coverage data found for repository '{repo_spec}'");
+                let envelope = CacheEnvelope::<CoverageData>::no_data(self.now, &reason);
+                if let Err(e) = envelope.save(&cache_path) {
+                    return ProviderResult::Error(Arc::new(e));
+                }
+                return ProviderResult::Unavailable(reason.into());
             }
             Err(e) => {
                 return ProviderResult::Error(Arc::new(
@@ -116,13 +123,13 @@ impl Provider {
         };
 
         let coverage_data = CoverageData {
-            timestamp: self.now,
             code_coverage_percentage,
         };
 
         log::debug!(target: LOG_TARGET, "Fetched coverage data for repository '{repo_spec}'");
 
-        match cache_doc::save(&coverage_data, &cache_path) {
+        let envelope = CacheEnvelope::data(self.now, coverage_data.clone());
+        match envelope.save(&cache_path) {
             Ok(()) => ProviderResult::Found(coverage_data),
             Err(e) => ProviderResult::Error(Arc::new(e)),
         }
@@ -195,10 +202,13 @@ pub async fn get_code_coverage(client: &reqwest::Client, repo_spec: &RepoSpec, b
     {
         let percent_str = percent_str.as_str();
 
-        let coverage = percent_str
-            .parse::<f64>()
-            .inspect_err(|e| log::debug!(target: LOG_TARGET, "Could not parse coverage percentage '{percent_str}': {e:#}"))
-            .into_app_err_with(|| format!("parsing coverage percentage '{percent_str}'"))?;
+        let coverage = match percent_str.parse::<f64>() {
+            Ok(v) => v,
+            Err(e) => {
+                log::debug!(target: LOG_TARGET, "Could not parse coverage percentage '{percent_str}': {e:#}");
+                return Ok(None);
+            }
+        };
 
         log::debug!(target: LOG_TARGET, "Found coverage: {coverage}%");
         return Ok(Some(coverage));

@@ -4,10 +4,9 @@
 //! documentation metrics.
 
 use super::provider::LOG_TARGET;
-use super::{DocMetricState, DocsData, DocsMetrics};
+use super::{DocsData, DocsMetrics};
 use crate::Result;
 use crate::facts::CrateSpec;
-use chrono::{DateTime, Utc};
 use ohno::{IntoAppError, app_err};
 use regex::Regex;
 use crate::HashMap;
@@ -85,7 +84,7 @@ generate_version_support!("55", rustdoc_types_v55);
 generate_version_support!("56", rustdoc_types_v56);
 generate_version_support!("57", rustdoc_types_v57);
 
-pub fn calculate_docs_metrics(reader: impl Read, crate_spec: &CrateSpec, now: DateTime<Utc>) -> Result<DocsData> {
+pub fn calculate_docs_metrics(reader: impl Read, crate_spec: &CrateSpec) -> Result<DocsData> {
     log::debug!(target: LOG_TARGET, "Parsing rustdoc JSON for {crate_spec}");
     let json_value: serde_json::Value =
         serde_json::from_reader(reader).into_app_err_with(|| format!("parsing JSON for {crate_spec}"))?;
@@ -97,24 +96,25 @@ pub fn calculate_docs_metrics(reader: impl Read, crate_spec: &CrateSpec, now: Da
 
     log::debug!(target: LOG_TARGET, "Found rustdoc JSON format version {format_version} for {crate_spec}");
 
-    let state = match format_version {
-        50 => calculate_metrics_v50(json_value, crate_spec).map(DocMetricState::Found)?,
-        51 => calculate_metrics_v51(json_value, crate_spec).map(DocMetricState::Found)?,
-        52 => calculate_metrics_v52(json_value, crate_spec).map(DocMetricState::Found)?,
-        53 => calculate_metrics_v53(json_value, crate_spec).map(DocMetricState::Found)?,
-        54 => calculate_metrics_v54(json_value, crate_spec).map(DocMetricState::Found)?,
-        55 => calculate_metrics_v55(json_value, crate_spec).map(DocMetricState::Found)?,
-        56 => calculate_metrics_v56(json_value, crate_spec).map(DocMetricState::Found)?,
-        57 => calculate_metrics_v57(json_value, crate_spec).map(DocMetricState::Found)?,
+    let metrics = match format_version {
+        50 => calculate_metrics_v50(json_value, crate_spec)?,
+        51 => calculate_metrics_v51(json_value, crate_spec)?,
+        52 => calculate_metrics_v52(json_value, crate_spec)?,
+        53 => calculate_metrics_v53(json_value, crate_spec)?,
+        54 => calculate_metrics_v54(json_value, crate_spec)?,
+        55 => calculate_metrics_v55(json_value, crate_spec)?,
+        56 => calculate_metrics_v56(json_value, crate_spec)?,
+        57 => calculate_metrics_v57(json_value, crate_spec)?,
         _ => {
             log::debug!(target: LOG_TARGET, "Unsupported rustdoc JSON format version {format_version} for {crate_spec}");
-            DocMetricState::UnknownFormatVersion(format_version)
+            return Err(app_err!(
+                "unsupported rustdoc JSON format version {format_version} for {crate_spec}"
+            ));
         }
     };
 
     Ok(DocsData {
-        timestamp: now,
-        metrics: state,
+        metrics,
     })
 }
 

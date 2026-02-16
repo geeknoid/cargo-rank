@@ -26,7 +26,12 @@
 pub mod advisories;
 #[cfg(not(debug_assertions))]
 pub(crate) mod advisories;
-mod cache_doc;
+#[cfg(debug_assertions)]
+pub mod cache_doc;
+#[cfg(not(debug_assertions))]
+pub(crate) mod cache_doc;
+#[cfg(debug_assertions)]
+pub use cache_doc::{CacheEnvelope, EnvelopePayload};
 mod cache_lock;
 pub(crate) mod codebase;
 mod collector;
@@ -49,7 +54,6 @@ pub use crate_facts::CrateFacts;
 pub use crate_ref::CrateRef;
 pub use crate_spec::CrateSpec;
 pub use crates::CratesData;
-pub use docs::DocMetricState;
 pub use progress::Progress;
 pub use provider_result::ProviderResult;
 pub use repo_spec::RepoSpec;

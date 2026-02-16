@@ -1,7 +1,7 @@
 use super::{CodebaseData, git, source_file_analyzer};
 use crate::Result;
 use crate::facts::ProviderResult;
-use crate::facts::cache_doc;
+use crate::facts::cache_doc::{CacheEnvelope, EnvelopePayload};
 use crate::facts::codebase::github_workflow_analyzer::{GitHubWorkflowInfo, sniff_github_workflows};
 use crate::facts::crate_spec::{self, CrateSpec};
 use crate::facts::path_utils::sanitize_path_component;
@@ -87,14 +87,20 @@ impl Provider {
                     if provider.ignore_cached {
                         any_missing = true;
                         break;
-                    } else if let Some(cached_data) = cache_doc::load_with_ttl(
+                    } else if let Some(envelope) = CacheEnvelope::<CodebaseData>::load(
                         &data_path,
                         provider.cache_ttl,
-                        |data: &CodebaseData| data.timestamp,
                         provider.now,
                         format!("codebase data for {crate_spec}"),
                     ) {
-                        all_cached_data.push((crate_spec.clone(), cached_data));
+                        match envelope.payload {
+                            EnvelopePayload::Data(cached_data) => {
+                                all_cached_data.push((crate_spec.clone(), ProviderResult::Found(cached_data)));
+                            }
+                            EnvelopePayload::NoData(reason) => {
+                                all_cached_data.push((crate_spec.clone(), ProviderResult::Unavailable(reason.into())));
+                            }
+                        }
                     } else {
                         any_missing = true;
                         break; // No need to check more - we'll reanalyze all
@@ -106,10 +112,8 @@ impl Provider {
                     let _ = needs_repo_fetch.insert(repo_spec, crates);
                 } else {
                     // All crates have valid cache, use the cached data
-                    for (crate_spec, cached_data) in all_cached_data {
-                        cached_results.push((crate_spec, ProviderResult::Found(cached_data)));
-                        tracker_for_blocking.complete_request(TrackedTopic::Codebase);
-                    }
+                    cached_results.extend(all_cached_data);
+                    tracker_for_blocking.complete_request(TrackedTopic::Codebase);
                 }
             }
 
@@ -118,95 +122,102 @@ impl Provider {
         .await
         .expect("task must not panic");
 
-        // now get the per-repo data
-        let repo_futures = join_all(needs_repo_fetch.keys().map(|repo_spec| {
+        // Process each repo end-to-end: fetch repo data, then immediately analyze and cache its crates.
+        // This ensures cache files are written as each repo completes, surviving process interruption.
+        let repo_results = join_all(needs_repo_fetch.into_iter().map(|(repo_spec, crates)| {
             let provider = self.clone();
-            let repo_spec = repo_spec.clone();
             let tracker = tracker.clone();
 
-            tokio::spawn(provider.fetch_repo_data(repo_spec, tracker))
+            tokio::spawn(async move {
+                provider.fetch_and_analyze_repo(repo_spec, crates, tracker).await
+            })
         }))
         .await
         .into_iter()
-        .map(|result| result.expect("task must not panic"));
-
-        let crate_futures = repo_futures.flat_map(|(repo_spec, fetch_result)| {
-            let crates = needs_repo_fetch.get(&repo_spec).cloned().unwrap_or_default();
-
-            match fetch_result {
-                Ok(repo_data) => {
-                    let repo_data = Arc::new(repo_data);
-                    crates
-                        .into_iter()
-                        .map(move |crate_spec| {
-                            let provider = self.clone();
-                            let repo_spec = repo_spec.clone();
-                            let repo_data = Arc::clone(&repo_data);
-
-                            tokio::spawn(provider.analyze_crate(crate_spec, repo_spec, repo_data))
-                        })
-                        .collect::<Vec<_>>()
-                }
-                Err(e) => {
-                    log::error!(target: LOG_TARGET, "Could not fetch repository data for '{repo_spec}': {e:#}");
-
-                    let error = Arc::new(e);
-                    crates
-                        .into_iter()
-                        .map(move |crate_spec| {
-                            let error = Arc::clone(&error);
-                            tokio::spawn(async move { (crate_spec, ProviderResult::Error(error)) })
-                        })
-                        .collect::<Vec<_>>()
-                }
-            }
-        });
+        .flat_map(|result| result.expect("task must not panic"));
 
         // Combine cached and newly analyzed results
         cached_results
             .into_iter()
-            .chain(
-                join_all(crate_futures)
-                    .await
-                    .into_iter()
-                    .map(|result| result.expect("task must not panic")),
-            )
+            .chain(repo_results)
             .inspect(|(crate_spec, result)| {
                 if let ProviderResult::Error(e) = result {
                     log::error!(target: LOG_TARGET, "Could not analyze codebase for {crate_spec}: {e:#}");
-                } else if matches!(result, ProviderResult::CrateNotFound(_)) {
-                    log::warn!(target: LOG_TARGET, "Could not find {crate_spec}");
+                } else if let ProviderResult::Unavailable(reason) = result {
+                    log::debug!(target: LOG_TARGET, "Codebase data unavailable for {crate_spec}: {reason}");
                 }
             })
     }
 
-    /// Fetch repository-level data
-    async fn fetch_repo_data(self, repo_spec: RepoSpec, tracker: RequestTracker) -> (RepoSpec, Result<RepoData>) {
-        let result = self.fetch_repo_data_core(&repo_spec).await;
-        tracker.complete_request(TrackedTopic::Codebase);
-
-        (repo_spec, result)
-    }
-
-    async fn fetch_repo_data_core(&self, repo_spec: &RepoSpec) -> Result<RepoData> {
-        let repo_path = self.get_repo_cache_path(repo_spec);
-
-        // Sync/update the repository
-        let git_result = tokio::time::timeout(GIT_REPO_TIMEOUT, git::get_repo(&repo_path, repo_spec.url())).await;
-
-        match git_result {
-            Err(_) => {
-                return Err(app_err!(
-                    "git operation timed out after {} seconds for repository '{repo_spec}'",
-                    GIT_REPO_TIMEOUT.as_secs(),
-                ));
-            }
-            Ok(Err(e)) => {
-                return Err(e.enrich_with(|| format!("syncing repository '{repo_spec}'")));
-            }
-            Ok(Ok(())) => {}
+    /// Fetch repository data and immediately analyze all its crates, writing cache files per-crate.
+    async fn fetch_and_analyze_repo(
+        self,
+        repo_spec: RepoSpec,
+        crates: Vec<CrateSpec>,
+        tracker: RequestTracker,
+    ) -> Vec<(CrateSpec, ProviderResult<CodebaseData>)> {
+        // Sync the git repo first — failures here are transient (network) and should not be cached
+        let repo_path = self.get_repo_cache_path(&repo_spec);
+        if let Err(e) = Self::sync_repo(&repo_path, &repo_spec).await {
+            tracker.complete_request(TrackedTopic::Codebase);
+            log::error!(target: LOG_TARGET, "Could not sync repository '{repo_spec}': {e:#}");
+            let error = Arc::new(e);
+            return crates
+                .into_iter()
+                .map(|crate_spec| (crate_spec, ProviderResult::Error(Arc::clone(&error))))
+                .collect();
         }
 
+        let fetch_result = self.fetch_repo_data_core(&repo_spec, &repo_path).await;
+        tracker.complete_request(TrackedTopic::Codebase);
+
+        match fetch_result {
+            Ok(repo_data) => {
+                let repo_data = Arc::new(repo_data);
+                join_all(crates.into_iter().map(|crate_spec| {
+                    let provider = self.clone();
+                    let repo_spec = repo_spec.clone();
+                    let repo_data = Arc::clone(&repo_data);
+
+                    tokio::spawn(provider.analyze_crate(crate_spec, repo_spec, repo_data))
+                }))
+                .await
+                .into_iter()
+                .map(|result| result.expect("task must not panic"))
+                .collect()
+            }
+            Err(e) => {
+                let reason = format!("{e:#}");
+                log::error!(target: LOG_TARGET, "Could not analyze repository '{repo_spec}': {reason}");
+                crates
+                    .into_iter()
+                    .map(|crate_spec| {
+                        let data_path = self.get_data_path(crate_spec.name(), &repo_spec);
+                        if let Err(e) = CacheEnvelope::<CodebaseData>::no_data(self.now, &reason).save(&data_path) {
+                            log::debug!(target: LOG_TARGET, "Could not save cache for {crate_spec}: {e:#}");
+                        }
+                        (crate_spec, ProviderResult::Unavailable(reason.clone().into()))
+                    })
+                    .collect()
+            }
+        }
+    }
+
+    /// Sync (clone or pull) the git repository. Failures here are transient.
+    async fn sync_repo(repo_path: &Path, repo_spec: &RepoSpec) -> Result<()> {
+        let git_result = tokio::time::timeout(GIT_REPO_TIMEOUT, git::get_repo(repo_path, repo_spec.url())).await;
+
+        match git_result {
+            Err(_) => Err(app_err!(
+                "git operation timed out after {} seconds for repository '{repo_spec}'",
+                GIT_REPO_TIMEOUT.as_secs(),
+            )),
+            Ok(Err(e)) => Err(e.enrich_with(|| format!("syncing repository '{repo_spec}'"))),
+            Ok(Ok(())) => Ok(()),
+        }
+    }
+
+    async fn fetch_repo_data_core(&self, repo_spec: &RepoSpec, repo_path: &Path) -> Result<RepoData> {
         let root_manifest = repo_path.join("Cargo.toml");
         if !root_manifest.exists() {
             return Err(app_err!("could not find Cargo.toml in root of repository '{repo_spec}'"));
@@ -239,7 +250,7 @@ impl Provider {
 
         log::debug!(target: LOG_TARGET, "Counting contributors in repository '{repo_spec}'");
 
-        let contributor_count = match git::count_contributors(&repo_path).await {
+        let contributor_count = match git::count_contributors(repo_path).await {
             Ok(count) => count,
             Err(e) => {
                 log::warn!(target: LOG_TARGET, "Could not count contributors for '{repo_spec}': {e:#}");
@@ -250,9 +261,9 @@ impl Provider {
         log::debug!(target: LOG_TARGET, "Counting recent commits in repository '{repo_spec}'");
 
         let (commits_last_90_days, commits_last_180_days, commits_last_365_days) =
-            Self::count_recent_commits(&repo_path, repo_spec).await;
+            Self::count_recent_commits(repo_path, repo_spec).await;
 
-        let commit_count = match git::count_all_commits(&repo_path).await {
+        let commit_count = match git::count_all_commits(repo_path).await {
             Ok(count) => count,
             Err(e) => {
                 log::warn!(target: LOG_TARGET, "Could not count total commits for '{repo_spec}': {e:#}");
@@ -260,7 +271,7 @@ impl Provider {
             }
         };
 
-        let first_commit_at = match git::get_first_commit_time(&repo_path).await {
+        let first_commit_at = match git::get_first_commit_time(repo_path).await {
             Ok(dt) => dt,
             Err(e) => {
                 log::warn!(target: LOG_TARGET, "Could not get first commit time for '{repo_spec}': {e:#}");
@@ -268,7 +279,7 @@ impl Provider {
             }
         };
 
-        let last_commit_at = match git::get_last_commit_time(&repo_path).await {
+        let last_commit_at = match git::get_last_commit_time(repo_path).await {
             Ok(dt) => dt,
             Err(e) => {
                 log::warn!(target: LOG_TARGET, "Could not get last commit time for '{repo_spec}': {e:#}");
@@ -278,7 +289,8 @@ impl Provider {
 
         log::debug!(target: LOG_TARGET, "Detecting workflows in repository '{repo_spec}'");
 
-        let workflows = match spawn_blocking(move || sniff_github_workflows(&repo_path))
+        let repo_path_owned = repo_path.to_path_buf();
+        let workflows = match spawn_blocking(move || sniff_github_workflows(&repo_path_owned))
             .await
             .expect("task must not panic")
         {
@@ -345,15 +357,20 @@ impl Provider {
 
         // Find the package we're interested in
         let Some(package) = repo_data.metadata.packages.iter().find(|p| p.name == crate_name) else {
-            log::debug!(target: LOG_TARGET, "Could not find '{crate_name}' in repository '{repo_spec}'");
-            return (crate_spec, ProviderResult::CrateNotFound(Arc::new([])));
+            let reason = format!("crate '{crate_name}' not found in repository '{repo_spec}'");
+            log::debug!(target: LOG_TARGET, "{reason}");
+            if let Err(e) = CacheEnvelope::<CodebaseData>::no_data(self.now, &reason).save(&data_path) {
+                log::debug!(target: LOG_TARGET, "Could not save cache for {crate_spec}: {e:#}");
+            }
+            return (crate_spec, ProviderResult::Unavailable(reason.into()));
         };
 
         let Some(crate_path) = package.manifest_path.parent() else {
-            return (
-                crate_spec,
-                ProviderResult::Error(Arc::new(app_err!("package manifest has no parent directory"))),
-            );
+            let reason = format!("package manifest has no parent directory for {crate_spec}");
+            if let Err(e) = CacheEnvelope::<CodebaseData>::no_data(self.now, &reason).save(&data_path) {
+                log::debug!(target: LOG_TARGET, "Could not save cache for {crate_spec}: {e:#}");
+            }
+            return (crate_spec, ProviderResult::Unavailable(reason.into()));
         };
 
         log::debug!(target: LOG_TARGET, "Found crate at {crate_path}");
@@ -363,7 +380,6 @@ impl Provider {
 
         // Create CodebaseData with non-source fields initialized
         let mut codebase_data = CodebaseData {
-            timestamp: self.now,
             source_files_analyzed: 0,
             production_lines: 0,
             test_lines: 0,
@@ -385,16 +401,16 @@ impl Provider {
         };
 
         if let Err(e) = Self::analyze_source_files(crate_path.as_std_path(), &mut codebase_data).await {
-            return (
-                crate_spec.clone(),
-                ProviderResult::Error(Arc::new(
-                    e.enrich_with(|| format!("analyzing source files for {crate_spec}")),
-                )),
-            );
+            let reason = format!("{:#}", e.enrich_with(|| format!("analyzing source files for {crate_spec}")));
+            if let Err(e) = CacheEnvelope::<CodebaseData>::no_data(self.now, &reason).save(&data_path) {
+                log::debug!(target: LOG_TARGET, "Could not save cache for {crate_spec}: {e:#}");
+            }
+            return (crate_spec, ProviderResult::Unavailable(reason.into()));
         }
 
+        let now = self.now;
         let result = spawn_blocking({
-            move || match cache_doc::save(&codebase_data, &data_path) {
+            move || match CacheEnvelope::data(now, codebase_data.clone()).save(&data_path) {
                 Ok(()) => ProviderResult::Found(codebase_data),
                 Err(e) => ProviderResult::Error(Arc::new(e)),
             }

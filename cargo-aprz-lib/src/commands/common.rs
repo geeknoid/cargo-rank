@@ -285,7 +285,7 @@ impl<'a, H: super::Host> Common<'a, H> {
                             facts.crate_spec
                         );
                     }
-                    ProviderResult::Found(_) => {}
+                    ProviderResult::Found(_) | ProviderResult::Unavailable(_) => {}
                 }
             }
         }
