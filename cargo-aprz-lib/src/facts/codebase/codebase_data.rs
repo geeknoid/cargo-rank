@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CodebaseData {
-    pub timestamp: DateTime<Utc>,
     pub source_files_analyzed: u64,
     pub source_files_with_errors: u64,
     pub production_lines: u64,

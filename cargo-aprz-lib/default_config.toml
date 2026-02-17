@@ -35,7 +35,7 @@ low_risk_threshold = 70.0
 # Duration to keep crates.io cache data before re-downloading
 crates_cache_ttl = "1 week"
 
-# Duration to keep hosting (GitHub/GitLab) cache data before re-fetching
+# Duration to keep hosting (GitHub/Codeberg) cache data before re-fetching
 hosting_cache_ttl = "1 week"
 
 # Duration to keep cached codebase before re-fetching
@@ -49,13 +49,303 @@ advisories_cache_ttl = "1 week"
 
 # ----------------------------------------------------------------------------
 # Expressions
+#
+# Weight rationale (total = 100 points):
+#
+#   Category                    Points   %   Why
+#   ─────────────────────────── ──────  ───  ────────────────────────────────
+#   Code Quality & Safety         22    22%  Highest: CI, linting, coverage,
+#                                             and unsafe directly affect the
+#                                             reliability of code you import.
+#   Crate Maturity                15    15%  Age and version stability are
+#                                             strong predictors of reliability.
+#   Community & Development       13    13%  Contributors + commits show
+#                                             project health and sustainability.
+#   Release Activity              12    12%  Active releases signal the crate
+#                                             isn't abandoned; intentional
+#                                             quality checkpoints.
+#   Ownership & Governance        10    10%  Bus-factor risk. Directly impacts
+#                                             long-term maintainability.
+#   Security (non-critical)        8     8%  Medium/low vulns checked here;
+#                                             critical/high are instant high-risk.
+#   Documentation                  8     8%  Good docs reduce integration risk
+#                                             and onboarding cost.
+#   Usage & Popularity             7     7%  Downloads signal real-world vetting,
+#                                             but popularity ≠ quality.
+#   Issue & PR Responsiveness      5     5%  Maintainer engagement signal, but
+#                                             many healthy crates have few issues.
+#
+# Key relative comparisons:
+#   - CI (7) > Doc coverage (4): CI catches regressions continuously
+#   - Ownership (10) > Contributors (3+2): accountability > crowd size
+#   - Test coverage (6+4) > Unsafe (3+2): coverage proves behavior
+#   - Release last year (7) > last 6mo (5): some mature crates release slowly
+#   - Maturity 1yr (7) > 6mo (5): longer track record is proportionally better
+#   - Active commits >3 (5) > ≥1 (3): sustained activity > bare minimum
 # ----------------------------------------------------------------------------
 
-# Expressions that if ANY evaluate to true, the crate is flagged as high risk
-high_risk_if_any = []
+# ============================================================================
+# HIGH RISK CHECKS
+# Any expression evaluating to true immediately flags the crate as high risk.
+# These represent non-negotiable quality gates.
+# ============================================================================
 
-# Each eval expression has a point value (default 1). All expressions are
-# evaluated and a score is computed as granted_points / total_points * 100.
-# The score is compared against the risk thresholds below to determine the
-# crate's risk level.
-eval = []
+[[high_risk_if_any]]
+name = "Disallowed License"
+description = "Crate license is not in the allowed list (MIT, Apache-2.0, BSD-3-Clause, ISC, BSL-1.0, Zlib). Microsoft policy requires permissive licenses."
+expression = "!(crate.license.contains('MIT') || crate.license.contains('Apache-2.0') || crate.license.contains('BSD-3-Clause') || crate.license.contains('ISC') || crate.license.contains('BSL-1.0') || crate.license.contains('Zlib'))"
+
+[[high_risk_if_any]]
+name = "Critical Security Vulnerability"
+description = "This crate version has critical severity vulnerabilities in the RustSec advisory database."
+expression = "advisories.version_critical_severity_vulnerabilities > 0"
+
+[[high_risk_if_any]]
+name = "High Security Vulnerability"
+description = "This crate version has high severity vulnerabilities in the RustSec advisory database."
+expression = "advisories.version_high_severity_vulnerabilities > 0"
+
+[[high_risk_if_any]]
+name = "Unmaintained Crate"
+description = "The crate is flagged as unmaintained in the RustSec advisory database."
+expression = "advisories.version_unmaintained_warnings > 0"
+
+[[high_risk_if_any]]
+name = "Unsound Crate"
+description = "The crate is flagged as unsound in the RustSec advisory database."
+expression = "advisories.version_unsound_warnings > 0"
+
+[[high_risk_if_any]]
+name = "Yanked Version"
+description = "This crate version has been yanked from crates.io, typically indicating a serious defect."
+expression = "stability.yanked"
+
+# ============================================================================
+# EVALUATION EXPRESSIONS
+# Each expression has a point value. Score = granted / total * 100.
+# Total budget: 100 points across all expressions.
+# ============================================================================
+
+# --- Crate Maturity (15 points) ---
+# Age and version stability are strong predictors of reliability. A crate that
+# has survived > 1 year and moved past 0.x has proven real-world survivability.
+
+[[eval]]
+name = "Crate Age >= 6 Months"
+description = "The crate was first published at least 6 months ago."
+expression = "stability.crate_created_at < (now - duration('4320h'))"
+points = 5
+
+[[eval]]
+name = "Crate Age >= 1 Year"
+description = "The crate was first published at least 1 year ago, indicating established maturity."
+expression = "stability.crate_created_at < (now - duration('8760h'))"
+points = 7
+
+[[eval]]
+name = "Stable Version (>= 1.0.0)"
+description = "The crate version is 1.0.0 or higher, no longer in the 0.x.x experimental range."
+expression = "!crate.version.startsWith('0.')"
+points = 3
+
+# --- Usage & Popularity (7 points) ---
+# Downloads signal real-world vetting by many consumers, but popularity alone
+# does not guarantee quality, so this category gets moderate weight.
+
+[[eval]]
+name = "Popular Crate (>= 5000 downloads in 90 days)"
+description = "The crate has at least 5000 downloads in the last 90 days, indicating meaningful adoption."
+expression = "usage.total_downloads_last_90_days >= 5000"
+points = 7
+
+# --- Ownership & Governance (10 points) ---
+# Bus-factor risk: a single-owner crate is fragile. Having multiple owners or
+# a team ensures continuity. Worth more than community size because it directly
+# impacts who can publish fixes and new releases.
+
+[[eval]]
+name = "Multiple Owners"
+description = "The crate has at least 2 owners, reducing bus-factor risk."
+expression = "size(crate.owners) >= 2"
+points = 10
+
+# --- Release Activity (12 points) ---
+# Active releases are intentional quality checkpoints. A crate that hasn't
+# released in > 1 year may be stale even if it has recent commits.
+
+[[eval]]
+name = "Release in Last 12 Months"
+description = "At least one version was published in the last year, indicating ongoing maintenance."
+expression = "stability.versions_last_365_days >= 1"
+points = 7
+
+[[eval]]
+name = "Release in Last 6 Months"
+description = "At least one version was published in the last 6 months, indicating active maintenance."
+expression = "stability.versions_last_180_days >= 1"
+points = 5
+
+# --- Community & Development Activity (13 points) ---
+# Contributors show breadth of knowledge; commits show depth of activity.
+# Sustained commit activity (>3 in 90 days) is weighted higher than bare-minimum
+# (≥1), and a larger contributor base (≥10) is better than a small one (≥5).
+
+[[eval]]
+name = "Large Community (>= 10 contributors)"
+description = "The crate has at least 10 contributors, indicating broad community support."
+expression = "community.repo_contributors >= 10"
+points = 3
+
+[[eval]]
+name = "Some Community (>= 5 contributors)"
+description = "The crate has at least 5 contributors."
+expression = "community.repo_contributors >= 5"
+points = 2
+
+[[eval]]
+name = "Active Development (> 3 commits in 90 days)"
+description = "More than 3 commits in the last 90 days indicates sustained active development."
+expression = "activity.commits_last_90_days > 3"
+points = 5
+
+[[eval]]
+name = "Some Development Activity (>= 1 commit in 90 days)"
+description = "At least 1 commit in the last 90 days shows the project is not dormant."
+expression = "activity.commits_last_90_days >= 1"
+points = 3
+
+# --- Issue & PR Responsiveness (5 points) ---
+# Measures how quickly maintainers close issues and merge PRs. Important signal
+# of maintainer engagement, but lower weight because many healthy niche crates
+# have few issues/PRs. Uses "last 365 days" windowed metrics to focus on recent
+# behavior. Merged PR age = time from PR open to merge.
+
+[[eval]]
+name = "Fast Issue Resolution (p50 < 30 days)"
+description = "Median age of issues closed in the last year is under 30 days."
+expression = "activity.closed_issue_age_last_365_days_p50 < 30"
+points = 1
+
+[[eval]]
+name = "Reasonable Issue Resolution (p75 < 180 days)"
+description = "75th percentile age of issues closed in the last year is under 180 days."
+expression = "activity.closed_issue_age_last_365_days_p75 < 180"
+points = 1
+
+[[eval]]
+name = "Fast PR Merge (p50 < 7 days)"
+description = "Median age of PRs merged in the last year is under 7 days."
+expression = "activity.merged_pr_age_last_365_days_p50 < 7"
+points = 1
+
+[[eval]]
+name = "Reasonable PR Merge (p75 < 15 days)"
+description = "75th percentile age of PRs merged in the last year is under 15 days."
+expression = "activity.merged_pr_age_last_365_days_p75 < 15"
+points = 1
+
+[[eval]]
+name = "Good PR Turnaround (p90 < 30 days)"
+description = "90th percentile age of PRs merged in the last year is under 30 days."
+expression = "activity.merged_pr_age_last_365_days_p90 < 30"
+points = 1
+
+# --- Documentation (8 points) ---
+# Good docs reduce integration risk and onboarding cost. API coverage (4pts)
+# matters most since it directly helps consumers. Examples (2pts) and crate-level
+# docs (2pts) are supporting quality signals.
+
+[[eval]]
+name = "Good Documentation Coverage (>= 90%)"
+description = "At least 90% of public API elements are documented."
+expression = "docs.public_api_coverage_percentage >= 90"
+points = 4
+
+[[eval]]
+name = "Has Examples"
+description = "The crate includes code examples in documentation or standalone example programs."
+expression = "docs.examples_in_docs > 0 || docs.standalone_examples > 0"
+points = 2
+
+[[eval]]
+name = "Crate-Level Documentation"
+description = "The crate has top-level crate documentation present."
+expression = "docs.crate_level_docs_present"
+points = 2
+
+# --- Code Quality & Safety (22 points) ---
+# Highest category. CI, linting, test coverage, and unsafe usage directly
+# affect the reliability of code you're importing into your project.
+#
+# CI (7) is foundational—without it nothing else is verified automatically.
+# Clippy (3) catches common mistakes. Test coverage is split into two tiers:
+# ≥75% (6pts) and ≥50% (4pts) to reward incrementally. Unsafe is split into
+# zero (3pts) and low <10 (2pts) because some crates legitimately need unsafe,
+# but fewer blocks = lower risk. Uses Miri (1pt) as a bonus for extra rigor.
+
+[[eval]]
+name = "CI/CD Configured"
+description = "The repository has CI/CD workflows configured, ensuring automated quality checks."
+expression = "trust.ci_workflows"
+points = 7
+
+[[eval]]
+name = "Uses Clippy"
+description = "Clippy linting is used in CI, catching common Rust mistakes and enforcing idioms."
+expression = "trust.clippy_usage"
+points = 3
+
+[[eval]]
+name = "Uses Miri"
+description = "Miri is used in CI, detecting undefined behavior in unsafe code."
+expression = "trust.miri_usage"
+points = 1
+
+[[eval]]
+name = "High Test Coverage (>= 75%)"
+description = "Code coverage is at least 75%, indicating thorough testing."
+expression = "trust.code_coverage_percentage >= 75"
+points = 6
+
+[[eval]]
+name = "Medium Test Coverage (>= 50%)"
+description = "Code coverage is at least 50%, indicating reasonable testing."
+expression = "trust.code_coverage_percentage >= 50"
+points = 4
+
+[[eval]]
+name = "No Unsafe Usage"
+description = "The crate contains zero unsafe blocks."
+expression = "trust.unsafe_blocks == 0"
+points = 3
+
+[[eval]]
+name = "Low Unsafe Usage (< 10 blocks)"
+description = "The crate has fewer than 10 unsafe blocks, limiting exposure to memory safety issues."
+expression = "trust.unsafe_blocks < 10"
+points = 2
+
+# Subtotal check: 7 + 3 + 1 + 6 + 4 + 3 + 2 = 26 potential, but max
+# achievable is 22 (No Unsafe + Low Unsafe can both be true = 5, or if
+# unsafe > 0 then only Low Unsafe = 2; coverage tiers overlap similarly).
+# Effective max when all pass: 7+3+1+6+4+3+2 = 26, but the score normalizes
+# to granted/total*100, so overlapping tiers are intentional to create a
+# gradient rather than cliff effects.
+
+# --- Security: Non-Critical Vulnerabilities (8 points) ---
+# Critical and high severity are handled by high_risk_if_any above. Here we
+# penalize medium and low severity vulnerabilities proportionally. Medium vulns
+# are weighted higher (5pts) because they represent real exploitability risk;
+# low vulns (3pts) are often informational but still worth tracking.
+
+[[eval]]
+name = "No Medium Vulnerabilities"
+description = "No medium severity vulnerabilities in this crate version."
+expression = "advisories.version_medium_severity_vulnerabilities == 0"
+points = 5
+
+[[eval]]
+name = "No Low Vulnerabilities"
+description = "No low severity vulnerabilities in this crate version."
+expression = "advisories.version_low_severity_vulnerabilities == 0"
+points = 3

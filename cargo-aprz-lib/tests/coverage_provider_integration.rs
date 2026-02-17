@@ -1,7 +1,7 @@
 //! Integration tests for the coverage provider using real fixtures and wiremock
 
 use cargo_aprz_lib::facts::coverage::{CoverageData, Provider};
-use cargo_aprz_lib::facts::{CrateSpec, Progress, ProviderResult, RepoSpec, RequestTracker};
+use cargo_aprz_lib::facts::{CacheEnvelope, CrateSpec, Progress, ProviderResult, RepoSpec, RequestTracker};
 use chrono::Utc;
 use semver::Version;
 use std::fs;
@@ -69,7 +69,7 @@ async fn test_coverage_provider_with_fixture() {
 
     // Create crate spec with repository
     let repo_url = Url::parse("https://github.com/microsoft/oxidizer").expect("Failed to parse repo URL");
-    let repo_spec = RepoSpec::parse(repo_url).expect("Failed to create repo spec");
+    let repo_spec = RepoSpec::parse(&repo_url).expect("Failed to create repo spec");
     let crate_spec = CrateSpec::from_arcs_with_repo(Arc::from("oxidizer"), Arc::new(Version::parse("1.0.0").unwrap()), repo_spec);
 
     // Fetch coverage data
@@ -98,7 +98,7 @@ async fn test_coverage_provider_with_fixture() {
                 coverage_data.code_coverage_percentage
             );
 
-            assert!(coverage_data.timestamp.timestamp() > 0);
+            assert!(coverage_data.code_coverage_percentage > 0.0);
         }
         ProviderResult::Error(e) => {
             panic!("Expected Found result, got Error: {e:#}");
@@ -108,6 +108,9 @@ async fn test_coverage_provider_with_fixture() {
         }
         ProviderResult::VersionNotFound => {
             panic!("Expected Found result, got VersionNotFound");
+        }
+        ProviderResult::Unavailable(reason) => {
+            panic!("Expected Found result, got Unavailable: {reason}");
         }
     }
 }
@@ -146,7 +149,7 @@ async fn test_coverage_provider_not_found_main() {
 
     // Create crate spec for nonexistent repo
     let repo_url = Url::parse("https://github.com/nonexistent/repo").expect("Failed to parse repo URL");
-    let repo_spec = RepoSpec::parse(repo_url).expect("Failed to create repo spec");
+    let repo_spec = RepoSpec::parse(&repo_url).expect("Failed to create repo spec");
     let crate_spec = CrateSpec::from_arcs_with_repo(Arc::from("nonexistent"), Arc::new(Version::parse("1.0.0").unwrap()), repo_spec);
 
     // Fetch coverage data
@@ -158,8 +161,8 @@ async fn test_coverage_provider_not_found_main() {
     assert_eq!(results.len(), 1);
     let (_, result_data) = &results[0];
 
-    // Should be CrateNotFound when both main and master return 404
-    assert!(matches!(result_data, ProviderResult::CrateNotFound(_)));
+    // Should be Unavailable when both main and master return 404
+    assert!(matches!(result_data, ProviderResult::Unavailable(_)));
 }
 
 #[tokio::test]
@@ -204,7 +207,7 @@ async fn test_coverage_provider_unknown_coverage() {
 
     // Create crate spec with repository
     let repo_url = Url::parse("https://github.com/test/repo").expect("Failed to parse repo URL");
-    let repo_spec = RepoSpec::parse(repo_url).expect("Failed to create repo spec");
+    let repo_spec = RepoSpec::parse(&repo_url).expect("Failed to create repo spec");
     let crate_spec = CrateSpec::from_arcs_with_repo(Arc::from("testrepo"), Arc::new(Version::parse("1.0.0").unwrap()), repo_spec);
 
     // Fetch coverage data
@@ -212,10 +215,10 @@ async fn test_coverage_provider_unknown_coverage() {
     let tracker = RequestTracker::new(progress.as_ref());
     let results: Vec<(CrateSpec, ProviderResult<CoverageData>)> = provider.get_coverage_data(vec![crate_spec], &tracker).await.collect();
 
-    // Verify results - should be CrateNotFound when coverage is unknown
+    // Verify results - should be Unavailable when coverage is unknown
     assert_eq!(results.len(), 1);
     let (_, result_data) = &results[0];
-    assert!(matches!(result_data, ProviderResult::CrateNotFound(_)));
+    assert!(matches!(result_data, ProviderResult::Unavailable(_)));
 }
 
 #[tokio::test]
@@ -227,11 +230,11 @@ async fn test_coverage_provider_uses_cache() {
     let cache_subdir = temp_dir.path().join("github.com").join("test");
     fs::create_dir_all(&cache_subdir).expect("create cache subdirs");
     let cached_data = CoverageData {
-        timestamp: Utc::now(),
         code_coverage_percentage: 42.0,
     };
     let cache_path = cache_subdir.join("repo.json");
-    let json = serde_json::to_string(&cached_data).expect("serialize");
+    let envelope = CacheEnvelope::data(Utc::now(), cached_data);
+    let json = serde_json::to_string(&envelope).expect("serialize");
     fs::write(&cache_path, json).expect("write cache file");
 
     // Create provider with ignore_cached=false and long TTL
@@ -245,7 +248,7 @@ async fn test_coverage_provider_uses_cache() {
     );
 
     let repo_url = Url::parse("https://github.com/test/repo").expect("parse URL");
-    let repo_spec = RepoSpec::parse(repo_url).expect("parse repo spec");
+    let repo_spec = RepoSpec::parse(&repo_url).expect("parse repo spec");
     let crate_spec = CrateSpec::from_arcs_with_repo(Arc::from("testrepo"), Arc::new(Version::parse("1.0.0").unwrap()), repo_spec);
 
     let progress = Arc::new(NoOpProgress) as Arc<dyn Progress>;
@@ -282,11 +285,11 @@ async fn test_coverage_provider_ignore_cached_bypasses_cache() {
     let cache_subdir = temp_dir.path().join("github.com").join("microsoft");
     fs::create_dir_all(&cache_subdir).expect("create cache subdirs");
     let cached_data = CoverageData {
-        timestamp: Utc::now(),
         code_coverage_percentage: 42.0,
     };
     let cache_path = cache_subdir.join("oxidizer.json");
-    let json = serde_json::to_string(&cached_data).expect("serialize");
+    let envelope = CacheEnvelope::data(Utc::now(), cached_data);
+    let json = serde_json::to_string(&envelope).expect("serialize");
     fs::write(&cache_path, json).expect("write cache file");
 
     // Set up mock server with real fixture
@@ -312,7 +315,7 @@ async fn test_coverage_provider_ignore_cached_bypasses_cache() {
     );
 
     let repo_url = Url::parse("https://github.com/microsoft/oxidizer").expect("parse URL");
-    let repo_spec = RepoSpec::parse(repo_url).expect("parse repo spec");
+    let repo_spec = RepoSpec::parse(&repo_url).expect("parse repo spec");
     let crate_spec = CrateSpec::from_arcs_with_repo(Arc::from("oxidizer"), Arc::new(Version::parse("1.0.0").unwrap()), repo_spec);
 
     let progress = Arc::new(NoOpProgress) as Arc<dyn Progress>;

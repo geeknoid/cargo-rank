@@ -1,4 +1,4 @@
-//! Generic serialization and deserialization utilities for cache documents.
+//! Cache envelope for timestamped, TTL-aware caching of serializable data.
 
 use crate::Result;
 use chrono::{DateTime, Utc};
@@ -12,125 +12,146 @@ use std::path::Path;
 
 const LOG_TARGET: &str = " cache_doc";
 
-/// Load a document from a file
-pub fn load<T>(path: impl AsRef<Path>, context: impl AsRef<str>) -> Result<T>
-where
-    T: for<'de> Deserialize<'de>,
-{
-    let path = path.as_ref();
-    let ctx = context.as_ref();
+/// The payload within a [`CacheEnvelope`].
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum EnvelopePayload<T> {
+    /// Actual cached data.
+    Data(T),
 
-    let file = match File::open(path) {
-        Ok(file) => file,
-        Err(e) => {
-            log::debug!(target: LOG_TARGET, "Cache miss for {ctx}: {e:#}");
-            return Err(e).into_app_err_with(|| format!("opening file '{}'", path.display()));
-        }
-    };
-
-    let reader = BufReader::new(file);
-    let data = match serde_json::from_reader(reader) {
-        Ok(data) => data,
-        Err(e) => {
-            log::debug!(target: LOG_TARGET, "Cache miss for {ctx}: {e:#}");
-            return Err(e).into_app_err_with(|| format!("parsing file '{}'", path.display()));
-        }
-    };
-
-    log::debug!(target: LOG_TARGET, "Cache hit for {ctx}");
-
-    Ok(data)
+    /// Data is not available, with a reason explaining why.
+    NoData(String),
 }
 
-/// Load a document from a file with TTL checking.
-pub fn load_with_ttl<T, F>(
-    path: impl AsRef<Path>,
-    ttl: Duration,
-    get_timestamp: F,
-    now: DateTime<Utc>,
-    context: impl AsRef<str>,
-) -> Option<T>
-where
-    T: for<'de> Deserialize<'de>,
-    F: FnOnce(&T) -> DateTime<Utc>,
-{
-    let path = path.as_ref();
-    let ctx = context.as_ref();
-
-    let file = match File::open(path) {
-        Ok(file) => file,
-        Err(e) => {
-            log::debug!(target: LOG_TARGET, "Cache miss for {ctx}: {e:#}");
-            return None;
+impl<T> EnvelopePayload<T> {
+    /// Returns the data if this is a `Data` variant, or `None`.
+    #[cfg(any(test, debug_assertions))]
+    #[must_use]
+    pub fn into_data(self) -> Option<T> {
+        match self {
+            Self::Data(data) => Some(data),
+            Self::NoData(_) => None,
         }
-    };
-
-    let reader = BufReader::new(file);
-    let data = match serde_json::from_reader(reader) {
-        Ok(data) => data,
-        Err(e) => {
-            log::debug!(target: LOG_TARGET, "Cache miss for {ctx}: {e:#}");
-            return None;
-        }
-    };
-
-    let timestamp = get_timestamp(&data);
-
-    // Handle future timestamps (clock skew) - treat as fresh data
-    let age = now.signed_duration_since(timestamp);
-    if age.num_seconds() < 0 {
-        log::debug!(target: LOG_TARGET, "Cache timestamp is in the future for {ctx} (clock skew detected), treating as fresh");
-        return Some(data);
     }
 
-    let age_duration = age.to_std().unwrap_or(Duration::MAX);
-
-    if age_duration < ttl {
-        log::debug!(target: LOG_TARGET, "Cache hit for {ctx} (age: {:.1} days)", age_duration.as_secs_f64() / 86400.0);
-        Some(data)
-    } else {
-        log::debug!(target: LOG_TARGET,
-            "Cache expired for {ctx} (age: {:.1} days, TTL: {:.1} days)",
-            age_duration.as_secs_f64() / 86400.0,
-            ttl.as_secs_f64() / 86400.0
-        );
-        None
+    /// Returns `true` if this is a `NoData` variant.
+    #[cfg(any(test, debug_assertions))]
+    #[must_use]
+    pub const fn is_no_data(&self) -> bool {
+        matches!(self, Self::NoData(_))
     }
 }
 
-/// Save a document to a file
-pub fn save<T>(data: &T, path: impl AsRef<Path>) -> Result<()>
-where
-    T: Serialize,
-{
-    let path = path.as_ref();
+/// A cache wrapper that stores a timestamp alongside a payload.
+///
+/// The payload can be either actual data or a reason explaining why data is unavailable.
+/// The TTL applies equally to both cases.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CacheEnvelope<T> {
+    pub timestamp: DateTime<Utc>,
+    pub payload: EnvelopePayload<T>,
+}
 
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).into_app_err_with(|| format!("creating directory '{}'", parent.display()))?;
+impl<T> CacheEnvelope<T>
+where
+    T: Serialize + for<'de> Deserialize<'de>,
+{
+    /// Create an envelope with a data payload.
+    #[must_use]
+    pub const fn data(timestamp: DateTime<Utc>, payload: T) -> Self {
+        Self {
+            timestamp,
+            payload: EnvelopePayload::Data(payload),
+        }
     }
 
-    let file = File::create(path).into_app_err_with(|| format!("creating cache file '{}'", path.display()))?;
-    let mut writer = BufWriter::new(file);
+    /// Create an envelope representing unavailable data.
+    #[must_use]
+    pub fn no_data(timestamp: DateTime<Utc>, reason: impl Into<String>) -> Self {
+        Self {
+            timestamp,
+            payload: EnvelopePayload::NoData(reason.into()),
+        }
+    }
 
-    // Use pretty formatting in debug mode for easier inspection, compact in release for smaller files
-    #[cfg(debug_assertions)]
-    let result = serde_json::to_writer_pretty(&mut writer, data);
-    #[cfg(not(debug_assertions))]
-    let result = serde_json::to_writer(&mut writer, data);
+    /// Load an envelope from a cache file, returning `None` on miss or expiry.
+    pub fn load(
+        path: impl AsRef<Path>,
+        ttl: Duration,
+        now: DateTime<Utc>,
+        context: impl AsRef<str>,
+    ) -> Option<Self> {
+        let path = path.as_ref();
+        let ctx = context.as_ref();
 
-    result.into_app_err_with(|| format!("writing cache file '{}'", path.display()))?;
-    writer
-        .flush()
-        .into_app_err_with(|| format!("flushing cache file '{}'", path.display()))?;
-    Ok(())
+        let file = match File::open(path) {
+            Ok(file) => file,
+            Err(e) => {
+                log::debug!(target: LOG_TARGET, "Cache miss for {ctx}: {e:#}");
+                return None;
+            }
+        };
+
+        let reader = BufReader::new(file);
+        let envelope: Self = match serde_json::from_reader(reader) {
+            Ok(data) => data,
+            Err(e) => {
+                log::debug!(target: LOG_TARGET, "Cache miss for {ctx}: {e:#}");
+                return None;
+            }
+        };
+
+        // Handle future timestamps (clock skew) - treat as fresh data
+        let age = now.signed_duration_since(envelope.timestamp);
+        if age.num_seconds() < 0 {
+            log::debug!(target: LOG_TARGET, "Cache timestamp is in the future for {ctx} (clock skew detected), treating as fresh");
+            return Some(envelope);
+        }
+
+        let age_duration = age.to_std().unwrap_or(Duration::MAX);
+
+        if age_duration < ttl {
+            log::debug!(target: LOG_TARGET, "Cache hit for {ctx} (age: {:.1} days)", age_duration.as_secs_f64() / 86400.0);
+            Some(envelope)
+        } else {
+            log::debug!(target: LOG_TARGET,
+                "Cache expired for {ctx} (age: {:.1} days, TTL: {:.1} days)",
+                age_duration.as_secs_f64() / 86400.0,
+                ttl.as_secs_f64() / 86400.0
+            );
+            None
+        }
+    }
+
+    /// Save this envelope to a cache file.
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        let path = path.as_ref();
+
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).into_app_err_with(|| format!("creating directory '{}'", parent.display()))?;
+        }
+
+        let file = File::create(path).into_app_err_with(|| format!("creating cache file '{}'", path.display()))?;
+        let mut writer = BufWriter::new(file);
+
+        // Use pretty formatting in debug mode for easier inspection, compact in release for smaller files
+        #[cfg(debug_assertions)]
+        let result = serde_json::to_writer_pretty(&mut writer, self);
+        #[cfg(not(debug_assertions))]
+        let result = serde_json::to_writer(&mut writer, self);
+
+        result.into_app_err_with(|| format!("writing cache file '{}'", path.display()))?;
+        writer
+            .flush()
+            .into_app_err_with(|| format!("flushing cache file '{}'", path.display()))?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
     struct TestData {
         name: String,
         value: u64,
@@ -138,7 +159,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
-    fn test_save_and_load_json() {
+    fn test_save_and_load() {
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("data.json");
 
@@ -147,25 +168,40 @@ mod tests {
             value: 42,
         };
 
-        // Save
-        save(&original, &file_path).unwrap();
+        let envelope = CacheEnvelope::data(Utc::now(), original.clone());
+        envelope.save(&file_path).unwrap();
 
-        // Verify file exists
         assert!(file_path.exists());
 
-        // Load
-        let loaded: TestData = load(&file_path, "test data").unwrap();
+        let ttl = Duration::from_secs(3600);
+        let loaded = CacheEnvelope::<TestData>::load(&file_path, ttl, Utc::now(), "test data");
 
-        // Verify data matches
-        assert_eq!(original, loaded);
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().payload.into_data().unwrap(), original);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
+    fn test_save_and_load_not_found() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("notfound.json");
+
+        let envelope = CacheEnvelope::<TestData>::no_data(Utc::now(), "not found");
+        envelope.save(&file_path).unwrap();
+
+        let ttl = Duration::from_secs(3600);
+        let loaded = CacheEnvelope::<TestData>::load(&file_path, ttl, Utc::now(), "test data");
+
+        assert!(loaded.is_some());
+        assert!(loaded.unwrap().payload.is_no_data());
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetFullPathNameW")]
     fn test_load_nonexistent_file() {
-        let result: Result<TestData> = load("/nonexistent/path/file.json", "test data");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("opening"));
+        let ttl = Duration::from_secs(3600);
+        let loaded = CacheEnvelope::<TestData>::load("/nonexistent/path/file.json", ttl, Utc::now(), "test data");
+        assert!(loaded.is_none());
     }
 
     #[test]
@@ -173,131 +209,78 @@ mod tests {
     fn test_load_invalid_json() {
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("invalid.json");
-
-        // Write invalid JSON
         fs::write(&file_path, "not valid json").unwrap();
 
-        let result: Result<TestData> = load(&file_path, "test data");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("parsing"));
-    }
-
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
-    struct TimestampedData {
-        name: String,
-        timestamp: DateTime<Utc>,
+        let ttl = Duration::from_secs(3600);
+        let loaded = CacheEnvelope::<TestData>::load(&file_path, ttl, Utc::now(), "test data");
+        assert!(loaded.is_none());
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
-    fn test_load_with_ttl_fresh_cache() {
+    fn test_load_fresh_cache() {
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("fresh.json");
 
-        let data = TimestampedData {
-            name: "test".to_string(),
-            timestamp: Utc::now(),
-        };
+        let envelope = CacheEnvelope::data(Utc::now(), TestData { name: "test".to_string(), value: 1 });
+        envelope.save(&file_path).unwrap();
 
-        save(&data, &file_path).unwrap();
-
-        let ttl = Duration::from_secs(3600); // 1 hour TTL
-        let loaded = load_with_ttl(&file_path, ttl, |d: &TimestampedData| d.timestamp, Utc::now(), "test data");
-
+        let ttl = Duration::from_secs(3600);
+        let loaded = CacheEnvelope::<TestData>::load(&file_path, ttl, Utc::now(), "test data");
         assert!(loaded.is_some());
-        let loaded = loaded.unwrap();
-        assert_eq!(loaded.name, "test");
+        assert_eq!(loaded.unwrap().payload.into_data().unwrap().name, "test");
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
-    fn test_load_with_ttl_expired_cache() {
+    fn test_load_expired_cache() {
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("expired.json");
 
-        // Create data with old timestamp (2 hours ago)
-        let data = TimestampedData {
-            name: "test".to_string(),
-            timestamp: Utc::now() - chrono::Duration::hours(2),
-        };
+        let envelope = CacheEnvelope::data(
+            Utc::now() - chrono::Duration::hours(2),
+            TestData { name: "test".to_string(), value: 1 },
+        );
+        envelope.save(&file_path).unwrap();
 
-        save(&data, &file_path).unwrap();
-
-        let ttl = Duration::from_secs(3600); // 1 hour TTL
-        let loaded = load_with_ttl(&file_path, ttl, |d: &TimestampedData| d.timestamp, Utc::now(), "test data");
-
-        // Should be None because cache is expired
+        let ttl = Duration::from_secs(3600);
+        let loaded = CacheEnvelope::<TestData>::load(&file_path, ttl, Utc::now(), "test data");
         assert!(loaded.is_none());
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
-    fn test_load_with_ttl_future_timestamp() {
+    fn test_load_future_timestamp() {
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("future.json");
 
-        // Create data with future timestamp (clock skew simulation)
-        let data = TimestampedData {
-            name: "test".to_string(),
-            timestamp: Utc::now() + chrono::Duration::hours(1),
-        };
-
-        save(&data, &file_path).unwrap();
+        let envelope = CacheEnvelope::data(
+            Utc::now() + chrono::Duration::hours(1),
+            TestData { name: "test".to_string(), value: 1 },
+        );
+        envelope.save(&file_path).unwrap();
 
         let ttl = Duration::from_secs(3600);
-        let loaded = load_with_ttl(&file_path, ttl, |d: &TimestampedData| d.timestamp, Utc::now(), "test data");
-
-        // Should be Some - future timestamps are treated as fresh
+        let loaded = CacheEnvelope::<TestData>::load(&file_path, ttl, Utc::now(), "test data");
         assert!(loaded.is_some());
-        let loaded = loaded.unwrap();
-        assert_eq!(loaded.name, "test");
+        assert_eq!(loaded.unwrap().payload.into_data().unwrap().name, "test");
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
-    fn test_load_with_ttl_nonexistent_file() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let file_path = temp_dir.path().join("nonexistent.json");
-
-        let ttl = Duration::from_secs(3600);
-        let loaded = load_with_ttl::<TimestampedData, _>(&file_path, ttl, |d| d.timestamp, Utc::now(), "test data");
-
-        assert!(loaded.is_none());
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
-    fn test_load_with_ttl_invalid_json() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let file_path = temp_dir.path().join("invalid.json");
-
-        fs::write(&file_path, "not valid json").unwrap();
-
-        let ttl = Duration::from_secs(3600);
-        let loaded = load_with_ttl::<TimestampedData, _>(&file_path, ttl, |d| d.timestamp, Utc::now(), "test data");
-
-        assert!(loaded.is_none());
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
-    fn test_load_with_ttl_exactly_at_ttl_boundary() {
+    fn test_load_exactly_at_ttl_boundary() {
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("boundary.json");
 
-        // Create data with timestamp exactly at TTL boundary
         let ttl_seconds = 3600;
-        let data = TimestampedData {
-            name: "test".to_string(),
-            timestamp: Utc::now() - chrono::Duration::seconds(ttl_seconds),
-        };
-
-        save(&data, &file_path).unwrap();
+        let envelope = CacheEnvelope::data(
+            Utc::now() - chrono::Duration::seconds(ttl_seconds),
+            TestData { name: "test".to_string(), value: 1 },
+        );
+        envelope.save(&file_path).unwrap();
 
         let ttl = Duration::from_secs(ttl_seconds.cast_unsigned());
-        let loaded = load_with_ttl(&file_path, ttl, |d: &TimestampedData| d.timestamp, Utc::now(), "test data");
-
-        // At boundary, should be expired (age >= ttl)
+        let loaded = CacheEnvelope::<TestData>::load(&file_path, ttl, Utc::now(), "test data");
         assert!(loaded.is_none());
     }
 
@@ -307,18 +290,13 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let nested_path = temp_dir.path().join("nested").join("subdir").join("data.json");
 
-        let data = TestData {
-            name: "nested".to_string(),
-            value: 123,
-        };
-
-        save(&data, &nested_path).unwrap();
-
+        let envelope = CacheEnvelope::data(Utc::now(), TestData { name: "nested".to_string(), value: 123 });
+        envelope.save(&nested_path).unwrap();
         assert!(nested_path.exists());
 
-        let loaded: TestData = load(&nested_path, "nested test").unwrap();
-        assert_eq!(loaded.name, "nested");
-        assert_eq!(loaded.value, 123);
+        let ttl = Duration::from_secs(3600);
+        let loaded = CacheEnvelope::<TestData>::load(&nested_path, ttl, Utc::now(), "nested test");
+        assert_eq!(loaded.unwrap().payload.into_data().unwrap().name, "nested");
     }
 
     #[test]
@@ -327,22 +305,14 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("overwrite.json");
 
-        let data1 = TestData {
-            name: "first".to_string(),
-            value: 1,
-        };
+        let e1 = CacheEnvelope::data(Utc::now(), TestData { name: "first".to_string(), value: 1 });
+        e1.save(&file_path).unwrap();
 
-        save(&data1, &file_path).unwrap();
+        let e2 = CacheEnvelope::data(Utc::now(), TestData { name: "second".to_string(), value: 2 });
+        e2.save(&file_path).unwrap();
 
-        let data2 = TestData {
-            name: "second".to_string(),
-            value: 2,
-        };
-
-        save(&data2, &file_path).unwrap();
-
-        let loaded: TestData = load(&file_path, "overwrite test").unwrap();
-        assert_eq!(loaded.name, "second");
-        assert_eq!(loaded.value, 2);
+        let ttl = Duration::from_secs(3600);
+        let loaded = CacheEnvelope::<TestData>::load(&file_path, ttl, Utc::now(), "overwrite test");
+        assert_eq!(loaded.unwrap().payload.into_data().unwrap().name, "second");
     }
 }

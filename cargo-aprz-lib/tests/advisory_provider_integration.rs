@@ -95,8 +95,6 @@ async fn test_advisory_provider_known_vulnerable_crate() {
                 + data.total.unsound_warning_count
                 + data.total.yanked_warning_count;
             assert!(total_advisories > 0, "hyper should have historical advisories, got 0");
-
-            assert!(data.timestamp.timestamp() > 0, "timestamp should be set");
         }
         other => panic!("Expected Found, got {other:?}"),
     }

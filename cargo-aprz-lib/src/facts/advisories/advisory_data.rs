@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use rustsec::advisory::{Informational, Severity};
 use serde::{Deserialize, Serialize};
 
@@ -20,8 +19,6 @@ pub struct AdvisoryCounts {
 /// Security advisory data for a crate.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AdvisoryData {
-    pub timestamp: DateTime<Utc>,
-
     /// Advisory counts for the specific version being queried.
     pub per_version: AdvisoryCounts,
 

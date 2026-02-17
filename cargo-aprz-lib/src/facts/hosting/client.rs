@@ -58,6 +58,9 @@ pub enum HostingApiResult<T> {
     /// Rate limited - should retry after reset time
     RateLimited(RateLimitInfo),
 
+    /// The requested resource was not found (404)
+    NotFound(Option<RateLimitInfo>),
+
     /// Request failed permanently - should NOT retry
     Failed(ohno::AppError, Option<RateLimitInfo>),
 }
@@ -126,6 +129,11 @@ impl Client {
                 reset_at: self.now + chrono::Duration::hours(1),
             });
             return HostingApiResult::RateLimited(rate_limit);
+        }
+
+        // Check for not found (404)
+        if status_code == 404 {
+            return HostingApiResult::NotFound(rate_limit);
         }
 
         // Any other HTTP error is a permanent failure

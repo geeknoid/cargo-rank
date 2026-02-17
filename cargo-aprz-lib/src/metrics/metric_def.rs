@@ -173,7 +173,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         "Number of public API elements (functions, structs, etc.)",
         Documentation,
         |facts| {
-            let m = facts.docs_data.as_ref()?.metrics.found()?;
+            let m = &facts.docs_data.as_ref()?.metrics;
             Some(MetricValue::UInt(m.public_api_elements))
         },
         || Some(MetricValue::UInt(0))
@@ -183,7 +183,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         "Number of public API elements without documentation",
         Documentation,
         |facts| {
-            let m = facts.docs_data.as_ref()?.metrics.found()?;
+            let m = &facts.docs_data.as_ref()?.metrics;
             Some(MetricValue::UInt(m.undocumented_elements))
         },
         || Some(MetricValue::UInt(0))
@@ -193,7 +193,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         "Percentage of public API elements with documentation",
         Documentation,
         |facts| {
-            let m = facts.docs_data.as_ref()?.metrics.found()?;
+            let m = &facts.docs_data.as_ref()?.metrics;
             Some(MetricValue::Float(m.doc_coverage_percentage))
         },
         || Some(MetricValue::Float(0.0))
@@ -203,7 +203,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         "Whether crate-level documentation exists",
         Documentation,
         |facts| {
-            let m = facts.docs_data.as_ref()?.metrics.found()?;
+            let m = &facts.docs_data.as_ref()?.metrics;
             Some(MetricValue::Boolean(m.has_crate_level_docs))
         },
         || Some(MetricValue::Boolean(false))
@@ -213,7 +213,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         "Number of broken links in documentation",
         Documentation,
         |facts| {
-            let m = facts.docs_data.as_ref()?.metrics.found()?;
+            let m = &facts.docs_data.as_ref()?.metrics;
             Some(MetricValue::UInt(m.broken_doc_links))
         },
         || Some(MetricValue::UInt(0))
@@ -223,7 +223,7 @@ pub const METRIC_DEFINITIONS: &[MetricDef] = &[
         "Number of code examples in documentation",
         Documentation,
         |facts| {
-            let m = facts.docs_data.as_ref()?.metrics.found()?;
+            let m = &facts.docs_data.as_ref()?.metrics;
             Some(MetricValue::UInt(m.examples_in_docs))
         },
         || Some(MetricValue::UInt(0))

@@ -6,6 +6,9 @@ pub enum ProviderResult<T> {
     /// The operation succeeded and data was found.
     Found(T),
 
+    /// The data is not available for the crate (e.g. no code coverage, no hosting info).
+    Unavailable(CompactString),
+
     /// The requested crate name was not found.
     CrateNotFound(Arc<[CompactString]>),
 

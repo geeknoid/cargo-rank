@@ -125,11 +125,11 @@ impl Collector {
                 let facts = CrateFacts {
                     crate_spec: crate_spec.clone(),
                     crates_data: crates_result,
-                    hosting_data: ProviderResult::CrateNotFound(Arc::new([])),
-                    advisory_data: ProviderResult::CrateNotFound(Arc::new([])),
-                    codebase_data: ProviderResult::CrateNotFound(Arc::new([])),
-                    coverage_data: ProviderResult::CrateNotFound(Arc::new([])),
-                    docs_data: ProviderResult::CrateNotFound(Arc::new([])),
+                    hosting_data: ProviderResult::Unavailable("not queried".into()),
+                    advisory_data: ProviderResult::Unavailable("not queried".into()),
+                    codebase_data: ProviderResult::Unavailable("not queried".into()),
+                    coverage_data: ProviderResult::Unavailable("not queried".into()),
+                    docs_data: ProviderResult::Unavailable("not queried".into()),
                 };
                 (crate_spec, facts)
             })

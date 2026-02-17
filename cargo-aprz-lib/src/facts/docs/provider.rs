@@ -1,11 +1,12 @@
 use super::DocsData;
 use crate::Result;
-use crate::facts::cache_doc;
+use crate::facts::cache_doc::{CacheEnvelope, EnvelopePayload};
 use crate::facts::crate_spec::CrateSpec;
 use crate::facts::path_utils::sanitize_path_component;
 use crate::facts::request_tracker::{RequestTracker, TrackedTopic};
-use crate::facts::{DocMetricState, ProviderResult};
+use crate::facts::ProviderResult;
 use chrono::{DateTime, Utc};
+use core::time::Duration;
 use futures::stream::TryStreamExt;
 use futures_util::future::join_all;
 use ohno::{EnrichableExt, IntoAppError, app_err};
@@ -70,11 +71,8 @@ impl Provider {
         .inspect(|(crate_spec, result)| {
             if let ProviderResult::Error(e) = result {
                 log::error!(target: LOG_TARGET, "Could not fetch documentation data for {crate_spec}: {e:#}");
-            } else if matches!(result, ProviderResult::CrateNotFound(_)) {
-                log::warn!(target: LOG_TARGET, "Could not find {crate_spec}");
-            } else if let ProviderResult::Found(docs_data) = result
-                && let DocMetricState::UnknownFormatVersion(version) = docs_data.metrics {
-                    log::warn!(target: LOG_TARGET, "Could not parse documentation data for {crate_spec} due to unsupported rustdoc JSON format version {version}");
+            } else if let ProviderResult::Unavailable(reason) = result {
+                log::debug!(target: LOG_TARGET, "Documentation unavailable for {crate_spec}: {reason}");
             }
         })
     }
@@ -89,9 +87,17 @@ impl Provider {
 
     async fn fetch_docs_for_crate_core(&self, crate_spec: &CrateSpec) -> ProviderResult<DocsData> {
         if !self.ignore_cached
-            && let Ok(cached_data) = cache_doc::load::<DocsData>(&self.get_cache_path(crate_spec), format!("docs for crate {crate_spec}"))
+            && let Some(envelope) = CacheEnvelope::<DocsData>::load(
+                self.get_cache_path(crate_spec),
+                Duration::MAX,
+                self.now,
+                format!("docs for crate {crate_spec}"),
+            )
         {
-            return ProviderResult::Found(cached_data);
+            return match envelope.payload {
+                EnvelopePayload::Data(data) => ProviderResult::Found(data),
+                EnvelopePayload::NoData(reason) => ProviderResult::Unavailable(reason.into()),
+            };
         }
 
         log::debug!(target: LOG_TARGET, "Cache miss for {crate_spec}, fetching from docs.rs");
@@ -99,35 +105,42 @@ impl Provider {
         let temp_file = match self.download_zst(crate_spec).await {
             Ok(path) => path,
             Err(DownloadError::NotFound) => {
-                return ProviderResult::CrateNotFound(Arc::new([]));
+                let reason = format!("documentation not found on docs.rs for {crate_spec}");
+                let cache_path = self.get_cache_path(crate_spec);
+                if let Err(e) = CacheEnvelope::<DocsData>::no_data(self.now, &reason).save(&cache_path) {
+                    log::debug!(target: LOG_TARGET, "Could not save cache for {crate_spec}: {e:#}");
+                }
+                return ProviderResult::Unavailable(reason.into());
             }
             Err(DownloadError::Other(e)) => {
                 return ProviderResult::Error(Arc::new(e.enrich_with(|| format!("downloading docs for {crate_spec}"))));
             }
         };
 
-        let docs_data = match self.calculate_docs_metrics(&temp_file, crate_spec) {
+        let docs_data = match Self::calculate_docs_metrics(&temp_file, crate_spec) {
             Ok(data) => {
-                match &data.metrics {
-                    DocMetricState::Found(metrics) => {
-                        log::debug!(target: LOG_TARGET, "Successfully calculated docs metrics for {crate_spec}");
-                        log::debug!(target: LOG_TARGET, "Metrics: coverage={}%, public_api={}, documented={}, examples={}, crate_docs={}",
-                            metrics.doc_coverage_percentage,
-                            metrics.public_api_elements,
-                            metrics.public_api_elements - metrics.undocumented_elements,
-                            metrics.examples_in_docs,
-                            metrics.has_crate_level_docs);
-                    }
-                    DocMetricState::UnknownFormatVersion(version) => {
-                        log::debug!(target: LOG_TARGET, "Unknown rustdoc JSON format version {version} for {crate_spec}");
-                    }
-                }
+                let m = &data.metrics;
+                log::debug!(target: LOG_TARGET, "Successfully calculated docs metrics for {crate_spec}");
+                log::debug!(target: LOG_TARGET, "Metrics: coverage={}%, public_api={}, documented={}, examples={}, crate_docs={}",
+                    m.doc_coverage_percentage,
+                    m.public_api_elements,
+                    m.public_api_elements - m.undocumented_elements,
+                    m.examples_in_docs,
+                    m.has_crate_level_docs);
                 data
             }
             Err(e) => {
-                return ProviderResult::Error(Arc::new(
-                    e.enrich_with(|| format!("calculating documentation metrics for {crate_spec}")),
-                ));
+                let reason = format!("{e:#}");
+                let cache_path = self.get_cache_path(crate_spec);
+                if let Err(e) = CacheEnvelope::<DocsData>::no_data(self.now, &reason).save(&cache_path) {
+                    log::debug!(target: LOG_TARGET, "Could not save cache for {crate_spec}: {e:#}");
+                }
+
+                tokio::fs::remove_file(&temp_file)
+                    .await
+                    .unwrap_or_else(|e| log::debug!(target: LOG_TARGET, "Could not remove temp file '{}': {e:#}", temp_file.display()));
+
+                return ProviderResult::Unavailable(reason.into());
             }
         };
 
@@ -136,7 +149,7 @@ impl Provider {
             .unwrap_or_else(|e| log::debug!(target: LOG_TARGET, "Could not remove temp file '{}': {e:#}", temp_file.display()));
 
         let cache_path = self.get_cache_path(crate_spec);
-        match cache_doc::save(&docs_data, &cache_path) {
+        match CacheEnvelope::data(self.now, docs_data.clone()).save(&cache_path) {
             Ok(()) => ProviderResult::Found(docs_data),
             Err(e) => ProviderResult::Error(Arc::new(e)),
         }
@@ -230,13 +243,13 @@ impl Provider {
         Ok(Some(temp_file))
     }
 
-    fn calculate_docs_metrics(&self, zst_path: impl AsRef<Path>, crate_spec: &CrateSpec) -> Result<DocsData> {
+    fn calculate_docs_metrics(zst_path: impl AsRef<Path>, crate_spec: &CrateSpec) -> Result<DocsData> {
         let path = zst_path.as_ref();
         log::debug!(target: LOG_TARGET, "Opening .zst file for {crate_spec}: {}", path.display());
         let file = fs::File::open(path).into_app_err_with(|| format!("opening file '{}' for {crate_spec}", path.display()))?;
 
         let decoder = zstd::Decoder::new(file).into_app_err_with(|| format!("creating zstd decoder for {crate_spec}"))?;
 
-        super::calc_metrics::calculate_docs_metrics(decoder, crate_spec, self.now)
+        super::calc_metrics::calculate_docs_metrics(decoder, crate_spec)
     }
 }
