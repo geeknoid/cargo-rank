@@ -13,7 +13,9 @@ type ProgressCallback = Box<dyn Fn() -> (u64, u64, String) + Send + Sync>;
 const REFRESH_INTERVAL_MS: u64 = 100;
 
 const DETERMINATE_TEMPLATE: &str = "{prefix:>12.bold.cyan} [{bar:25}] {msg}";
+const DETERMINATE_TEMPLATE_NO_COLOR: &str = "{prefix:>12} [{bar:25}] {msg}";
 const INDETERMINATE_TEMPLATE: &str = "{prefix:>12.bold.cyan} [{spinner}] {msg}";
+const INDETERMINATE_TEMPLATE_NO_COLOR: &str = "{prefix:>12} [{spinner}] {msg}";
 
 struct DelayedProgressState {
     visible_after: Instant,
@@ -40,14 +42,16 @@ pub struct ProgressReporter {
     state: Arc<DelayedProgressState>,
     message_callback: Arc<Mutex<ProgressCallback>>,
     refresh_task: Arc<JoinHandle<()>>,
+    use_colors: bool,
 }
 
 impl ProgressReporter {
     /// Create a new progress reporter.
     ///
     /// The progress bar will only become visible if operations continue beyond the delay threshold.
+    /// When `use_colors` is false, progress bar chrome is rendered without ANSI styling.
     #[must_use]
-    pub fn new(delay: Duration) -> Self {
+    pub fn new(delay: Duration, use_colors: bool) -> Self {
         let bar = ProgressBar::hidden();
         bar.set_draw_target(ProgressDrawTarget::hidden());
 
@@ -69,6 +73,7 @@ impl ProgressReporter {
             bar,
             state,
             message_callback,
+            use_colors,
         }
     }
 }
@@ -87,9 +92,10 @@ impl Progress for ProgressReporter {
         self.bar.disable_steady_tick();
         self.bar.set_length(0);
         self.bar.set_position(0);
+        let template = if self.use_colors { DETERMINATE_TEMPLATE } else { DETERMINATE_TEMPLATE_NO_COLOR };
         self.bar.set_style(
             ProgressStyle::default_bar()
-                .template(DETERMINATE_TEMPLATE)
+                .template(template)
                 .expect("could not create progress bar style")
                 .progress_chars("=> "),
         );
@@ -105,63 +111,70 @@ impl Progress for ProgressReporter {
         self.state.is_indeterminate.store(true, Ordering::Relaxed);
         self.bar.enable_steady_tick(Duration::from_millis(REFRESH_INTERVAL_MS));
 
+        let template = if self.use_colors { INDETERMINATE_TEMPLATE } else { INDETERMINATE_TEMPLATE_NO_COLOR };
         self.bar.set_style(
             ProgressStyle::default_spinner()
-                .template(INDETERMINATE_TEMPLATE)
+                .template(template)
                 .expect("could not create progress bar style")
                 .tick_strings(&[
-                    "=                        ", // 12 spaces, char, 12 spaces = 25 total
-                    "==                       ",
-                    "===                      ",
-                    " ===                     ",
-                    "  ===                    ",
-                    "   ===                   ",
-                    "    ===                  ",
-                    "     ===                 ",
-                    "      ===                ",
-                    "       ===               ",
-                    "        ===              ",
-                    "         ===             ",
-                    "          ===            ",
-                    "           ===           ",
-                    "            ===          ",
-                    "             ===         ",
-                    "              ===        ",
-                    "               ===       ",
-                    "                ===      ",
-                    "                 ===     ",
-                    "                  ===    ",
-                    "                   ===   ",
-                    "                    ===  ",
-                    "                     === ",
+                    ">                        ", // 1–4 chars padded with spaces to total 25 characters
+                    "=>                       ",
+                    "==>                      ",
+                    "===>                     ",
+                    " ===>                    ",
+                    "  ===>                   ",
+                    "   ===>                  ",
+                    "    ===>                 ",
+                    "     ===>                ",
+                    "      ===>               ",
+                    "       ===>              ",
+                    "        ===>             ",
+                    "         ===>            ",
+                    "          ===>           ",
+                    "           ===>          ",
+                    "            ===>         ",
+                    "             ===>        ",
+                    "              ===>       ",
+                    "               ===>      ",
+                    "                ===>     ",
+                    "                 ===>    ",
+                    "                  ===>   ",
+                    "                   ===>  ",
+                    "                    ===> ",
+                    "                     ===>",
                     "                      ===",
                     "                       ==",
                     "                        =",
-                    "                       ==",
-                    "                      ===",
-                    "                     === ",
-                    "                    ===  ",
-                    "                   ===   ",
-                    "                  ===    ",
-                    "                 ===     ",
-                    "                ===      ",
-                    "               ===       ",
-                    "              ===        ",
-                    "             ===         ",
-                    "            ===          ",
-                    "           ===           ",
-                    "          ===            ",
-                    "         ===             ",
-                    "        ===              ",
-                    "       ===               ",
-                    "      ===                ",
-                    "     ===                 ",
-                    "    ===                  ",
-                    "   ===                   ",
-                    "  ===                    ",
-                    " ===                     ",
+                    "                         ",
+                    "                        <",
+                    "                       <=",
+                    "                      <==",
+                    "                     <===",
+                    "                    <=== ",
+                    "                   <===  ",
+                    "                  <===   ",
+                    "                 <===    ",
+                    "                <===     ",
+                    "               <===      ",
+                    "              <===       ",
+                    "             <===        ",
+                    "            <===         ",
+                    "           <===          ",
+                    "          <===           ",
+                    "         <===            ",
+                    "        <===             ",
+                    "       <===              ",
+                    "      <===               ",
+                    "     <===                ",
+                    "    <===                 ",
+                    "   <===                  ",
+                    "  <===                   ",
+                    " <===                    ",
+                    "<===                     ",
                     "===                      ",
                     "==                       ",
+                    "=                        ",
+                    "                         ",
                 ]),
         );
     }
@@ -178,6 +191,10 @@ impl Progress for ProgressReporter {
             self.bar.finish_and_clear();
         }
     }
+
+    fn use_colors(&self) -> bool {
+        self.use_colors
+    }
 }
 
 impl Debug for ProgressReporter {
@@ -187,6 +204,7 @@ impl Debug for ProgressReporter {
             .field("state", &self.state)
             .field("message_callback", &"<callback>")
             .field("refresh_task", &"<task>")
+            .field("use_colors", &self.use_colors)
             .finish()
     }
 }

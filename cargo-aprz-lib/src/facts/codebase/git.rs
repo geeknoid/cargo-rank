@@ -285,6 +285,34 @@ mod tests {
     }
 
     #[test]
+    fn test_is_repo_not_found_positive() {
+        assert!(is_repo_not_found("Repository not found"));
+        assert!(is_repo_not_found("ERROR: Repository not found."));
+        assert!(is_repo_not_found("remote: Repository does not exist"));
+        assert!(is_repo_not_found("fatal: repository 'https://...' does not exist"));
+    }
+
+    #[test]
+    fn test_is_repo_not_found_negative() {
+        assert!(!is_repo_not_found("fatal: unable to access"));
+        assert!(!is_repo_not_found("Permission denied"));
+        assert!(!is_repo_not_found(""));
+    }
+
+    #[test]
+    fn test_is_repo_not_found_case_insensitive() {
+        assert!(is_repo_not_found("NOT FOUND"));
+        assert!(is_repo_not_found("DOES NOT EXIST"));
+        assert!(is_repo_not_found("Not Found"));
+    }
+
+    #[test]
+    fn test_path_str_valid_utf8() {
+        let path = Path::new("/tmp/test");
+        assert_eq!(path_str(path).unwrap(), "/tmp/test");
+    }
+
+    #[test]
     fn test_check_git_output_with_stderr() {
         #[cfg(unix)]
         let status = {
@@ -310,5 +338,191 @@ mod tests {
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("git status failed"));
         assert!(error_msg.contains("not a git repository"));
+    }
+
+    /// Create a temp git repository with a few commits for testing.
+    /// Returns the tempdir (must be kept alive) and the repo path.
+    fn create_test_repo() -> (tempfile::TempDir, std::path::PathBuf) {
+        let tmp = tempfile::tempdir().expect("create temp dir");
+        let repo_path = tmp.path().join("test-repo");
+        fs::create_dir_all(&repo_path).expect("create repo dir");
+
+        // Initialize a repo and make commits
+        let init = |args: &[&str]| {
+            let _ = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&repo_path)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .output()
+                .expect("run git command");
+        };
+
+        init(&["init"]);
+        init(&["config", "user.email", "test@test.com"]);
+        init(&["config", "user.name", "Test User"]);
+
+        // Create two commits so we have meaningful stats
+        fs::write(repo_path.join("file1.txt"), "hello").expect("write file1");
+        init(&["add", "."]);
+        init(&["commit", "-m", "first commit"]);
+
+        fs::write(repo_path.join("file2.txt"), "world").expect("write file2");
+        init(&["add", "."]);
+        init(&["commit", "-m", "second commit"]);
+
+        (tmp, repo_path)
+    }
+
+    /// Helper to set up a bare repo with one commit and return the temp dir + bare path.
+    fn create_bare_repo_with_commit() -> (tempfile::TempDir, std::path::PathBuf) {
+        let tmp = tempfile::tempdir().expect("create temp dir");
+        let bare_path = tmp.path().join("bare.git");
+
+        let run = |args: &[&str], dir: &Path| {
+            let _ = std::process::Command::new("git")
+                .args(args)
+                .current_dir(dir)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .output()
+                .expect("run git command");
+        };
+
+        fs::create_dir_all(&bare_path).expect("create bare dir");
+        run(&["init", "--bare"], &bare_path);
+
+        let work_path = tmp.path().join("work");
+        let _ = std::process::Command::new("git")
+            .args(["clone", bare_path.to_str().unwrap(), work_path.to_str().unwrap()])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .output()
+            .unwrap();
+        run(&["config", "user.email", "test@test.com"], &work_path);
+        run(&["config", "user.name", "Test User"], &work_path);
+        fs::write(work_path.join("file.txt"), "content").expect("write file");
+        run(&["add", "."], &work_path);
+        run(&["commit", "-m", "initial"], &work_path);
+        run(&["push"], &work_path);
+
+        (tmp, bare_path)
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_run_git_with_timeout_success() {
+        let output = run_git_with_timeout(&["--version"]).await.unwrap();
+        assert!(output.status.success());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("git version"));
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_run_git_with_timeout_failure() {
+        // Run git log in a directory that is not a repo
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().to_str().unwrap();
+        let output = run_git_with_timeout(&["-C", path, "log"]).await.unwrap();
+        assert!(!output.status.success());
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_count_contributors() {
+        let (_tmp, repo_path) = create_test_repo();
+        let count = count_contributors(&repo_path).await.unwrap();
+        assert_eq!(count, 1); // Single test user
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_count_contributors_failure() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Not a git repo - shortlog should fail
+        let result = count_contributors(tmp.path()).await;
+        let _ = result.unwrap_err();
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_get_commit_stats_basic() {
+        let (_tmp, repo_path) = create_test_repo();
+        let stats = get_commit_stats(&repo_path, &[30, 365]).await.unwrap();
+        assert_eq!(stats.commit_count, 2);
+        assert!(stats.first_commit_at <= stats.last_commit_at);
+        assert_eq!(stats.commits_per_window.len(), 2);
+        // Both commits were just made, so they should be within both windows
+        assert_eq!(stats.commits_per_window[0], 2); // last 30 days
+        assert_eq!(stats.commits_per_window[1], 2); // last 365 days
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_get_commit_stats_empty_windows() {
+        let (_tmp, repo_path) = create_test_repo();
+        let stats = get_commit_stats(&repo_path, &[]).await.unwrap();
+        assert_eq!(stats.commit_count, 2);
+        assert!(stats.commits_per_window.is_empty());
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_get_commit_stats_failure() {
+        let tmp = tempfile::tempdir().unwrap();
+        let result = get_commit_stats(tmp.path(), &[30]).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_get_repo_clone_from_bare() {
+        let (tmp, bare_path) = create_bare_repo_with_commit();
+
+        // Clone into a new path via get_repo
+        let clone_path = tmp.path().join("clone");
+        let bare_url = Url::from_file_path(&bare_path).unwrap();
+        let status = get_repo(&clone_path, &bare_url).await.unwrap();
+        assert!(matches!(status, RepoStatus::Ok));
+        assert!(clone_path.join(".git").exists());
+
+        // Call get_repo again to exercise the fetch+reset path
+        let status = get_repo(&clone_path, &bare_url).await.unwrap();
+        assert!(matches!(status, RepoStatus::Ok));
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_get_repo_reclones_when_git_dir_missing() {
+        let (tmp, bare_path) = create_bare_repo_with_commit();
+
+        // Clone via get_repo
+        let clone_path = tmp.path().join("clone");
+        let bare_url = Url::from_file_path(&bare_path).unwrap();
+        let status = get_repo(&clone_path, &bare_url).await.unwrap();
+        assert!(matches!(status, RepoStatus::Ok));
+
+        // Remove .git to simulate corruption
+        fs::remove_dir_all(clone_path.join(".git")).unwrap();
+
+        // get_repo should detect missing .git and re-clone
+        let status = get_repo(&clone_path, &bare_url).await.unwrap();
+        assert!(matches!(status, RepoStatus::Ok));
+        assert!(clone_path.join(".git").exists());
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot run external commands")]
+    async fn test_get_repo_nonexistent_remote() {
+        let tmp = tempfile::tempdir().unwrap();
+        let clone_path = tmp.path().join("clone");
+        let bad_url = Url::from_file_path(tmp.path().join("nonexistent.git")).unwrap();
+        // Cloning a non-existent local path either returns NotFound or an error,
+        // depending on the exact git error message. Either way, it should not succeed.
+        if let Ok(status) = get_repo(&clone_path, &bad_url).await {
+            assert!(matches!(status, RepoStatus::NotFound));
+        }
+        // Also acceptable — git error message didn't match not-found patterns
     }
 }

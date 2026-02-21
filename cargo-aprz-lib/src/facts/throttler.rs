@@ -52,18 +52,30 @@ impl Throttler {
         }
     }
 
+    /// Returns whether the throttler is currently paused.
+    pub fn is_paused(&self) -> bool {
+        self.paused.load(Ordering::Acquire)
+    }
+
+    /// Minimum extension required for a new pause to override an active one.
+    /// Prevents near-simultaneous callers (e.g. concurrent tasks that all
+    /// discovered the same rate-limit reset time) from each "winning" the pause
+    /// due to tiny `Instant::now()` drift between calls.
+    const MIN_PAUSE_EXTENSION: Duration = Duration::from_secs(1);
+
     /// Pause dispatching for `duration`, then automatically resume.
     ///
     /// Tasks already running are not interrupted. Tasks waiting in [`acquire`](Self::acquire)
-    /// will remain parked until the duration elapses. If a longer pause is already
-    /// active, this call is a no-op.
-    pub fn pause_for(self: &Arc<Self>, duration: Duration) {
+    /// will remain parked until the duration elapses. If a pause with a similar
+    /// or longer duration is already active, this call is a no-op and returns `false`.
+    /// Returns `true` only when a new pause is actually established.
+    pub fn pause_for(self: &Arc<Self>, duration: Duration) -> bool {
         let new_resume_at = Instant::now() + duration;
 
         {
             let mut guard = self.resume_at.lock().expect("lock not poisoned");
-            if guard.is_some_and(|existing| existing >= new_resume_at) {
-                return; // a longer pause is already active
+            if guard.is_some_and(|existing| existing + Self::MIN_PAUSE_EXTENSION >= new_resume_at) {
+                return false; // an equivalent or longer pause is already active
             }
             *guard = Some(new_resume_at);
         }
@@ -88,6 +100,8 @@ impl Throttler {
                 this.resume.notify_waiters();
             }
         }));
+
+        true
     }
 }
 
@@ -129,7 +143,7 @@ mod tests {
         let throttler = Throttler::new(5);
 
         // Pause for 200ms
-        throttler.pause_for(Duration::from_millis(200));
+        let _ = throttler.pause_for(Duration::from_millis(200));
 
         let start = tokio::time::Instant::now();
         let _permit = throttler.acquire().await;

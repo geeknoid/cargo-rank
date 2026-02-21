@@ -206,3 +206,85 @@ impl Provider {
         Ok(None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::facts::RepoSpec;
+
+    #[test]
+    fn test_get_cache_filename() {
+        let url = url::Url::parse("https://github.com/tokio-rs/tokio").unwrap();
+        let repo_spec = RepoSpec::parse(&url).unwrap();
+        let filename = Provider::get_cache_filename(&repo_spec);
+        assert!(filename.contains("github.com"));
+        assert!(filename.contains("tokio-rs"));
+        assert!(filename.contains("tokio.json"));
+    }
+
+    #[test]
+    fn test_get_cache_filename_sanitized() {
+        let url = url::Url::parse("https://evil.com/../../etc/passwd").unwrap();
+        let repo_spec = RepoSpec::parse(&url).unwrap();
+        let filename = Provider::get_cache_filename(&repo_spec);
+        assert!(!filename.contains("../"));
+    }
+
+    #[test]
+    fn test_percent_regex_integer() {
+        let text = "<text>85%</text>";
+        let captures = PERCENT_REGEX.captures(text).unwrap();
+        assert_eq!(captures.get(1).unwrap().as_str(), "85");
+    }
+
+    #[test]
+    fn test_percent_regex_decimal() {
+        let text = "<text>93.4%</text>";
+        let captures = PERCENT_REGEX.captures(text).unwrap();
+        assert_eq!(captures.get(1).unwrap().as_str(), "93.4");
+    }
+
+    #[test]
+    fn test_percent_regex_no_match() {
+        let text = "<text>unknown</text>";
+        assert!(PERCENT_REGEX.captures(text).is_none());
+    }
+
+    #[test]
+    fn test_percent_regex_zero() {
+        let text = "<text>0%</text>";
+        let captures = PERCENT_REGEX.captures(text).unwrap();
+        assert_eq!(captures.get(1).unwrap().as_str(), "0");
+    }
+
+    #[test]
+    fn test_percent_regex_hundred() {
+        let text = "<text>100%</text>";
+        let captures = PERCENT_REGEX.captures(text).unwrap();
+        assert_eq!(captures.get(1).unwrap().as_str(), "100");
+    }
+
+    #[test]
+    fn test_provider_new_default_base_url() {
+        let cache = Cache::new(
+            "/tmp/test",
+            core::time::Duration::from_secs(3600),
+            chrono::Utc::now(),
+            false,
+        );
+        let provider = Provider::new(cache, None);
+        assert_eq!(provider.base_url, CODECOV_BASE_URL);
+    }
+
+    #[test]
+    fn test_provider_new_custom_base_url() {
+        let cache = Cache::new(
+            "/tmp/test",
+            core::time::Duration::from_secs(3600),
+            chrono::Utc::now(),
+            false,
+        );
+        let provider = Provider::new(cache, Some("https://custom.codecov.io"));
+        assert_eq!(provider.base_url, "https://custom.codecov.io");
+    }
+}

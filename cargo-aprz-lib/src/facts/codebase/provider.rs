@@ -559,3 +559,68 @@ impl Provider {
         visited.len()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::facts::RepoSpec;
+
+    #[test]
+    fn test_safe_repo_components() {
+        let url = url::Url::parse("https://github.com/tokio-rs/tokio").unwrap();
+        let repo_spec = RepoSpec::parse(&url).unwrap();
+        let (host, owner, repo) = Provider::safe_repo_components(&repo_spec);
+        assert_eq!(host, "github.com");
+        assert_eq!(owner, "tokio-rs");
+        assert_eq!(repo, "tokio");
+    }
+
+    #[test]
+    fn test_safe_repo_components_sanitized() {
+        let url = url::Url::parse("https://evil.com/../../etc/passwd").unwrap();
+        let repo_spec = RepoSpec::parse(&url).unwrap();
+        let (host, owner, repo) = Provider::safe_repo_components(&repo_spec);
+        assert!(!host.contains(".."));
+        assert!(!owner.contains(".."));
+        assert!(!repo.contains(".."));
+    }
+
+    #[test]
+    fn test_get_data_filename() {
+        let url = url::Url::parse("https://github.com/tokio-rs/tokio").unwrap();
+        let repo_spec = RepoSpec::parse(&url).unwrap();
+        let filename = Provider::get_data_filename("tokio", &repo_spec);
+        assert!(filename.starts_with("analysis/"));
+        assert!(filename.contains("github.com"));
+        assert!(filename.contains("tokio-rs"));
+        assert!(filename.contains("tokio"));
+        assert!(Path::new(&filename).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("json")));
+    }
+
+    #[test]
+    fn test_get_repo_cache_path() {
+        let cache = Cache::new(
+            "/tmp/cache",
+            Duration::from_secs(3600),
+            Utc::now(),
+            false,
+        );
+        let provider = Provider::new(cache);
+        let url = url::Url::parse("https://github.com/tokio-rs/tokio").unwrap();
+        let repo_spec = RepoSpec::parse(&url).unwrap();
+        let path = provider.get_repo_cache_path(&repo_spec);
+        let path_str = path.to_string_lossy();
+        assert!(path_str.contains("repos"));
+        assert!(path_str.contains("github.com"));
+        assert!(path_str.contains("tokio-rs"));
+        assert!(path_str.contains("tokio"));
+    }
+
+    #[test]
+    fn test_get_data_filename_sanitized() {
+        let url = url::Url::parse("https://evil.com/../../etc/passwd").unwrap();
+        let repo_spec = RepoSpec::parse(&url).unwrap();
+        let filename = Provider::get_data_filename("../malicious", &repo_spec);
+        assert!(!filename.contains("../"));
+    }
+}

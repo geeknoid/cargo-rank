@@ -1,7 +1,8 @@
 //! Request tracking for monitoring outstanding HTTP requests.
 
 use super::progress::Progress;
-use core::sync::atomic::{AtomicU64, Ordering};
+use core::sync::atomic::{AtomicU64, AtomicU8, Ordering};
+use owo_colors::OwoColorize;
 use std::sync::Arc;
 
 /// Topics that can be tracked for progress reporting.
@@ -35,11 +36,25 @@ impl TrackedTopic {
     }
 }
 
+/// Visual status of a tracked topic, controlling its display color in the
+/// progress bar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum TopicStatus {
+    /// Normal active state (default color).
+    Active = 0,
+    /// Blocked / waiting (blinks yellow).
+    Blocked = 1,
+    /// All requests completed (green).
+    Done = 2,
+}
+
 /// Counter for a specific tracked topic.
 #[derive(Debug, Default)]
 struct RequestCounter {
     issued: AtomicU64,
     completed: AtomicU64,
+    status: AtomicU8,
 }
 
 /// Tracks outstanding requests and updates progress reporting.
@@ -70,7 +85,8 @@ impl RequestTracker {
         let counters: Arc<[RequestCounter; 4]> = Arc::default();
 
         let counters_clone = Arc::clone(&counters);
-        progress.set_determinate(Box::new(move || Self::progress_reporter_callback(&counters_clone)));
+        let use_colors = progress.use_colors();
+        progress.set_determinate(Box::new(move || Self::progress_reporter_callback(&counters_clone, use_colors)));
 
         Self {
             counters,
@@ -90,15 +106,36 @@ impl RequestTracker {
     }
 
     /// Mark that a request has completed for the given topic.
+    ///
+    /// Automatically sets the topic status to [`TopicStatus::Done`] when all
+    /// issued requests have completed.
     pub fn complete_request(&self, topic: TrackedTopic) {
         let counter = &self.counters[topic.index()];
-        let _ = counter.completed.fetch_add(1, Ordering::Relaxed);
+        let completed = counter.completed.fetch_add(1, Ordering::Relaxed) + 1;
+        let issued = counter.issued.load(Ordering::Relaxed);
+        if completed >= issued && issued > 0 {
+            counter.status.store(TopicStatus::Done as u8, Ordering::Relaxed);
+        }
+    }
+
+    /// Set the visual status of a topic, controlling its color in the progress bar.
+    pub fn set_topic_status(&self, topic: TrackedTopic, status: TopicStatus) {
+        self.counters[topic.index()].status.store(status as u8, Ordering::Relaxed);
     }
 
     /// Compute current progress state from counters.
     ///
     /// Returns (`total_length`, `current_position`, `message_string`).
-    fn progress_reporter_callback(counters: &[RequestCounter; 4]) -> (u64, u64, String) {
+    fn progress_reporter_callback(counters: &[RequestCounter; 4], use_colors: bool) -> (u64, u64, String) {
+        // Toggle every 500ms for the blink effect on blocked topics
+        let blink_on = use_colors && {
+            let ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
+            (ms / 500).is_multiple_of(2)
+        };
+
         let mut total_issued = 0u64;
         let mut total_completed = 0u64;
         let mut parts = Vec::with_capacity(TrackedTopic::all().len());
@@ -111,7 +148,19 @@ impl RequestTracker {
             if issued > 0 {
                 total_issued += issued;
                 total_completed += completed;
-                parts.push(format!("{completed}/{issued} {}", topic.name()));
+
+                let text = format!("{completed}/{issued} {}", topic.name());
+                let status = counter.status.load(Ordering::Relaxed);
+
+                let styled = if use_colors && status == TopicStatus::Done as u8 {
+                    format!("{}", text.green())
+                } else if status == TopicStatus::Blocked as u8 && blink_on {
+                    format!("{}", text.yellow())
+                } else {
+                    text
+                };
+
+                parts.push(styled);
             }
         }
 
@@ -142,6 +191,25 @@ mod tests {
 
     fn test_tracker() -> RequestTracker {
         RequestTracker::new(&(Arc::new(NoOpProgress) as Arc<dyn Progress>))
+    }
+
+    /// Strip ANSI escape sequences from a string for assertion comparisons.
+    fn strip_ansi(s: &str) -> String {
+        let mut result = String::with_capacity(s.len());
+        let mut chars = s.chars();
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                // Skip until 'm' (end of ANSI escape)
+                for esc in chars.by_ref() {
+                    if esc == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                result.push(c);
+            }
+        }
+        result
     }
 
     #[test]
@@ -175,7 +243,7 @@ mod tests {
         let tracker = test_tracker();
         tracker.add_requests(TrackedTopic::Coverage, 1);
 
-        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         assert_eq!(total, 1);
         assert_eq!(completed, 0);
@@ -188,7 +256,7 @@ mod tests {
         tracker.add_requests(TrackedTopic::Docs, 5);
         tracker.add_requests(TrackedTopic::Repos, 3);
 
-        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         assert_eq!(total, 8);
         assert_eq!(completed, 0);
@@ -202,7 +270,7 @@ mod tests {
         tracker.add_requests(TrackedTopic::Coverage, 3);
         tracker.complete_request(TrackedTopic::Coverage);
 
-        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         assert_eq!(total, 3);
         assert_eq!(completed, 1);
@@ -217,7 +285,7 @@ mod tests {
         tracker.complete_request(TrackedTopic::Codebase);
         tracker.complete_request(TrackedTopic::Codebase);
 
-        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         assert_eq!(total, 5);
         assert_eq!(completed, 3);
@@ -231,11 +299,51 @@ mod tests {
         tracker.complete_request(TrackedTopic::Docs);
         tracker.complete_request(TrackedTopic::Docs);
 
-        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         assert_eq!(total, 2);
         assert_eq!(completed, 2);
         assert_eq!(message, "2/2 docs");
+    }
+
+    #[test]
+    fn test_completed_topic_colored_green() {
+        let tracker = test_tracker();
+        tracker.add_requests(TrackedTopic::Docs, 2);
+        tracker.complete_request(TrackedTopic::Docs);
+        tracker.complete_request(TrackedTopic::Docs);
+
+        let (_, _, message) = RequestTracker::progress_reporter_callback(&tracker.counters, true);
+
+        assert_eq!(strip_ansi(&message), "2/2 docs");
+        // Green ANSI escape
+        assert!(message.contains("\x1b[32m"));
+    }
+
+    #[test]
+    fn test_blocked_topic_blinks_yellow() {
+        let tracker = test_tracker();
+        tracker.add_requests(TrackedTopic::Repos, 5);
+        tracker.set_topic_status(TrackedTopic::Repos, TopicStatus::Blocked);
+
+        // Sample across a full 1-second blink cycle to catch both phases
+        let mut saw_yellow = false;
+        let mut saw_plain = false;
+        for _ in 0..12 {
+            let (_, _, msg) = RequestTracker::progress_reporter_callback(&tracker.counters, true);
+            assert_eq!(strip_ansi(&msg), "0/5 repos");
+            if msg.contains("\x1b[33m") {
+                saw_yellow = true;
+            } else {
+                saw_plain = true;
+            }
+            if saw_yellow && saw_plain {
+                break;
+            }
+            std::thread::sleep(core::time::Duration::from_millis(100));
+        }
+        assert!(saw_yellow, "expected at least one blink phase to be yellow");
+        assert!(saw_plain, "expected at least one blink phase to be plain");
     }
 
     #[test]
@@ -258,7 +366,7 @@ mod tests {
 
         tracker.complete_request(TrackedTopic::Repos);
 
-        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         assert_eq!(total, 25);
         assert_eq!(completed, 9);
@@ -272,7 +380,7 @@ mod tests {
     fn test_no_requests() {
         let tracker = test_tracker();
 
-        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         assert_eq!(total, 0);
         assert_eq!(completed, 0);
@@ -284,7 +392,7 @@ mod tests {
         let tracker = test_tracker();
         tracker.add_requests(TrackedTopic::Coverage, 0);
 
-        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         assert_eq!(total, 0);
         assert_eq!(completed, 0);
@@ -300,7 +408,7 @@ mod tests {
         tracker.add_requests(TrackedTopic::Docs, 1);
         tracker.add_requests(TrackedTopic::Coverage, 1);
 
-        let (_, _, message) = RequestTracker::progress_reporter_callback(&tracker.counters);
+        let (_, _, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
 
         // Message should follow the enum order: Coverage, Docs, Repos, Codebase
         let parts: Vec<&str> = message.split(", ").collect();
@@ -321,12 +429,73 @@ mod tests {
         tracker2.add_requests(TrackedTopic::Docs, 3);
 
         // Both trackers should share the same counters
-        let (total1, completed1, _) = RequestTracker::progress_reporter_callback(&tracker1.counters);
-        let (total2, completed2, _) = RequestTracker::progress_reporter_callback(&tracker2.counters);
+        let (total1, completed1, _) = RequestTracker::progress_reporter_callback(&tracker1.counters, false);
+        let (total2, completed2, _) = RequestTracker::progress_reporter_callback(&tracker2.counters, false);
 
         assert_eq!(total1, 8); // 5 coverage + 3 docs
         assert_eq!(total2, 8);
         assert_eq!(completed1, 1);
         assert_eq!(completed2, 1);
+    }
+
+    #[test]
+    fn test_println_delegates_to_progress() {
+        use std::sync::Mutex;
+
+        #[derive(Debug)]
+        struct RecordingProgress {
+            messages: Mutex<Vec<String>>,
+        }
+
+        impl Progress for RecordingProgress {
+            fn set_phase(&self, _phase: &str) {}
+            fn set_determinate(&self, _callback: Box<dyn Fn() -> (u64, u64, String) + Send + Sync + 'static>) {}
+            fn set_indeterminate(&self, _callback: Box<dyn Fn() -> String + Send + Sync + 'static>) {}
+            fn println(&self, msg: &str) {
+                self.messages.lock().unwrap().push(msg.to_string());
+            }
+            fn done(&self) {}
+        }
+
+        let progress = Arc::new(RecordingProgress {
+            messages: Mutex::new(Vec::new()),
+        });
+        let tracker = RequestTracker::new(&(Arc::clone(&progress) as Arc<dyn Progress>));
+
+        tracker.println("hello");
+        tracker.println("world");
+
+        let messages = progress.messages.lock().unwrap();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0], "hello");
+        assert_eq!(messages[1], "world");
+        drop(messages);
+    }
+
+    #[test]
+    fn test_debug_impl() {
+        let tracker = test_tracker();
+        let debug_str = format!("{tracker:?}");
+        assert!(debug_str.contains("RequestTracker"));
+        assert!(debug_str.contains("counters"));
+        assert!(debug_str.contains("<dyn Progress>"));
+    }
+
+    #[test]
+    fn test_tracked_topic_ordering() {
+        assert!(TrackedTopic::Coverage < TrackedTopic::Docs);
+        assert!(TrackedTopic::Docs < TrackedTopic::Repos);
+        assert!(TrackedTopic::Repos < TrackedTopic::Codebase);
+    }
+
+    #[test]
+    fn test_add_requests_large_count() {
+        let tracker = test_tracker();
+        tracker.add_requests(TrackedTopic::Coverage, 1_000_000);
+
+        let (total, completed, message) = RequestTracker::progress_reporter_callback(&tracker.counters, false);
+        assert_eq!(total, 1_000_000);
+        assert_eq!(completed, 0);
+        assert!(message.contains("0/1000000 coverage"));
     }
 }

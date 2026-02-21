@@ -6,7 +6,7 @@ use crate::facts::RepoSpec;
 use crate::facts::cache::{Cache, CacheResult};
 use crate::facts::crate_spec::{self, CrateSpec};
 use crate::facts::path_utils::sanitize_path_component;
-use crate::facts::request_tracker::{RequestTracker, TrackedTopic};
+use crate::facts::request_tracker::{RequestTracker, TopicStatus, TrackedTopic};
 use crate::facts::throttler::Throttler;
 use chrono::{DateTime, Utc};
 use compact_str::CompactString;
@@ -277,21 +277,58 @@ impl Provider {
             let _permit = self.throttler.acquire().await;
             let result = self.fetch_hosting_data_for_repo(client, host, repo_spec.clone()).await;
 
+            if let Some(rl) = &result.rate_limit {
+                log::debug!(
+                    target: LOG_TARGET,
+                    "{} API rate limit for '{repo_spec}': {} remaining, resets at {}",
+                    host.display_name,
+                    rl.remaining,
+                    rl.reset_at.with_timezone(&chrono::Local).format("%T")
+                );
+            }
+
             if result.is_rate_limited {
                 if let Some(rate_limit) = result.rate_limit {
                     let reset_time = rate_limit.reset_at;
                     let wait_until = reset_time.min(self.cache.now() + chrono::Duration::seconds(MAX_RATE_LIMIT_WAIT_SECS.cast_signed()));
 
                     if wait_until > self.cache.now() {
-                        let formatted_time = wait_until.with_timezone(&chrono::Local).format("%T");
-                        log::warn!(target: LOG_TARGET, "Hit {} rate limit for repository '{repo_spec}'", host.display_name);
-                        tracker.println(&format!(
-                            "{} rate limit exceeded: Waiting until {formatted_time}...",
-                            host.display_name
-                        ));
-
                         let wait_duration = (wait_until - self.cache.now()).to_std().unwrap_or(Duration::ZERO);
-                        self.throttler.pause_for(wait_duration);
+                        if self.throttler.pause_for(wait_duration) {
+                            tracker.set_topic_status(TrackedTopic::Repos, TopicStatus::Blocked);
+                            let formatted_time = wait_until.with_timezone(&chrono::Local).format("%T").to_string();
+                            log::warn!(target: LOG_TARGET, "Hit {} rate limit for repository '{repo_spec}'", host.display_name);
+                            tracker.println(&format!(
+                                "{} rate limit exceeded: Waiting until {formatted_time}...",
+                                host.display_name
+                            ));
+
+                            let throttler = Arc::clone(&self.throttler);
+                            let tracker = tracker.clone();
+                            let display_name = host.display_name;
+                            drop(tokio::spawn(async move {
+                                loop {
+                                    tokio::time::sleep(Duration::from_secs(60)).await;
+                                    if !throttler.is_paused() {
+                                        tracker.set_topic_status(TrackedTopic::Repos, TopicStatus::Active);
+                                        log::info!(target: LOG_TARGET, "{display_name} rate limit lifted, resuming requests");
+                                        tracker.println(&format!("{display_name} rate limit lifted, resuming requests"));
+                                        break;
+                                    }
+                                    let remaining = wait_until - Utc::now();
+                                    let remaining_mins = remaining.num_minutes();
+                                    if remaining_mins > 0 {
+                                        log::info!(
+                                            target: LOG_TARGET,
+                                            "{display_name} rate limit: ~{remaining_mins} minute(s) remaining until {formatted_time}"
+                                        );
+                                        tracker.println(&format!(
+                                            "{display_name} rate limit: ~{remaining_mins} minute(s) remaining until {formatted_time}"
+                                        ));
+                                    }
+                                }
+                            }));
+                        }
                     }
                 }
                 continue;
@@ -314,15 +351,38 @@ impl Provider {
             CacheResult::Miss => {}
         }
 
+        // If the throttler is paused due to a rate limit detected by another task,
+        // skip HTTP calls and signal rate-limited so the caller retries after the pause.
+        if self.throttler.is_paused() {
+            return RepoData {
+                repo_spec,
+                result: ProviderResult::Error(Arc::new(ohno::app_err!("rate limited"))),
+                rate_limit: None,
+                is_rate_limited: true,
+            };
+        }
+
         log::info!(target: LOG_TARGET, "Querying {} for information on repository '{repo_spec}'", host.display_name);
 
-        let (repo_res, issues_res) = tokio::join!(
-            self.get_repo_info(client, owner, repo),
-            self.get_issues_and_pulls(client, owner, repo)
-        );
+        // Run requests sequentially so each throttler permit produces at most one
+        // concurrent HTTP request, keeping actual in-flight calls within
+        // MAX_CONCURRENT_REQUESTS.
+        let repo_res = self.get_repo_info(client, owner, repo).await;
 
         // Check for rate limiting or permanent failures in each result
         let (repo_data, repo_rate_limit) = unwrap_repo_result!(repo_res, repo_spec, "core info", self.cache, &filename);
+
+        // Bail if another task paused the throttler while we were fetching repo info
+        if self.throttler.is_paused() {
+            return RepoData {
+                repo_spec,
+                result: ProviderResult::Error(Arc::new(ohno::app_err!("rate limited"))),
+                rate_limit: repo_rate_limit,
+                is_rate_limited: true,
+            };
+        }
+
+        let issues_res = self.get_issues_and_pulls(client, owner, repo).await;
         let (issue_pull_stats, issues_rate_limit) = unwrap_repo_result!(issues_res, repo_spec, "issues and pull request info", self.cache, &filename, "issues/PRs");
 
         // Use the most conservative rate limit info (the one with the least remaining quota)
@@ -435,6 +495,14 @@ impl Provider {
 
             if !has_next_page {
                 break;
+            }
+
+            // Stop paginating if another task detected a rate limit
+            if self.throttler.is_paused() {
+                return HostingApiResult::RateLimited(latest_rate_limit.unwrap_or_else(|| RateLimitInfo {
+                    remaining: 0,
+                    reset_at: self.cache.now() + chrono::Duration::hours(1),
+                }));
             }
 
             page_num += 1;
@@ -834,5 +902,193 @@ mod tests {
         )
         .unwrap();
         assert_eq!(provider.hosts.len(), 2);
+    }
+
+    #[test]
+    fn test_compute_age_stats_filters_nan_and_negative() {
+        let stats = compute_age_stats([f64::NAN, f64::INFINITY, -100.0, 86400.0].into_iter());
+        // Only 86400.0 (1 day) should be counted
+        assert_eq!(stats.avg, 1);
+        assert_eq!(stats.p50, 1);
+    }
+
+    #[test]
+    fn test_closed_age_seconds_with_closed_at() {
+        let created = DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z").unwrap().to_utc();
+        let closed = DateTime::parse_from_rfc3339("2024-01-02T00:00:00Z").unwrap().to_utc();
+        let issue = Issue {
+            created_at: created,
+            closed_at: Some(closed),
+            state: IssueState::Closed,
+            pull_request: None,
+        };
+        let age = closed_age_seconds(&issue).unwrap();
+        assert!((age - 86400.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_closed_age_seconds_without_closed_at() {
+        let created = DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z").unwrap().to_utc();
+        let issue = Issue {
+            created_at: created,
+            closed_at: None,
+            state: IssueState::Open,
+            pull_request: None,
+        };
+        assert!(closed_age_seconds(&issue).is_none());
+    }
+
+    #[test]
+    fn test_merged_pr_age_seconds_merged() {
+        use super::super::client::PullRequestMarker;
+        let created = DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z").unwrap().to_utc();
+        let merged = DateTime::parse_from_rfc3339("2024-01-03T00:00:00Z").unwrap().to_utc();
+        let issue = Issue {
+            created_at: created,
+            closed_at: Some(merged),
+            state: IssueState::Closed,
+            pull_request: Some(PullRequestMarker { merged_at: Some(merged) }),
+        };
+        let age = merged_pr_age_seconds(&issue).unwrap();
+        assert!((age - 172_800.0).abs() < 1.0); // 2 days
+    }
+
+    #[test]
+    fn test_merged_pr_age_seconds_not_merged() {
+        use super::super::client::PullRequestMarker;
+        let created = DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z").unwrap().to_utc();
+        let issue = Issue {
+            created_at: created,
+            closed_at: None,
+            state: IssueState::Open,
+            pull_request: Some(PullRequestMarker { merged_at: None }),
+        };
+        assert!(merged_pr_age_seconds(&issue).is_none());
+    }
+
+    #[test]
+    fn test_merged_pr_age_seconds_not_a_pr() {
+        let created = DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z").unwrap().to_utc();
+        let issue = Issue {
+            created_at: created,
+            closed_at: None,
+            state: IssueState::Open,
+            pull_request: None,
+        };
+        assert!(merged_pr_age_seconds(&issue).is_none());
+    }
+
+    #[test]
+    fn test_increment_window_recent() {
+        let now = Utc::now();
+        let cutoff_90 = now - chrono::Duration::days(90);
+        let cutoff_180 = now - chrono::Duration::days(180);
+        let cutoff_365 = now - chrono::Duration::days(365);
+
+        let mut stats = TimeWindowStats::default();
+        // Timestamp within last 90 days
+        increment_window(&mut stats, now - chrono::Duration::days(10), cutoff_90, cutoff_180, cutoff_365);
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.last_90_days, 1);
+        assert_eq!(stats.last_180_days, 1);
+        assert_eq!(stats.last_365_days, 1);
+    }
+
+    #[test]
+    fn test_increment_window_old() {
+        let now = Utc::now();
+        let cutoff_90 = now - chrono::Duration::days(90);
+        let cutoff_180 = now - chrono::Duration::days(180);
+        let cutoff_365 = now - chrono::Duration::days(365);
+
+        let mut stats = TimeWindowStats::default();
+        // Timestamp between 180 and 365 days ago
+        increment_window(&mut stats, now - chrono::Duration::days(200), cutoff_90, cutoff_180, cutoff_365);
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.last_90_days, 0);
+        assert_eq!(stats.last_180_days, 0);
+        assert_eq!(stats.last_365_days, 1);
+    }
+
+    #[test]
+    fn test_increment_window_very_old() {
+        let now = Utc::now();
+        let cutoff_90 = now - chrono::Duration::days(90);
+        let cutoff_180 = now - chrono::Duration::days(180);
+        let cutoff_365 = now - chrono::Duration::days(365);
+
+        let mut stats = TimeWindowStats::default();
+        // Timestamp older than 365 days
+        increment_window(&mut stats, now - chrono::Duration::days(400), cutoff_90, cutoff_180, cutoff_365);
+        assert_eq!(stats.total, 1);
+        assert_eq!(stats.last_90_days, 0);
+        assert_eq!(stats.last_180_days, 0);
+        assert_eq!(stats.last_365_days, 0);
+    }
+
+    #[test]
+    fn test_compute_all_stats_empty() {
+        let now = Utc::now();
+        let stats = compute_all_stats(&[], now);
+        assert_eq!(stats.open_issues, 0);
+        assert_eq!(stats.open_prs, 0);
+        assert_eq!(stats.issues_opened.total, 0);
+        assert_eq!(stats.prs_opened.total, 0);
+    }
+
+    #[test]
+    fn test_compute_all_stats_mixed_issues_and_prs() {
+        use super::super::client::PullRequestMarker;
+        let now = Utc::now();
+        let day_ago = now - chrono::Duration::days(1);
+        let week_ago = now - chrono::Duration::days(7);
+        let two_days_ago = now - chrono::Duration::days(2);
+
+        let issues = vec![
+            // Open issue
+            Issue {
+                created_at: week_ago,
+                closed_at: None,
+                state: IssueState::Open,
+                pull_request: None,
+            },
+            // Closed issue
+            Issue {
+                created_at: week_ago,
+                closed_at: Some(day_ago),
+                state: IssueState::Closed,
+                pull_request: None,
+            },
+            // Open PR
+            Issue {
+                created_at: two_days_ago,
+                closed_at: None,
+                state: IssueState::Open,
+                pull_request: Some(PullRequestMarker { merged_at: None }),
+            },
+            // Merged PR
+            Issue {
+                created_at: week_ago,
+                closed_at: Some(two_days_ago),
+                state: IssueState::Closed,
+                pull_request: Some(PullRequestMarker { merged_at: Some(two_days_ago) }),
+            },
+        ];
+
+        let stats = compute_all_stats(&issues, now);
+        assert_eq!(stats.open_issues, 1);
+        assert_eq!(stats.open_prs, 1);
+        assert_eq!(stats.issues_opened.total, 2);
+        assert_eq!(stats.issues_closed.total, 1);
+        assert_eq!(stats.prs_opened.total, 2);
+        assert_eq!(stats.prs_merged.total, 1);
+        assert_eq!(stats.prs_closed.total, 1);
+    }
+
+    #[test]
+    fn test_percentile_boundary_values() {
+        let data = vec![1.0, 2.0, 3.0];
+        assert!((percentile(&data, 0.0) - 1.0).abs() < f64::EPSILON);
+        assert!((percentile(&data, 100.0) - 3.0).abs() < f64::EPSILON);
     }
 }

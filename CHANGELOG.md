@@ -1,5 +1,16 @@
 # cargo-aprz
 
+## 0.9.0 - 2026-02-21
+
+### Added
+
+- Better rendering of the progress bar when we're rate limited
+
+### Fixed
+
+- Fixed hosting provider's retry loop to correctly handle rate limit errors and avoid infinite retries on non-rate-limit failures.
+- Respect --color "never" in the progress bar rendering
+
 ## 0.8.0 - 2026-02-18
 
 ### Added

@@ -20,4 +20,9 @@ pub trait Progress: Send + Sync {
 
     /// Finish and clear the progress indicator.
     fn done(&self);
+
+    /// Whether color output is enabled for the progress display.
+    fn use_colors(&self) -> bool {
+        false
+    }
 }

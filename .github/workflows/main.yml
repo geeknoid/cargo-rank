@@ -147,9 +147,13 @@ jobs:
       - name: Careful
         if: success() || failure()
         run: cargo +${{ env.RUST_NIGHTLY }} careful nextest run --all-features --workspace --color always --target ${{ matrix.target }}
-      - name: Miri
-        if: success() || failure()
-        run: cargo +${{ env.RUST_NIGHTLY }} miri test --all-features --workspace
+
+# We disable Miri since it is not actually able to test any of the app's unsafe code, since the
+# unsafe code is around I/O and Miri can't do I/O
+#
+#      - name: Miri
+#        if: success() || failure()
+#        run: cargo +${{ env.RUST_NIGHTLY }} miri test --all-features --workspace
 
   mutation-testing:
     if: github.event_name == 'pull_request'

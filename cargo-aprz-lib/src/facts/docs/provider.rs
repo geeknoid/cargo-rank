@@ -228,3 +228,56 @@ impl Provider {
         super::calc_metrics::calculate_docs_metrics(decoder, crate_spec)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::facts::CrateSpec;
+    use semver::Version;
+
+    fn test_crate_spec(name: &str, version: &str) -> CrateSpec {
+        CrateSpec::from_arcs(
+            Arc::from(name),
+            Arc::new(Version::parse(version).unwrap()),
+        )
+    }
+
+    #[test]
+    fn test_get_cache_filename() {
+        let spec = test_crate_spec("tokio", "1.2.3");
+        let filename = Provider::get_cache_filename(&spec);
+        assert_eq!(filename, "tokio@1.2.3.json");
+    }
+
+    #[test]
+    fn test_get_cache_filename_with_special_chars() {
+        let spec = test_crate_spec("my-crate", "0.1.0-beta.1");
+        let filename = Provider::get_cache_filename(&spec);
+        assert!(filename.contains("my-crate"));
+        assert!(Path::new(&filename).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("json")));
+    }
+
+    #[test]
+    fn test_provider_new_default_url() {
+        let cache = Cache::new(
+            "/tmp/test",
+            core::time::Duration::from_secs(3600),
+            chrono::Utc::now(),
+            false,
+        );
+        let provider = Provider::new(cache, None);
+        assert_eq!(provider.base_url, DOCS_BASE_URL);
+    }
+
+    #[test]
+    fn test_provider_new_custom_url() {
+        let cache = Cache::new(
+            "/tmp/test",
+            core::time::Duration::from_secs(3600),
+            chrono::Utc::now(),
+            false,
+        );
+        let provider = Provider::new(cache, Some("https://custom.docs.rs"));
+        assert_eq!(provider.base_url, "https://custom.docs.rs");
+    }
+}

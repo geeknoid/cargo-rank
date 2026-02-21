@@ -154,3 +154,86 @@ impl Default for Config {
         toml::from_str(DEFAULT_CONFIG_TOML).expect("default_config.toml should be valid TOML that deserializes to Config")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config_is_valid() {
+        let config = Config::default();
+        config.validate().unwrap();
+    }
+
+    #[test]
+    fn test_validate_medium_risk_out_of_range_low() {
+        let config = Config { medium_risk_threshold: -1.0, ..Config::default() };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_medium_risk_out_of_range_high() {
+        let config = Config { medium_risk_threshold: 101.0, ..Config::default() };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_low_risk_out_of_range_low() {
+        let config = Config { low_risk_threshold: -1.0, ..Config::default() };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_low_risk_out_of_range_high() {
+        let config = Config { low_risk_threshold: 101.0, ..Config::default() };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_medium_ge_low_risk() {
+        let config = Config { medium_risk_threshold: 80.0, low_risk_threshold: 70.0, ..Config::default() };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_medium_equals_low_risk() {
+        let config = Config { medium_risk_threshold: 70.0, low_risk_threshold: 70.0, ..Config::default() };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_valid_thresholds() {
+        let config = Config { medium_risk_threshold: 30.0, low_risk_threshold: 70.0, ..Config::default() };
+        config.validate().unwrap();
+    }
+
+    #[test]
+    fn test_validate_boundary_values() {
+        let config = Config { medium_risk_threshold: 0.0, low_risk_threshold: 100.0, ..Config::default() };
+        config.validate().unwrap();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
+    fn test_save_default_and_load() {
+        let tmp = tempfile::tempdir().unwrap();
+        let output_path = Utf8PathBuf::try_from(tmp.path().join("aprz.toml")).unwrap();
+        Config::save_default(&output_path).unwrap();
+        let loaded = Config::load(&Utf8PathBuf::try_from(tmp.path().to_path_buf()).unwrap(), Some(&output_path)).unwrap();
+        loaded.validate().unwrap();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
+    fn test_load_missing_config_uses_defaults() {
+        let tmp = tempfile::tempdir().unwrap();
+        let workspace_root = Utf8PathBuf::try_from(tmp.path().to_path_buf()).unwrap();
+        let config = Config::load(&workspace_root, None).unwrap();
+        config.validate().unwrap();
+    }
+
+    #[test]
+    fn test_default_config_toml_is_not_empty() {
+        assert!(!DEFAULT_CONFIG_TOML.is_empty());
+    }
+}

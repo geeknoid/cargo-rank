@@ -21,10 +21,15 @@ use std::io::Write;
 use std::sync::Arc;
 
 /// Color mode configuration for output
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum ColorMode {
+    /// Always use colors
     Always,
+
+    /// Never use colors
     Never,
+
+    /// Use colors if the output is a terminal, otherwise don't use colors
     Auto,
 }
 
@@ -33,16 +38,34 @@ pub enum ColorMode {
 pub enum LogLevel {
     /// No logging output
     None,
+
     /// Only error messages
     Error,
+
     /// Warning and error messages
     Warn,
+
     /// Info, warning, and error messages
     Info,
-    /// Debug and above messages
+
+    /// Debug, info, warning, and error messages
     Debug,
-    /// All messages including trace
+
+    /// Trace, debug, info, warning, and error messages
     Trace,
+}
+
+/// Individual sections that can be shown in console output
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ConsoleSection {
+    /// Show the appraisal risk level
+    Appraisal,
+
+    /// Show the reasons to justify the appraisal
+    Reasons,
+
+    /// Show individual metrics
+    Metrics,
 }
 
 /// Common arguments shared between crates and deps commands
@@ -92,10 +115,10 @@ pub struct CommonArgs {
     #[arg(long, value_name = "PATH", help_heading = "Report Output")]
     pub json: Option<Utf8PathBuf>,
 
-    /// Output crate information to the console, showing the specified sections (comma-separated: appraisal, reasons, metrics).
+    /// Output crate information to the console, showing the specified sections.
     /// Defaults to showing all sections. If omitted entirely, console output is shown only when no other reports are generated.
-    #[arg(long, value_name = "SECTIONS", default_missing_value = "appraisal,reasons,metrics", num_args = 0..=1, help_heading = "Report Output")]
-    pub console: Option<String>,
+    #[arg(long, value_name = "SECTIONS", value_delimiter = ',', default_missing_value = "appraisal,reasons,metrics", num_args = 0..=1, help_heading = "Report Output")]
+    pub console: Option<Vec<ConsoleSection>>,
 
     /// Exit with status code 1 if any crate is appraised as high risk
     #[arg(long)]
@@ -163,7 +186,16 @@ impl<'a, H: super::Host> Common<'a, H> {
             Duration::from_hours(365 * 24)
         };
 
-        let progress_reporter = ProgressReporter::new(delay);
+        let use_colors_for_progress = match args.color {
+            ColorMode::Always => true,
+            ColorMode::Never => false,
+            ColorMode::Auto => {
+                use std::io::{IsTerminal, stderr};
+                stderr().is_terminal()
+            }
+        };
+
+        let progress_reporter = ProgressReporter::new(delay, use_colors_for_progress);
 
         let collector = Collector::new(
             args.github_token.as_deref(),
@@ -184,7 +216,11 @@ impl<'a, H: super::Host> Common<'a, H> {
         let mut metadata_cmd = MetadataCommand::new();
         let _ = metadata_cmd.manifest_path(&args.manifest_path);
 
-        let console = args.console.as_deref().map(parse_console_mode).transpose()?;
+        let console = args.console.as_ref().map(|sections| ConsoleOutputMode {
+            appraisal: sections.contains(&ConsoleSection::Appraisal),
+            reasons: sections.contains(&ConsoleSection::Reasons),
+            metrics: sections.contains(&ConsoleSection::Metrics),
+        });
 
         Ok(Self {
             collector,
@@ -411,24 +447,3 @@ impl<'a, H: super::Host> Common<'a, H> {
     }
 }
 
-/// Parse a comma-separated string of console output sections into a [`ConsoleOutputMode`].
-///
-/// Valid section names: `appraisal`, `reasons`, `metrics`.
-fn parse_console_mode(value: &str) -> Result<ConsoleOutputMode> {
-    let mut mode = ConsoleOutputMode { appraisal: false, reasons: false, metrics: false };
-
-    for section in value.split(',') {
-        match section.trim() {
-            "appraisal" => mode.appraisal = true,
-            "reasons" => mode.reasons = true,
-            "metrics" => mode.metrics = true,
-            other => {
-                return Err(ohno::AppError::new(format!(
-                    "unknown console section '{other}', expected: appraisal, reasons, metrics"
-                )));
-            }
-        }
-    }
-
-    Ok(mode)
-}

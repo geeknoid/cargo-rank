@@ -180,6 +180,7 @@ impl Cache {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 
@@ -320,6 +321,36 @@ mod tests {
 
         match cache.load::<TestData>("item.json") {
             CacheResult::Data(loaded) => assert_eq!(loaded.name, "second"),
+            other => panic!("expected Data, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn dir_accessor_returns_cache_dir() {
+        let cache = Cache::new("/some/path", Duration::from_secs(3600), Utc::now(), false);
+        assert_eq!(cache.dir(), Path::new("/some/path"));
+    }
+
+    #[test]
+    fn now_accessor_returns_timestamp() {
+        let now = Utc::now();
+        let cache = Cache::new("/tmp", Duration::from_secs(3600), now, false);
+        assert_eq!(cache.now(), now);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
+    fn save_no_data_then_overwrite_with_data() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cache = make_cache(tmp.path(), 3600);
+
+        cache.save_no_data("item.json", "originally missing").unwrap();
+        assert!(matches!(cache.load::<TestData>("item.json"), CacheResult::NoData(r) if r == "originally missing"));
+
+        let data = TestData { name: "now available".to_string(), value: 99 };
+        cache.save("item.json", &data).unwrap();
+        match cache.load::<TestData>("item.json") {
+            CacheResult::Data(loaded) => assert_eq!(loaded, data),
             other => panic!("expected Data, got {other:?}"),
         }
     }
