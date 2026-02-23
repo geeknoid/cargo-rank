@@ -100,7 +100,7 @@ expression: output
   <div class="header">
     <div class="header-content">
       <h1>Crate Metrics</h1>
-      <p class="subtitle">Produced by cargo-aprz 0.9.0 on 2024-01-15</p>
+      <p class="subtitle">Produced by cargo-aprz 0.10.0 on 2024-01-15</p>
     </div>
     <svg class="ferris" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
       <g>

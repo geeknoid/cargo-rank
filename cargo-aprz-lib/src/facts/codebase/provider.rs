@@ -602,7 +602,6 @@ mod tests {
         let cache = Cache::new(
             "/tmp/cache",
             Duration::from_secs(3600),
-            Utc::now(),
             false,
         );
         let provider = Provider::new(cache);

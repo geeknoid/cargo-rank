@@ -52,7 +52,6 @@ impl Collector {
         coverage_cache_ttl: Duration,
         advisories_cache_ttl: Duration,
         ignore_cached: bool,
-        now: DateTime<Utc>,
         progress: impl Progress + 'static,
     ) -> Result<Self> {
         let progress: Arc<dyn Progress> = Arc::new(progress);
@@ -68,14 +67,14 @@ impl Collector {
         // Acquire cache lock to prevent concurrent access
         let cache_lock = acquire_cache_lock(cache_dir.as_ref()).await?;
 
-        let hosting_cache = Cache::new(hosting_cache_dir, hosting_cache_ttl, now, ignore_cached);
-        let codebase_cache = Cache::new(codebase_cache_dir, codebase_cache_ttl, now, ignore_cached);
-        let coverage_cache = Cache::new(coverage_cache_dir, coverage_cache_ttl, now, ignore_cached);
-        let advisories_cache = Cache::new(advisories_cache_dir, advisories_cache_ttl, now, ignore_cached);
-        let docs_cache = Cache::new(docs_cache_dir, Duration::MAX, now, ignore_cached);
+        let hosting_cache = Cache::new(hosting_cache_dir, hosting_cache_ttl, ignore_cached);
+        let codebase_cache = Cache::new(codebase_cache_dir, codebase_cache_ttl, ignore_cached);
+        let coverage_cache = Cache::new(coverage_cache_dir, coverage_cache_ttl, ignore_cached);
+        let advisories_cache = Cache::new(advisories_cache_dir, advisories_cache_ttl, ignore_cached);
+        let docs_cache = Cache::new(docs_cache_dir, Duration::MAX, ignore_cached);
 
         Ok(Self {
-            crates_provider: super::crates::Provider::new(&crates_cache_dir, crates_cache_ttl, Arc::clone(&progress), now, ignore_cached, None).await?,
+            crates_provider: super::crates::Provider::new(&crates_cache_dir, crates_cache_ttl, Arc::clone(&progress), Utc::now(), ignore_cached, None).await?,
 
             advisories_provider: super::advisories::Provider::new(&advisories_cache, Arc::clone(&progress))
                 .await?,

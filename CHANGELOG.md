@@ -1,5 +1,14 @@
 # cargo-aprz
 
+## 0.10.0 - 2026-02-23
+
+### Fixed
+
+- Fixed rate-limit backoff in the hosting provider, it was getting confused about what time it was.
+
+- Improved logging in the hosting provider to show how many individual calls are being made to the hosting
+  provider for each repo.
+
 ## 0.9.0 - 2026-02-21
 
 ### Added

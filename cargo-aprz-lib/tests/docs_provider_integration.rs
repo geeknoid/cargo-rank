@@ -3,7 +3,6 @@
 use cargo_aprz_lib::facts::cache::Cache;
 use cargo_aprz_lib::facts::docs::{DocsData, DocsMetrics, Provider};
 use cargo_aprz_lib::facts::{CrateSpec, Progress, ProviderResult, RequestTracker};
-use chrono::Utc;
 use semver::Version;
 use std::fs;
 use std::path::Path;
@@ -60,7 +59,7 @@ async fn test_docs_provider_with_fixture() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     // Create provider with mock server URL
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, Utc::now(), false);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, false);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     // Create crate spec for anyhow 1.0.100
@@ -115,7 +114,7 @@ async fn test_docs_provider_not_found() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     // Create provider with mock server URL
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, Utc::now(), false);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, false);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     // Create crate spec for nonexistent crate
@@ -155,12 +154,12 @@ async fn test_docs_provider_uses_cache() {
 
     // Pre-populate cache with sentinel data
     let cached_data = make_sentinel_docs_data();
-    let pre_cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, Utc::now(), false);
+    let pre_cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, false);
     pre_cache.save("anyhow@1.0.100.json", &cached_data).expect("write cache");
 
     // Create provider with ignore_cached=false and no mock server (would fail if it tried to fetch)
     let mock_server = MockServer::start().await;
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, Utc::now(), false);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, false);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     let crate_spec = CrateSpec::from_arcs(Arc::from("anyhow"), Arc::new(Version::parse("1.0.100").unwrap()));
@@ -194,7 +193,7 @@ async fn test_docs_provider_ignore_cached_bypasses_cache() {
 
     // Pre-populate cache with sentinel data
     let cached_data = make_sentinel_docs_data();
-    let pre_cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, Utc::now(), false);
+    let pre_cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, false);
     pre_cache.save("anyhow@1.0.100.json", &cached_data).expect("write cache");
 
     // Set up mock server with real fixture
@@ -211,7 +210,7 @@ async fn test_docs_provider_ignore_cached_bypasses_cache() {
         .await;
 
     // Create provider with ignore_cached=true
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, Utc::now(), true);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::MAX, true);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     let crate_spec = CrateSpec::from_arcs(Arc::from("anyhow"), Arc::new(Version::parse("1.0.100").unwrap()));

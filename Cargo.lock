@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-aprz"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "cargo-aprz-lib",
  "mutants",
@@ -277,7 +277,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-aprz-lib"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "bytes",
  "camino",

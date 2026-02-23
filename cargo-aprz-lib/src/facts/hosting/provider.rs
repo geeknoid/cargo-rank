@@ -154,7 +154,7 @@ impl Provider {
         codeberg_token: Option<&str>,
         cache: Cache,
     ) -> Result<Self> {
-        let now = cache.now();
+        let now = Utc::now();
         let mut hosts = Vec::with_capacity(SUPPORTED_HOSTS.len());
 
         for host in SUPPORTED_HOSTS {
@@ -289,19 +289,22 @@ impl Provider {
 
             if result.is_rate_limited {
                 if let Some(rate_limit) = result.rate_limit {
+                    let now = Utc::now();
                     let reset_time = rate_limit.reset_at;
-                    let wait_until = reset_time.min(self.cache.now() + chrono::Duration::seconds(MAX_RATE_LIMIT_WAIT_SECS.cast_signed()));
+                    let wait_until = reset_time.min(now + chrono::Duration::seconds(MAX_RATE_LIMIT_WAIT_SECS.cast_signed()));
 
-                    if wait_until > self.cache.now() {
-                        let wait_duration = (wait_until - self.cache.now()).to_std().unwrap_or(Duration::ZERO);
+                    if wait_until > now {
+                        let wait_duration = (wait_until - now).to_std().unwrap_or(Duration::ZERO);
                         if self.throttler.pause_for(wait_duration) {
                             tracker.set_topic_status(TrackedTopic::Repos, TopicStatus::Blocked);
                             let formatted_time = wait_until.with_timezone(&chrono::Local).format("%T").to_string();
                             log::warn!(target: LOG_TARGET, "Hit {} rate limit for repository '{repo_spec}'", host.display_name);
-                            tracker.println(&format!(
-                                "{} rate limit exceeded: Waiting until {formatted_time}...",
-                                host.display_name
-                            ));
+                            if !log::log_enabled!(log::Level::Warn) {
+                                tracker.println(&format!(
+                                    "{} rate limit exceeded: Waiting until {formatted_time}...",
+                                    host.display_name
+                                ));
+                            }
 
                             let throttler = Arc::clone(&self.throttler);
                             let tracker = tracker.clone();
@@ -312,7 +315,9 @@ impl Provider {
                                     if !throttler.is_paused() {
                                         tracker.set_topic_status(TrackedTopic::Repos, TopicStatus::Active);
                                         log::info!(target: LOG_TARGET, "{display_name} rate limit lifted, resuming requests");
-                                        tracker.println(&format!("{display_name} rate limit lifted, resuming requests"));
+                                        if !log::log_enabled!(log::Level::Info) {
+                                            tracker.println(&format!("{display_name} rate limit lifted, resuming requests"));
+                                        }
                                         break;
                                     }
                                     let remaining = wait_until - Utc::now();
@@ -322,9 +327,11 @@ impl Provider {
                                             target: LOG_TARGET,
                                             "{display_name} rate limit: ~{remaining_mins} minute(s) remaining until {formatted_time}"
                                         );
-                                        tracker.println(&format!(
-                                            "{display_name} rate limit: ~{remaining_mins} minute(s) remaining until {formatted_time}"
-                                        ));
+                                        if !log::log_enabled!(log::Level::Info) {
+                                            tracker.println(&format!(
+                                                "{display_name} rate limit: ~{remaining_mins} minute(s) remaining until {formatted_time}"
+                                            ));
+                                        }
                                     }
                                 }
                             }));
@@ -423,7 +430,8 @@ impl Provider {
             merged_pr_age_last_365_days: issue_pull_stats.merged_pr_age_last_365_days,
         };
 
-        log::debug!(target: LOG_TARGET, "Completed {} API requests for repository '{repo_spec}'", host.display_name);
+        let total_requests = 1 + issue_pull_stats.request_count;
+        log::debug!(target: LOG_TARGET, "Completed {total_requests} {} API request(s) for repository '{repo_spec}'", host.display_name);
 
         let result = match self.cache.save(&filename, &hosting_data) {
             Ok(()) => ProviderResult::Found(hosting_data),
@@ -457,14 +465,16 @@ impl Provider {
     }
 
     async fn get_issues_and_pulls(&self, client: &Client, owner: &str, repo: &str) -> HostingApiResult<IssueAndPullStats> {
-        let since = self.cache.now() - chrono::Duration::days(ISSUE_LOOKBACK_DAYS);
+        let since = Utc::now() - chrono::Duration::days(ISSUE_LOOKBACK_DAYS);
         let since_str = since.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
 
         let mut all_issues = Vec::with_capacity(ISSUE_PAGE_SIZE as usize);
         let mut latest_rate_limit: Option<RateLimitInfo> = None;
         let mut page_num = 1u32;
+        let mut request_count = 0u32;
 
         loop {
+            request_count += 1;
             let url = format!(
                 "{}/repos/{owner}/{repo}/issues?state=all&since={since_str}&per_page={ISSUE_PAGE_SIZE}&page={page_num}",
                 client.base_url()
@@ -501,7 +511,7 @@ impl Provider {
             if self.throttler.is_paused() {
                 return HostingApiResult::RateLimited(latest_rate_limit.unwrap_or_else(|| RateLimitInfo {
                     remaining: 0,
-                    reset_at: self.cache.now() + chrono::Duration::hours(1),
+                    reset_at: Utc::now() + chrono::Duration::hours(1),
                 }));
             }
 
@@ -513,7 +523,8 @@ impl Provider {
             }
         }
 
-        let stats = compute_all_stats(&all_issues, self.cache.now());
+        let mut stats = compute_all_stats(&all_issues, Utc::now());
+        stats.request_count = request_count;
 
         HostingApiResult::Success(stats, latest_rate_limit)
     }
@@ -572,6 +583,7 @@ fn percentile(sorted_data: &[f64], percentile: f64) -> f64 {
 
 /// All computed statistics from the issues/pulls API data.
 struct IssueAndPullStats {
+    request_count: u32,
     open_issues: u64,
     open_prs: u64,
     issues_opened: TimeWindowStats,
@@ -694,6 +706,7 @@ fn compute_all_stats(all_issues: &[Issue], now: DateTime<Utc>) -> IssueAndPullSt
     );
 
     IssueAndPullStats {
+        request_count: 0,
         open_issues: open_issues.len() as u64,
         open_prs: open_pulls.len() as u64,
         issues_opened,
@@ -774,8 +787,8 @@ mod tests {
         assert!(stats.avg >= 7 && stats.avg <= 8);
     }
 
-    fn test_cache(now: DateTime<Utc>) -> Cache {
-        Cache::new("test_cache", Duration::from_secs(3600), now, false)
+    fn test_cache() -> Cache {
+        Cache::new("test_cache", Duration::from_secs(3600), false)
     }
 
     #[test]
@@ -886,19 +899,17 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_provider_new() {
-        let now = Utc::now();
-        let provider = Provider::new(None, None, test_cache(now)).unwrap();
+        let provider = Provider::new(None, None, test_cache()).unwrap();
         assert_eq!(provider.hosts.len(), 2); // GitHub and Codeberg
     }
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_provider_new_with_tokens() {
-        let now = Utc::now();
         let provider = Provider::new(
             Some("github_token"),
             Some("codeberg_token"),
-            test_cache(now),
+            test_cache(),
         )
         .unwrap();
         assert_eq!(provider.hosts.len(), 2);

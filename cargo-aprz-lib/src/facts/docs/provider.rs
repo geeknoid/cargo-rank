@@ -262,7 +262,6 @@ mod tests {
         let cache = Cache::new(
             "/tmp/test",
             core::time::Duration::from_secs(3600),
-            chrono::Utc::now(),
             false,
         );
         let provider = Provider::new(cache, None);
@@ -274,7 +273,6 @@ mod tests {
         let cache = Cache::new(
             "/tmp/test",
             core::time::Duration::from_secs(3600),
-            chrono::Utc::now(),
             false,
         );
         let provider = Provider::new(cache, Some("https://custom.docs.rs"));

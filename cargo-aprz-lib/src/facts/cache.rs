@@ -1,6 +1,6 @@
 //! A reusable cache backed by JSON files with TTL-aware loading.
 //!
-//! [`Cache`] wraps a cache directory, TTL, and timestamp so that callers
+//! [`Cache`] wraps a cache directory and TTL so that callers
 //! don't need to thread those values through every load/save call.
 
 use crate::Result;
@@ -50,18 +50,16 @@ enum EnvelopePayload<T> {
 pub struct Cache {
     dir: PathBuf,
     ttl: Duration,
-    now: DateTime<Utc>,
     ignore: bool,
 }
 
 impl Cache {
     /// Create a new cache.
     #[must_use]
-    pub fn new(cache_dir: impl Into<PathBuf>, cache_ttl: Duration, now: DateTime<Utc>, ignore_cache: bool) -> Self {
+    pub fn new(cache_dir: impl Into<PathBuf>, cache_ttl: Duration, ignore_cache: bool) -> Self {
         Self {
             dir: cache_dir.into(),
             ttl: cache_ttl,
-            now,
             ignore: ignore_cache,
         }
     }
@@ -70,12 +68,6 @@ impl Cache {
     #[must_use]
     pub fn dir(&self) -> &Path {
         &self.dir
-    }
-
-    /// Returns the timestamp used by this cache.
-    #[must_use]
-    pub const fn now(&self) -> DateTime<Utc> {
-        self.now
     }
 
     /// Load a cache entry by filename (relative to the cache directory).
@@ -108,7 +100,7 @@ impl Cache {
         };
 
         // Handle future timestamps (clock skew) — treat as fresh data
-        let age = self.now.signed_duration_since(envelope.timestamp);
+        let age = Utc::now().signed_duration_since(envelope.timestamp);
         if age.num_seconds() < 0 {
             log::debug!(target: LOG_TARGET, "Cache timestamp is in the future for {filename} (clock skew detected), treating as fresh");
         } else {
@@ -139,7 +131,7 @@ impl Cache {
         T: Serialize,
     {
         let envelope = Envelope {
-            timestamp: self.now,
+            timestamp: Utc::now(),
             payload: EnvelopePayload::Data(data),
         };
         self.write_envelope(filename, &envelope)
@@ -149,7 +141,7 @@ impl Cache {
     pub fn save_no_data(&self, filename: &str, reason: &str) -> Result<()> {
         // The type parameter doesn't matter for NoData; we use `()` as a placeholder.
         let envelope = Envelope::<()> {
-            timestamp: self.now,
+            timestamp: Utc::now(),
             payload: EnvelopePayload::NoData(reason.to_string()),
         };
         self.write_envelope(filename, &envelope)
@@ -191,7 +183,7 @@ mod tests {
     }
 
     fn make_cache(dir: &Path, ttl_secs: u64) -> Cache {
-        Cache::new(dir, Duration::from_secs(ttl_secs), Utc::now(), false)
+        Cache::new(dir, Duration::from_secs(ttl_secs), false)
     }
 
     #[test]
@@ -286,7 +278,7 @@ mod tests {
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]
     fn ignore_cache_returns_miss() {
         let tmp = tempfile::tempdir().unwrap();
-        let cache = Cache::new(tmp.path(), Duration::from_secs(3600), Utc::now(), true);
+        let cache = Cache::new(tmp.path(), Duration::from_secs(3600), true);
 
         let data = TestData { name: "ignored".to_string(), value: 1 };
         // Save via a non-ignoring cache so the file actually exists
@@ -327,15 +319,8 @@ mod tests {
 
     #[test]
     fn dir_accessor_returns_cache_dir() {
-        let cache = Cache::new("/some/path", Duration::from_secs(3600), Utc::now(), false);
+        let cache = Cache::new("/some/path", Duration::from_secs(3600), false);
         assert_eq!(cache.dir(), Path::new("/some/path"));
-    }
-
-    #[test]
-    fn now_accessor_returns_timestamp() {
-        let now = Utc::now();
-        let cache = Cache::new("/tmp", Duration::from_secs(3600), now, false);
-        assert_eq!(cache.now(), now);
     }
 
     #[test]

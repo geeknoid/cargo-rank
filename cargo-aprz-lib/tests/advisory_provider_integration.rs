@@ -9,7 +9,6 @@
 use cargo_aprz_lib::facts::advisories::{AdvisoryData, Provider};
 use cargo_aprz_lib::facts::cache::Cache;
 use cargo_aprz_lib::facts::{CrateSpec, Progress, ProviderResult};
-use chrono::Utc;
 use semver::Version;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -48,7 +47,7 @@ async fn shared_provider() -> &'static Provider {
             core::mem::forget(temp_dir);
 
             let progress = Arc::new(NoOpProgress) as Arc<dyn Progress>;
-            let cache = Cache::new(&cache_path, core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+            let cache = Cache::new(&cache_path, core::time::Duration::from_secs(365 * 24 * 3600), false);
             let provider = Provider::new(&cache, progress).await.expect("Failed to create advisory provider");
 
             SharedProvider {
@@ -236,7 +235,7 @@ async fn test_advisory_provider_cache_reuse() {
     let progress = Arc::new(NoOpProgress) as Arc<dyn Progress>;
 
     // First creation downloads the database
-    let cache1 = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+    let cache1 = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), false);
     let provider1 = Provider::new(&cache1, Arc::clone(&progress))
         .await
         .expect("First provider creation should succeed");
@@ -244,7 +243,7 @@ async fn test_advisory_provider_cache_reuse() {
     let results1: Vec<_> = provider1.get_advisory_data(vec![make_spec("hyper", "0.14.10")]).await.collect();
 
     // Second creation should reuse the cached database (no download)
-    let cache2 = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+    let cache2 = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), false);
     let provider2 = Provider::new(&cache2, progress)
         .await
         .expect("Second provider creation with cache should succeed");

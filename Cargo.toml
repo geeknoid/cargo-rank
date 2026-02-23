@@ -3,7 +3,7 @@ members = ["cargo-aprz", "cargo-aprz-lib"]
 resolver = "2"
 
 [workspace.package]
-version = "0.9.0"
+version = "0.10.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/geeknoid/cargo-aprz"
@@ -93,7 +93,7 @@ missing-panics-doc = "allow"
 [workspace.dependencies]
 bytes = { version = "1.11.1", default-features = false }
 camino = { version = "1.2.2", default-features = false }
-cargo-aprz-lib = { version = "0.9.0", path = "cargo-aprz-lib", default-features = false }
+cargo-aprz-lib = { version = "0.10.0", path = "cargo-aprz-lib", default-features = false }
 cargo_metadata = { version = "0.23.1", default-features = false }
 cel-interpreter = { version = "0.10.0", default-features = false, features = ["chrono"] }
 chrono = { version = "0.4.43", default-features = false, features = ["serde", "clock", "std", "now"] }

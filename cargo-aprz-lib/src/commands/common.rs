@@ -207,7 +207,6 @@ impl<'a, H: super::Host> Common<'a, H> {
             config.coverage_cache_ttl,
             config.advisories_cache_ttl,
             args.ignore_cached,
-            Utc::now(),
             progress_reporter,
         )
         .await?;

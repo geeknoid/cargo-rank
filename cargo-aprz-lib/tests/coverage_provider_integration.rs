@@ -3,7 +3,6 @@
 use cargo_aprz_lib::facts::cache::Cache;
 use cargo_aprz_lib::facts::coverage::{CoverageData, Provider};
 use cargo_aprz_lib::facts::{CrateSpec, Progress, ProviderResult, RepoSpec, RequestTracker};
-use chrono::Utc;
 use semver::Version;
 use std::fs;
 use std::path::Path;
@@ -61,7 +60,7 @@ async fn test_coverage_provider_with_fixture() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     // Create provider with mock server URL
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), false);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     // Create crate spec with repository
@@ -136,7 +135,7 @@ async fn test_coverage_provider_not_found_main() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     // Create provider with mock server URL
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), false);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     // Create crate spec for nonexistent repo
@@ -189,7 +188,7 @@ async fn test_coverage_provider_unknown_coverage() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     // Create provider with mock server URL
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), false);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     // Create crate spec with repository
@@ -217,12 +216,12 @@ async fn test_coverage_provider_uses_cache() {
     let cached_data = CoverageData {
         code_coverage_percentage: 42.0,
     };
-    let pre_cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+    let pre_cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), false);
     pre_cache.save("github.com/test/repo.json", &cached_data).expect("write cache");
 
     // Create provider with ignore_cached=false and long TTL
     let mock_server = MockServer::start().await;
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), false);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     let repo_url = Url::parse("https://github.com/test/repo").expect("parse URL");
@@ -263,7 +262,7 @@ async fn test_coverage_provider_ignore_cached_bypasses_cache() {
     let cached_data = CoverageData {
         code_coverage_percentage: 42.0,
     };
-    let pre_cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), false);
+    let pre_cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), false);
     pre_cache
         .save("github.com/microsoft/oxidizer.json", &cached_data)
         .expect("write cache");
@@ -282,7 +281,7 @@ async fn test_coverage_provider_ignore_cached_bypasses_cache() {
         .await;
 
     // Create provider with ignore_cached=true
-    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), Utc::now(), true);
+    let cache = Cache::new(temp_dir.path(), core::time::Duration::from_secs(365 * 24 * 3600), true);
     let provider = Provider::new(cache, Some(&mock_server.uri()));
 
     let repo_url = Url::parse("https://github.com/microsoft/oxidizer").expect("parse URL");
