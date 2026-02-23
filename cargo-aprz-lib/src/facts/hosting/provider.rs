@@ -299,7 +299,7 @@ impl Provider {
                             tracker.set_topic_status(TrackedTopic::Repos, TopicStatus::Blocked);
                             let formatted_time = wait_until.with_timezone(&chrono::Local).format("%T").to_string();
                             log::warn!(target: LOG_TARGET, "Hit {} rate limit for repository '{repo_spec}'", host.display_name);
-                            if !log::log_enabled!(log::Level::Error) {
+                            if !log::log_enabled!(log::Level::Warn) {
                                 tracker.println(&format!(
                                     "{} rate limit exceeded: Waiting until {formatted_time}...",
                                     host.display_name
@@ -315,7 +315,7 @@ impl Provider {
                                     if !throttler.is_paused() {
                                         tracker.set_topic_status(TrackedTopic::Repos, TopicStatus::Active);
                                         log::info!(target: LOG_TARGET, "{display_name} rate limit lifted, resuming requests");
-                                        if !log::log_enabled!(log::Level::Error) {
+                                        if !log::log_enabled!(log::Level::Info) {
                                             tracker.println(&format!("{display_name} rate limit lifted, resuming requests"));
                                         }
                                         break;
@@ -327,7 +327,7 @@ impl Provider {
                                             target: LOG_TARGET,
                                             "{display_name} rate limit: ~{remaining_mins} minute(s) remaining until {formatted_time}"
                                         );
-                                        if !log::log_enabled!(log::Level::Error) {
+                                        if !log::log_enabled!(log::Level::Info) {
                                             tracker.println(&format!(
                                                 "{display_name} rate limit: ~{remaining_mins} minute(s) remaining until {formatted_time}"
                                             ));
