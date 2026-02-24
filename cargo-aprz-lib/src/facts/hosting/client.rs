@@ -110,68 +110,79 @@ impl Client {
             Err(e) => return HostingApiResult::Failed(e, None),
         };
 
-        // Extract rate limit info from response headers before checking status
         let rate_limit = extract_rate_limit_from_headers(resp.headers());
-
-        // Check status code
-        let status = resp.status();
-        log::debug!(target: LOG_TARGET, "HTTP {status} for {url}");
-
-        if status.is_success() {
-            return HostingApiResult::Success(resp, rate_limit);
-        }
-
-        // Check for rate limiting (403 or 429)
-        let status_code = status.as_u16();
-        if matches!(status_code, 403 | 429) {
-            // Extract Retry-After header (used by GitHub for secondary/abuse rate limits)
-            let retry_after_secs = resp
-                .headers()
-                .get(reqwest::header::RETRY_AFTER)
-                .and_then(|h| h.to_str().ok())
-                .and_then(|s| s.parse::<u64>().ok());
-
-            // Check if the primary rate limit is exhausted (remaining == 0 or no headers)
-            let is_primary_rate_limit = rate_limit.as_ref().is_none_or(|rl| rl.remaining == 0);
-
-            if is_primary_rate_limit {
-                log::warn!(target: LOG_TARGET, "Primary rate limit exhausted (HTTP {status_code}) for {url}");
-                // Primary rate limit exhausted — wait until the rate limit window resets
-                let rate_limit = rate_limit.unwrap_or_else(|| RateLimitInfo {
-                    remaining: 0,
-                    reset_at: Utc::now() + chrono::Duration::hours(1),
-                });
-                return HostingApiResult::RateLimited(rate_limit);
-            }
-
-            // Secondary rate limit or other 403 — primary quota is NOT exhausted
-            if let Some(secs) = retry_after_secs {
-                log::warn!(target: LOG_TARGET, "Secondary rate limit (HTTP {status_code}, Retry-After: {secs}s) for {url}");
-                // Secondary rate limit with Retry-After header — short wait
-                return HostingApiResult::RateLimited(RateLimitInfo {
-                    remaining: 0,
-                    reset_at: Utc::now() + chrono::Duration::seconds(secs.cast_signed()),
-                });
-            }
-
-            // 403 with remaining > 0 and no Retry-After — not a rate limit
-            // (e.g., repo is private, DMCA takedown, insufficient permissions)
-            log::warn!(target: LOG_TARGET, "HTTP {status_code} (not rate-limited, remaining: {}) for {url}", rate_limit.map_or(0, |rl| rl.remaining));
-            let error = resp.error_for_status().expect_err("status is not successful at this point");
-            return HostingApiResult::Failed(error.into(), rate_limit);
-        }
-
-        // Check for not found (404)
-        if status_code == 404 {
-            log::debug!(target: LOG_TARGET, "HTTP 404 for {url}");
-            return HostingApiResult::NotFound(rate_limit);
-        }
-
-        // Any other HTTP error is a permanent failure
-        log::warn!(target: LOG_TARGET, "HTTP {status_code} for {url}");
-        let error = resp.error_for_status().expect_err("status is not successful at this point");
-        HostingApiResult::Failed(error.into(), rate_limit)
+        classify_response(resp, rate_limit, url)
     }
+}
+
+/// Classify an HTTP response into a [`HostingApiResult`].
+fn classify_response(
+    resp: reqwest::Response,
+    rate_limit: Option<RateLimitInfo>,
+    url: &str,
+) -> HostingApiResult<reqwest::Response> {
+    let status = resp.status();
+    log::debug!(target: LOG_TARGET, "HTTP {status} for {url}");
+
+    if status.is_success() {
+        return HostingApiResult::Success(resp, rate_limit);
+    }
+
+    let status_code = status.as_u16();
+    if matches!(status_code, 403 | 429) {
+        // Extract Retry-After header (used by GitHub for secondary/abuse rate limits)
+        let retry_after_secs = resp
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|s| s.parse::<u64>().ok());
+
+        // Secondary rate limit: Retry-After header present — honor the requested delay
+        if let Some(secs) = retry_after_secs {
+            log::warn!(target: LOG_TARGET, "Secondary rate limit (HTTP {status_code}, Retry-After: {secs}s) for {url}");
+            return HostingApiResult::RateLimited(RateLimitInfo {
+                remaining: 0,
+                reset_at: Utc::now() + chrono::Duration::seconds(secs.cast_signed()),
+            });
+        }
+
+        // Primary rate limit: exhausted (remaining == 0 or no rate limit headers)
+        let is_primary_rate_limit = rate_limit.as_ref().is_none_or(|rl| rl.remaining == 0);
+        if is_primary_rate_limit {
+            log::warn!(target: LOG_TARGET, "Primary rate limit exhausted (HTTP {status_code}) for {url}");
+            let rate_limit = rate_limit.unwrap_or_else(|| RateLimitInfo {
+                remaining: 0,
+                reset_at: Utc::now() + chrono::Duration::hours(1),
+            });
+            return HostingApiResult::RateLimited(rate_limit);
+        }
+
+        // 429 is always a rate limit signal, even with remaining > 0 and no Retry-After
+        if status_code == 429 {
+            log::warn!(target: LOG_TARGET, "Rate limited (HTTP 429, remaining: {}) for {url}", rate_limit.map_or(0, |rl| rl.remaining));
+            return HostingApiResult::RateLimited(rate_limit.unwrap_or_else(|| RateLimitInfo {
+                remaining: 0,
+                reset_at: Utc::now() + chrono::Duration::minutes(1),
+            }));
+        }
+
+        // 403 with remaining > 0 and no Retry-After — not a rate limit
+        // (e.g., repo is private, DMCA takedown, insufficient permissions)
+        log::warn!(target: LOG_TARGET, "HTTP 403 (not rate-limited, remaining: {}) for {url}", rate_limit.map_or(0, |rl| rl.remaining));
+        let error = resp.error_for_status().expect_err("status is not successful at this point");
+        return HostingApiResult::Failed(error.into(), rate_limit);
+    }
+
+    // Check for not found (404)
+    if status_code == 404 {
+        log::debug!(target: LOG_TARGET, "HTTP 404 for {url}");
+        return HostingApiResult::NotFound(rate_limit);
+    }
+
+    // Any other HTTP error is a permanent failure
+    log::warn!(target: LOG_TARGET, "HTTP {status_code} for {url}");
+    let error = resp.error_for_status().expect_err("status is not successful at this point");
+    HostingApiResult::Failed(error.into(), rate_limit)
 }
 
 /// Extract rate limit information from API response headers
@@ -384,5 +395,223 @@ mod tests {
 
         assert_eq!(info.remaining, 100);
         assert_eq!(info.reset_at.timestamp(), 1_704_067_200);
+    }
+
+    // -- classify_response tests using wiremock --
+
+    use wiremock::matchers::method;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    /// Helper: start a wiremock server, mount a response, GET it with a plain reqwest client,
+    /// then run `classify_response` on the result.
+    async fn classify(template: ResponseTemplate) -> HostingApiResult<reqwest::Response> {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(template)
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::new();
+        let url = server.uri();
+        let resp = client.get(&url).send().await.unwrap();
+        let rate_limit = extract_rate_limit_from_headers(resp.headers());
+        classify_response(resp, rate_limit, &url)
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_success_200() {
+        let result = classify(ResponseTemplate::new(200)).await;
+        assert!(matches!(result, HostingApiResult::Success(..)));
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_success_with_rate_limit_headers() {
+        let result = classify(
+            ResponseTemplate::new(200)
+                .insert_header("x-ratelimit-remaining", "4999")
+                .insert_header("x-ratelimit-reset", "1704067200"),
+        )
+        .await;
+        match result {
+            HostingApiResult::Success(_, Some(rl)) => {
+                assert_eq!(rl.remaining, 4999);
+            }
+            _ => panic!("expected Success with rate limit"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_not_found_404() {
+        let result = classify(ResponseTemplate::new(404)).await;
+        assert!(matches!(result, HostingApiResult::NotFound(..)));
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_other_error_500() {
+        let result = classify(ResponseTemplate::new(500)).await;
+        assert!(matches!(result, HostingApiResult::Failed(..)));
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_403_primary_rate_limit_remaining_zero() {
+        let result = classify(
+            ResponseTemplate::new(403)
+                .insert_header("x-ratelimit-remaining", "0")
+                .insert_header("x-ratelimit-reset", "1704067200"),
+        )
+        .await;
+        match result {
+            HostingApiResult::RateLimited(rl) => {
+                assert_eq!(rl.remaining, 0);
+                assert_eq!(rl.reset_at.timestamp(), 1_704_067_200);
+            }
+            _ => panic!("expected RateLimited"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_403_secondary_rate_limit_with_retry_after() {
+        let before = Utc::now();
+        let result = classify(
+            ResponseTemplate::new(403)
+                .insert_header("x-ratelimit-remaining", "100")
+                .insert_header("x-ratelimit-reset", "1704067200")
+                .insert_header("retry-after", "60"),
+        )
+        .await;
+        match result {
+            HostingApiResult::RateLimited(rl) => {
+                assert_eq!(rl.remaining, 0);
+                // reset_at should be ~60s from now
+                let diff = (rl.reset_at - before).num_seconds();
+                assert!((55..=65).contains(&diff), "expected ~60s, got {diff}s");
+            }
+            _ => panic!("expected RateLimited"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_403_no_rate_limit_headers_with_retry_after() {
+        // Regression: Retry-After must be honored even when x-ratelimit-* headers are absent
+        let before = Utc::now();
+        let result = classify(ResponseTemplate::new(403).insert_header("retry-after", "30")).await;
+        match result {
+            HostingApiResult::RateLimited(rl) => {
+                assert_eq!(rl.remaining, 0);
+                let diff = (rl.reset_at - before).num_seconds();
+                assert!((25..=35).contains(&diff), "expected ~30s, got {diff}s");
+            }
+            _ => panic!("expected RateLimited"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_403_permission_error() {
+        // 403 with remaining > 0 and no Retry-After → not a rate limit
+        let result = classify(
+            ResponseTemplate::new(403)
+                .insert_header("x-ratelimit-remaining", "100")
+                .insert_header("x-ratelimit-reset", "1704067200"),
+        )
+        .await;
+        match result {
+            HostingApiResult::Failed(_, rl) => {
+                assert!(rl.is_some());
+                assert_eq!(rl.unwrap().remaining, 100);
+            }
+            _ => panic!("expected Failed"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_403_no_headers_no_retry_after() {
+        // 403 with no rate limit headers and no Retry-After → primary rate limit (default 1h)
+        let before = Utc::now();
+        let result = classify(ResponseTemplate::new(403)).await;
+        match result {
+            HostingApiResult::RateLimited(rl) => {
+                assert_eq!(rl.remaining, 0);
+                let diff = (rl.reset_at - before).num_seconds();
+                assert!((3595..=3605).contains(&diff), "expected ~3600s, got {diff}s");
+            }
+            _ => panic!("expected RateLimited"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_429_with_retry_after() {
+        let before = Utc::now();
+        let result = classify(ResponseTemplate::new(429).insert_header("retry-after", "10")).await;
+        match result {
+            HostingApiResult::RateLimited(rl) => {
+                assert_eq!(rl.remaining, 0);
+                let diff = (rl.reset_at - before).num_seconds();
+                assert!((5..=15).contains(&diff), "expected ~10s, got {diff}s");
+            }
+            _ => panic!("expected RateLimited"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_429_primary_rate_limit_remaining_zero() {
+        let result = classify(
+            ResponseTemplate::new(429)
+                .insert_header("x-ratelimit-remaining", "0")
+                .insert_header("x-ratelimit-reset", "1704067200"),
+        )
+        .await;
+        match result {
+            HostingApiResult::RateLimited(rl) => {
+                assert_eq!(rl.remaining, 0);
+                assert_eq!(rl.reset_at.timestamp(), 1_704_067_200);
+            }
+            _ => panic!("expected RateLimited"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_429_remaining_positive_no_retry_after() {
+        // Regression: 429 with remaining > 0 must still be RateLimited, not Failed
+        let result = classify(
+            ResponseTemplate::new(429)
+                .insert_header("x-ratelimit-remaining", "50")
+                .insert_header("x-ratelimit-reset", "1704067200"),
+        )
+        .await;
+        match result {
+            HostingApiResult::RateLimited(rl) => {
+                assert_eq!(rl.remaining, 50);
+                assert_eq!(rl.reset_at.timestamp(), 1_704_067_200);
+            }
+            _ => panic!("expected RateLimited"),
+        }
+    }
+
+    #[tokio::test]
+    #[cfg_attr(miri, ignore = "Miri cannot call CreateIoCompletionPort")]
+    async fn classify_429_no_headers() {
+        // 429 with no rate limit headers at all → still RateLimited with default
+        let before = Utc::now();
+        let result = classify(ResponseTemplate::new(429)).await;
+        match result {
+            HostingApiResult::RateLimited(rl) => {
+                assert_eq!(rl.remaining, 0);
+                let diff = (rl.reset_at - before).num_seconds();
+                assert!((3595..=3605).contains(&diff), "expected ~3600s, got {diff}s");
+            }
+            _ => panic!("expected RateLimited"),
+        }
     }
 }
