@@ -69,7 +69,6 @@ pub enum HostingApiResult<T> {
 
 /// Hosting API client (GitHub, Codeberg, etc.)
 #[derive(Debug, Clone)]
-#[expect(clippy::struct_field_names, reason = "client field stores the underlying HTTP client")]
 pub struct Client {
     client: reqwest::Client,
     base_url: String,
