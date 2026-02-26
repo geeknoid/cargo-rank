@@ -1,5 +1,11 @@
 # cargo-aprz
 
+## 0.11.0 - 2026-02-24
+
+### Fixed
+
+- More work on the rate limits. Getting better...
+
 ## 0.10.0 - 2026-02-23
 
 ### Fixed
