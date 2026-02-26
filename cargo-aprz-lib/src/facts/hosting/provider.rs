@@ -154,7 +154,6 @@ impl Provider {
         codeberg_token: Option<&str>,
         cache: Cache,
     ) -> Result<Self> {
-        let now = Utc::now();
         let mut hosts = Vec::with_capacity(SUPPORTED_HOSTS.len());
 
         for host in SUPPORTED_HOSTS {
@@ -165,7 +164,7 @@ impl Provider {
                 _ => None,
             };
 
-            let client = Client::new(token, host.base_url, now)?;
+            let client = Client::new(token, host.base_url)?;
             hosts.push((*host, client));
         }
 
@@ -277,17 +276,16 @@ impl Provider {
             let _permit = self.throttler.acquire().await;
             let result = self.fetch_hosting_data_for_repo(client, host, repo_spec.clone()).await;
 
-            if let Some(rl) = &result.rate_limit {
-                log::debug!(
-                    target: LOG_TARGET,
-                    "{} API rate limit for '{repo_spec}': {} remaining, resets at {}",
-                    host.display_name,
-                    rl.remaining,
-                    rl.reset_at.with_timezone(&chrono::Local).format("%T")
-                );
-            }
-
             if result.is_rate_limited {
+                if let Some(rl) = &result.rate_limit {
+                    log::debug!(
+                        target: LOG_TARGET,
+                        "{} API rate limit for '{repo_spec}': {} remaining, resets at {}",
+                        host.display_name,
+                        rl.remaining,
+                        rl.reset_at.with_timezone(&chrono::Local).format("%T")
+                    );
+                }
                 if let Some(rate_limit) = result.rate_limit {
                     let now = Utc::now();
                     let reset_time = rate_limit.reset_at;
@@ -379,12 +377,14 @@ impl Provider {
         // Check for rate limiting or permanent failures in each result
         let (repo_data, repo_rate_limit) = unwrap_repo_result!(repo_res, repo_spec, "core info", self.cache, &filename);
 
-        // Bail if another task paused the throttler while we were fetching repo info
+        // Bail if another task paused the throttler while we were fetching repo info.
+        // Use rate_limit: None so fetch_with_retry doesn't extend the pause with
+        // primary rate limit info from the successful repo request.
         if self.throttler.is_paused() {
             return RepoData {
                 repo_spec,
                 result: ProviderResult::Error(Arc::new(ohno::app_err!("rate limited"))),
-                rate_limit: repo_rate_limit,
+                rate_limit: None,
                 is_rate_limited: true,
             };
         }
@@ -507,12 +507,15 @@ impl Provider {
                 break;
             }
 
-            // Stop paginating if another task detected a rate limit
+            // Stop paginating if another task detected a rate limit.
+            // Use a minimal RateLimitInfo with reset_at=now so fetch_with_retry
+            // doesn't extend the existing (short) pause with primary rate limit info
+            // from successful pagination pages.
             if self.throttler.is_paused() {
-                return HostingApiResult::RateLimited(latest_rate_limit.unwrap_or_else(|| RateLimitInfo {
+                return HostingApiResult::RateLimited(RateLimitInfo {
                     remaining: 0,
-                    reset_at: Utc::now() + chrono::Duration::hours(1),
-                }));
+                    reset_at: Utc::now(),
+                });
             }
 
             page_num += 1;
@@ -812,7 +815,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetSystemTimePreciseAsFileTime")]
     fn test_repo_url() {
-        let client = Client::new(None, "https://api.github.com", Utc::now()).unwrap();
+        let client = Client::new(None, "https://api.github.com").unwrap();
 
         let url = Provider::repo_url(&client, "tokio-rs", "tokio", "");
         assert_eq!(url, "https://api.github.com/repos/tokio-rs/tokio");

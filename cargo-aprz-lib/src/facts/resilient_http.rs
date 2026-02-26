@@ -23,6 +23,14 @@ const MAX_RETRY_ATTEMPTS: u32 = 3;
 /// Base delay for exponential backoff between retries.
 const RETRY_BASE_DELAY: Duration = Duration::from_secs(1);
 
+/// Parse the `Retry-After` header value as seconds.
+fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+    let s = headers
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|h| h.to_str().ok())?;
+    s.parse::<u64>().ok()
+}
+
 /// Classify an HTTP response for retry purposes.
 fn should_retry_response(result: &crate::Result<reqwest::Response>) -> RecoveryInfo {
     match result {
@@ -32,9 +40,17 @@ fn should_retry_response(result: &crate::Result<reqwest::Response>) -> RecoveryI
         // Server errors (5xx) are transient.
         Ok(resp) if resp.status().is_server_error() => RecoveryInfo::retry(),
 
-        // Rate-limited (429) – back off a bit and retry.
+        // Rate-limited (429) – honor Retry-After if present, otherwise default to 5s.
         Ok(resp) if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS => {
-            RecoveryInfo::retry().delay(Duration::from_secs(5))
+            let delay = parse_retry_after(resp.headers()).unwrap_or(5);
+            RecoveryInfo::retry().delay(Duration::from_secs(delay))
+        }
+
+        // Secondary rate limit (403 with Retry-After) – wait the requested duration and retry.
+        Ok(resp) if resp.status() == reqwest::StatusCode::FORBIDDEN => {
+            parse_retry_after(resp.headers()).map_or_else(RecoveryInfo::never, |delay| {
+                RecoveryInfo::retry().delay(Duration::from_secs(delay))
+            })
         }
 
         // Everything else (success, 4xx client errors) is not retried.

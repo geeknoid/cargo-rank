@@ -107,7 +107,7 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
     )?;
     writeln!(
         writer,
-        "    td {{ border-bottom: 1px solid var(--border-color); padding: 14px 16px; text-align: left; font-size: 14px; }}"
+        "    td {{ border-bottom: 1px solid var(--border-color); padding: 14px 16px; text-align: left; font-size: 14px; vertical-align: top; }}"
     )?;
     writeln!(
         writer,
@@ -273,8 +273,16 @@ pub fn generate<W: Write>(crates: &[ReportableCrate], timestamp: DateTime<Local>
     // Add appraisal results if any crate has some
     let has_appraisals = crates.iter().any(|c| c.appraisal.is_some());
     if has_appraisals {
+        // Crate name + version row so users can identify which column is which
         writeln!(writer, "          <tr class=\"metric-row\">")?;
-        writeln!(writer, "            <td><strong>Appraisals</strong></td>")?;
+        writeln!(writer, "            <td><strong>Crate</strong></td>")?;
+        for crate_info in crates {
+            writeln!(writer, "            <td><strong>{} {}</strong></td>", html_escape(&crate_info.name), html_escape(&crate_info.version.to_string()))?;
+        }
+        writeln!(writer, "          </tr>")?;
+
+        writeln!(writer, "          <tr class=\"metric-row\">")?;
+        writeln!(writer, "            <td><strong>Appraisal</strong></td>")?;
         for crate_info in crates {
             write!(writer, "            <td>")?;
             if let Some(eval) = &crate_info.appraisal {
