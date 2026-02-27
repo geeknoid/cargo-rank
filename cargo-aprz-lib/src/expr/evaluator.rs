@@ -45,7 +45,10 @@ pub fn evaluate(
                 high_risk_triggered = true;
                 ExpressionDisposition::False
             }
-            Err(e) => ExpressionDisposition::Failed(e),
+            Err(e) => {
+                high_risk_triggered = true;
+                ExpressionDisposition::Failed(e)
+            }
         };
         high_risk_outcomes.push(ExpressionOutcome::new(
             expr.name_arc(),
