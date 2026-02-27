@@ -781,4 +781,389 @@ mod tests {
         assert!(output.contains("&amp;"));
         assert!(output.contains("&lt;"));
     }
+
+    #[test]
+    fn test_format_categories() {
+        let mut output = String::new();
+        format_keywords_or_categories("web, cli", "categories", &mut output).unwrap();
+        assert!(output.contains("https://crates.io/categories/"));
+        assert!(output.contains("#web"));
+        assert!(output.contains("#cli"));
+    }
+
+    // --- crate_anchor_id tests ---
+
+    #[test]
+    fn test_crate_anchor_id_simple() {
+        assert_eq!(crate_anchor_id("tokio", "1.35.0"), "crate-tokio-1.35.0");
+    }
+
+    #[test]
+    fn test_crate_anchor_id_with_hyphens() {
+        assert_eq!(crate_anchor_id("my-crate", "0.1.0"), "crate-my-crate-0.1.0");
+    }
+
+    #[test]
+    fn test_crate_anchor_id_special_chars_in_name() {
+        // Underscores and other non-alphanumeric/non-hyphen chars become hyphens
+        assert_eq!(crate_anchor_id("my_crate", "1.0.0"), "crate-my-crate-1.0.0");
+    }
+
+    #[test]
+    fn test_crate_anchor_id_special_chars_in_version() {
+        // Non-alphanumeric/non-dot chars in version become hyphens
+        assert_eq!(crate_anchor_id("crate", "1.0.0-beta"), "crate-crate-1.0.0-beta");
+    }
+
+    // --- generate with all risk levels ---
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_with_all_risk_levels() {
+        use crate::expr::ExpressionOutcome;
+
+        let crates = vec![
+            create_test_crate(
+                "low_crate",
+                "1.0.0",
+                Some(Appraisal::new(
+                    Risk::Low,
+                    vec![ExpressionOutcome::new("check".into(), "All good".into(), ExpressionDisposition::True)],
+                    1, 1, 100.0,
+                )),
+            ),
+            create_test_crate(
+                "medium_crate",
+                "2.0.0",
+                Some(Appraisal::new(
+                    Risk::Medium,
+                    vec![ExpressionOutcome::new("check".into(), "Partial".into(), ExpressionDisposition::False)],
+                    2, 1, 50.0,
+                )),
+            ),
+            create_test_crate(
+                "high_crate",
+                "3.0.0",
+                Some(Appraisal::new(
+                    Risk::High,
+                    vec![ExpressionOutcome::new("check".into(), "Failed".into(), ExpressionDisposition::False)],
+                    1, 0, 0.0,
+                )),
+            ),
+            create_test_crate("unevaluated_crate", "0.1.0", None),
+        ];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        // Summary section should be present
+        assert!(output.contains("class=\"summary\""));
+        assert!(output.contains("Low Risk"));
+        assert!(output.contains("Medium Risk"));
+        assert!(output.contains("High Risk"));
+        assert!(output.contains("Not Evaluated"));
+
+        // Filter bar should be present
+        assert!(output.contains("data-filter="));
+        assert!(output.contains("filterByRisk"));
+
+        // Risk lists
+        assert!(output.contains("high_crate"));
+        assert!(output.contains("medium_crate"));
+
+        // Card headers with risk classes
+        assert!(output.contains("risk-low"));
+        assert!(output.contains("risk-medium"));
+        assert!(output.contains("risk-high"));
+
+        // Risk badges
+        assert!(output.contains("LOW RISK"));
+        assert!(output.contains("MEDIUM RISK"));
+        assert!(output.contains("HIGH RISK"));
+        assert!(output.contains("Not Evaluated"));
+
+        // Score text
+        assert!(output.contains("score 100"));
+        assert!(output.contains("score 50"));
+        assert!(output.contains("score 0"));
+
+        // Version prefix
+        assert!(output.contains("v1.0.0"));
+        assert!(output.contains("v2.0.0"));
+        assert!(output.contains("v3.0.0"));
+    }
+
+    // --- appraisal table disposition variants ---
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_with_failed_disposition() {
+        use crate::expr::ExpressionOutcome;
+
+        let crates = vec![create_test_crate(
+            "err_crate",
+            "1.0.0",
+            Some(Appraisal::new(
+                Risk::Low,
+                vec![ExpressionOutcome::new(
+                    "broken_check".into(),
+                    "desc".into(),
+                    ExpressionDisposition::Failed("variable not found".into()),
+                )],
+                0, 0, 100.0,
+            )),
+        )];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        assert!(output.contains("INCONCLUSIVE"));
+        assert!(output.contains("variable not found"));
+        assert!(output.contains("broken_check"));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_appraisal_passed_and_failed() {
+        use crate::expr::ExpressionOutcome;
+
+        let crates = vec![create_test_crate(
+            "mixed_crate",
+            "1.0.0",
+            Some(Appraisal::new(
+                Risk::Medium,
+                vec![
+                    ExpressionOutcome::new("ok_check".into(), "Passed check".into(), ExpressionDisposition::True),
+                    ExpressionOutcome::new("bad_check".into(), "Failed check".into(), ExpressionDisposition::False),
+                ],
+                2, 1, 50.0,
+            )),
+        )];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        assert!(output.contains("PASSED"));
+        assert!(output.contains("FAILED"));
+        assert!(output.contains("ok_check"));
+        assert!(output.contains("bad_check"));
+    }
+
+    // --- crate with empty expression outcomes (appraisal but no appraisal tab) ---
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_appraisal_no_outcomes() {
+        let crates = vec![create_test_crate(
+            "empty_eval",
+            "1.0.0",
+            Some(Appraisal::new(Risk::Low, vec![], 0, 0, 100.0)),
+        )];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        // Should still have the card header with risk badge
+        assert!(output.contains("LOW RISK"));
+        // Should not have the appraisal tab button, but should have metric tabs
+        assert!(!output.contains("data-tab=\"card-0-appraisal\""));
+        // The first metric tab should be active
+        assert!(output.contains("tab-btn active"));
+    }
+
+    // --- metrics rendering: URL, n/a, categories ---
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_with_url_metric() {
+        static URL_DEF: MetricDef = MetricDef {
+            name: "crate.repository",
+            description: "Repository URL",
+            category: MetricCategory::Metadata,
+            extractor: |_| None,
+            default_value: || None,
+        };
+
+        let metrics = vec![
+            Metric::with_value(&NAME_DEF, MetricValue::String("url_crate".into())),
+            Metric::with_value(&VERSION_DEF, MetricValue::String("1.0.0".into())),
+            Metric::with_value(&URL_DEF, MetricValue::String("https://github.com/example/repo".into())),
+        ];
+        let crates = vec![ReportableCrate::new(
+            "url_crate".into(),
+            Arc::new("1.0.0".parse().unwrap()),
+            metrics,
+            None,
+        )];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        assert!(output.contains("href=\"https://github.com/example/repo\""));
+        assert!(output.contains("target=\"_blank\""));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_with_na_metric() {
+        static OPT_DEF: MetricDef = MetricDef {
+            name: "crate.optional",
+            description: "Optional metric",
+            category: MetricCategory::Metadata,
+            extractor: |_| None,
+            default_value: || None,
+        };
+
+        let metrics = vec![
+            Metric::with_value(&NAME_DEF, MetricValue::String("na_crate".into())),
+            Metric::with_value(&VERSION_DEF, MetricValue::String("1.0.0".into())),
+            Metric::new(&OPT_DEF),
+        ];
+        let crates = vec![ReportableCrate::new(
+            "na_crate".into(),
+            Arc::new("1.0.0".parse().unwrap()),
+            metrics,
+            None,
+        )];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        assert!(output.contains("<span class=\"na\">n/a</span>"));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_with_categories_metric() {
+        static CAT_DEF: MetricDef = MetricDef {
+            name: "crate.categories",
+            description: "Crate categories",
+            category: MetricCategory::Metadata,
+            extractor: |_| None,
+            default_value: || None,
+        };
+
+        let metrics = vec![
+            Metric::with_value(&NAME_DEF, MetricValue::String("cat_crate".into())),
+            Metric::with_value(&VERSION_DEF, MetricValue::String("1.0.0".into())),
+            Metric::with_value(
+                &CAT_DEF,
+                MetricValue::List(vec![MetricValue::String("web".into()), MetricValue::String("async".into())]),
+            ),
+        ];
+        let crates = vec![ReportableCrate::new(
+            "cat_crate".into(),
+            Arc::new("1.0.0".parse().unwrap()),
+            metrics,
+            None,
+        )];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        assert!(output.contains("https://crates.io/categories/"));
+        assert!(output.contains("#web"));
+    }
+
+    // --- generate without appraisals (no filter bar, no summary) ---
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_no_appraisals_no_filter_bar() {
+        let crates = vec![
+            create_test_crate("crate_a", "1.0.0", None),
+            create_test_crate("crate_b", "2.0.0", None),
+        ];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        // No summary or filter bar when no appraisals
+        assert!(!output.contains("class=\"summary\""));
+        assert!(!output.contains("data-filter="));
+        // filterByRisk function should not be present
+        assert!(!output.contains("filterByRisk"));
+    }
+
+    // --- anchor navigation ---
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_anchor_links_in_summary() {
+        use crate::expr::ExpressionOutcome;
+
+        let crates = vec![create_test_crate(
+            "risky_crate",
+            "0.5.0",
+            Some(Appraisal::new(
+                Risk::High,
+                vec![ExpressionOutcome::new("check".into(), "desc".into(), ExpressionDisposition::False)],
+                1, 0, 0.0,
+            )),
+        )];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        // Summary should link to crate card anchor
+        assert!(output.contains("href=\"#crate-risky-crate-0.5.0\""));
+        // Card should have matching id
+        assert!(output.contains("id=\"crate-risky-crate-0.5.0\""));
+    }
+
+    // --- special characters in crate name ---
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_html_escapes_crate_name() {
+        let crates = vec![create_test_crate("crate<xss>", "1.0.0", None)];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        // Name should be escaped
+        assert!(output.contains("crate&lt;xss&gt;"));
+        assert!(!output.contains("crate<xss>"));
+    }
+
+    // --- switchTab script ---
+
+    #[test]
+    #[cfg_attr(miri, ignore = "Miri cannot call GetTimeZoneInformationForYear")]
+    fn test_generate_contains_tab_switching_script() {
+        use crate::expr::ExpressionOutcome;
+
+        let crates = vec![create_test_crate(
+            "tabbed",
+            "1.0.0",
+            Some(Appraisal::new(
+                Risk::Low,
+                vec![ExpressionOutcome::new("c".into(), "d".into(), ExpressionDisposition::True)],
+                1, 1, 100.0,
+            )),
+        )];
+        let mut output = String::new();
+        generate(&crates, test_timestamp(), &mut output).unwrap();
+
+        assert!(output.contains("switchTab"));
+        assert!(output.contains("tab-btn"));
+        assert!(output.contains("tab-panel"));
+    }
+
+    // --- write_risk_crate_list ---
+
+    #[test]
+    fn test_write_risk_crate_list_renders_entries() {
+        let entries = vec![("tokio", "1.35.0".to_string()), ("serde", "1.0.195".to_string())];
+        let mut output = String::new();
+        write_risk_crate_list(&mut output, "high", "High Risk Crates", &entries).unwrap();
+
+        assert!(output.contains("High Risk Crates"));
+        assert!(output.contains("tokio"));
+        assert!(output.contains("v1.35.0"));
+        assert!(output.contains("serde"));
+        assert!(output.contains("v1.0.195"));
+        assert!(output.contains("href=\"#crate-tokio-1.35.0\""));
+        assert!(output.contains("href=\"#crate-serde-1.0.195\""));
+    }
+
+    #[test]
+    fn test_write_risk_crate_list_empty() {
+        let entries: Vec<(&str, String)> = vec![];
+        let mut output = String::new();
+        write_risk_crate_list(&mut output, "medium", "Medium Risk Crates", &entries).unwrap();
+
+        assert!(output.contains("Medium Risk Crates"));
+        assert!(output.contains("crate-names"));
+    }
 }

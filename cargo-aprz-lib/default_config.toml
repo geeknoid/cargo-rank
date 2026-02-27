@@ -364,10 +364,10 @@ description = "The crate has fewer than 10 unsafe blocks, limiting exposure to m
 expression = "trust.unsafe_blocks < 10"
 points = 2
 
-# --- Security: Non-Critical Vulnerabilities (8 points) ---
+# --- Security: Non-Critical Vulnerabilities (11 points) ---
 # Critical and high severity are handled by the [[high_risk]] checks above. Here
 # we penalize medium and low severity vulnerabilities proportionally. Medium vulns
-# are weighted higher (5pts) because they represent real exploitability risk;
+# are weighted higher (8pts) because they represent real exploitability risk;
 # low vulns (3pts) are often informational but still worth tracking.
 
 [[eval]]
