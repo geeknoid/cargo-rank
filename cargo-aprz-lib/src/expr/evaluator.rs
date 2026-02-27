@@ -14,7 +14,7 @@ use std::sync::Arc;
 /// # Evaluation order:
 ///
 /// 1. First, evaluate ALL `high_risk` expressions, collecting outcomes
-/// 2. If ANY high-risk expression is false, return HIGH RISK with all outcomes
+/// 2. If ANY high-risk expression is false or fails to evaluate, return HIGH RISK with all outcomes
 /// 3. If no high-risk expressions or all are true, continue to eval expressions
 /// 4. Evaluate ALL `eval` expressions, summing granted vs possible points
 /// 5. Compute score = granted / possible * 100, compare against thresholds
