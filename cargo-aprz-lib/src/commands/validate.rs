@@ -50,9 +50,9 @@ fn validate_config_inner(config_path: &Utf8Path) -> Result<()> {
     let config = Config::load(config_path.parent().unwrap_or_else(|| Utf8Path::new(".")), Some(&config_path.to_path_buf()))?;
 
     // Validate that all expressions can be evaluated against default metrics (only if any are defined)
-    if !config.high_risk_if_any.is_empty() || !config.eval.is_empty() {
+    if !config.high_risk.is_empty() || !config.eval.is_empty() {
         let appraisal = evaluate(
-            &config.high_risk_if_any,
+            &config.high_risk,
             &config.eval,
             default_metrics(),
             Local::now(),
@@ -159,7 +159,7 @@ mod tests {
             &config_path,
             r#"
 # Missing closing bracket
-[[high_risk_if_any]
+[[high_risk]
 name = "test"
 expression = "true"
 "#,
@@ -191,7 +191,7 @@ expression = "true"
         std::fs::write(
             &config_path,
             r#"
-high_risk_if_any = []
+high_risk = []
 eval = []
 unknown_field = "value"
 "#,
@@ -223,7 +223,7 @@ unknown_field = "value"
         std::fs::write(
             &config_path,
             r#"
-[[high_risk_if_any]]
+[[high_risk]]
 name = "invalid_syntax"
 description = "Invalid CEL syntax"
 expression = "this is not a valid CEL expression !!!"
@@ -319,7 +319,7 @@ expression = "this_metric_does_not_exist > 100"
         std::fs::write(
             &config_path,
             r#"
-[[high_risk_if_any]]
+[[high_risk]]
 name = "type_mismatch"
 description = "Type mismatch in expression"
 expression = "crates.downloads + 'string'"

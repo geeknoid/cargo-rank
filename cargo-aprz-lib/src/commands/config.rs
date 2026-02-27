@@ -13,9 +13,9 @@ pub const DEFAULT_CONFIG_TOML: &str = include_str!("../../default_config.toml");
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    /// Expressions that if ANY evaluate to true, the crate is flagged as high risk
+    /// Expressions that must ALL evaluate to true for the crate to avoid being flagged as high risk
     #[serde(default)]
-    pub high_risk_if_any: Vec<Expression>,
+    pub high_risk: Vec<Expression>,
 
     /// Expressions that must ALL evaluate to true for the crate to be accepted
     #[serde(default)]

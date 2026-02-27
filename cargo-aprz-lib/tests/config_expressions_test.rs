@@ -5,12 +5,12 @@ use cargo_aprz_lib::commands::Config;
 #[test]
 fn test_load_config_with_expressions() {
     let toml = r#"
-[[high_risk_if_any]]
+[[high_risk]]
 name = "critical_vulnerabilities"
 description = "Flag crates with critical vulnerabilities as high risk"
 expression = "current_critical_severity_vulnerabilities > 0"
 
-[[high_risk_if_any]]
+[[high_risk]]
 name = "too_many_dependencies"
 expression = "transitive_dependencies > 200"
 
@@ -26,23 +26,23 @@ expression = "current_vulnerabilities == 0"
 
     let config: Config = toml::from_str(toml).expect("Could not parse config");
 
-    assert_eq!(config.high_risk_if_any.len(), 2);
+    assert_eq!(config.high_risk.len(), 2);
     assert_eq!(config.eval.len(), 2);
 
-    // Check high_risk_if_any
-    assert_eq!(config.high_risk_if_any[0].name(), "critical_vulnerabilities");
+    // Check high_risk
+    assert_eq!(config.high_risk[0].name(), "critical_vulnerabilities");
     assert_eq!(
-        config.high_risk_if_any[0].description(),
+        config.high_risk[0].description(),
         Some("Flag crates with critical vulnerabilities as high risk")
     );
     assert_eq!(
-        config.high_risk_if_any[0].expression(),
+        config.high_risk[0].expression(),
         "current_critical_severity_vulnerabilities > 0"
     );
 
-    assert_eq!(config.high_risk_if_any[1].name(), "too_many_dependencies");
-    assert_eq!(config.high_risk_if_any[1].description(), None);
-    assert_eq!(config.high_risk_if_any[1].expression(), "transitive_dependencies > 200");
+    assert_eq!(config.high_risk[1].name(), "too_many_dependencies");
+    assert_eq!(config.high_risk[1].description(), None);
+    assert_eq!(config.high_risk[1].expression(), "transitive_dependencies > 200");
 
     // Check eval
     assert_eq!(config.eval[0].name(), "good_coverage");
@@ -55,13 +55,13 @@ expression = "current_vulnerabilities == 0"
 #[test]
 fn test_config_with_empty_expressions() {
     let toml = "
-high_risk_if_any = []
+high_risk = []
 eval = []
 ";
 
     let config: Config = toml::from_str(toml).expect("Could not parse config");
 
-    assert_eq!(config.high_risk_if_any.len(), 0);
+    assert_eq!(config.high_risk.len(), 0);
     assert_eq!(config.eval.len(), 0);
 }
 
@@ -74,14 +74,14 @@ fn test_config_without_expressions() {
     let config: Config = toml::from_str(toml).expect("Could not parse config");
 
     // Should default to empty vectors
-    assert_eq!(config.high_risk_if_any.len(), 0);
+    assert_eq!(config.high_risk.len(), 0);
     assert_eq!(config.eval.len(), 0);
 }
 
 #[test]
 fn test_config_with_invalid_expression() {
     let toml = r#"
-[[high_risk_if_any]]
+[[high_risk]]
 name = "bad_expr"
 expression = "(unclosed parenthesis"
 "#;

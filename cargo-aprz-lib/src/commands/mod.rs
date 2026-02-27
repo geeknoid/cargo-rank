@@ -33,7 +33,7 @@
 //! multiple output formats.
 //!
 //! Configuration is managed through a TOML file with two expression lists
-//! (`high_risk_if_any`, `eval`) that define the evaluation policy.
+//! (`high_risk`, `eval`) that define the evaluation policy.
 
 mod common;
 mod config;

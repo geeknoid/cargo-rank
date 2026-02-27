@@ -189,7 +189,7 @@ instead of the default.
 `cargo-aprz` uses the [CEL expression language](https://github.com/google/cel-spec/blob/master/doc/langdef.md). This is a flexible, general-purpose expression
 language that allows you to write potentially complex boolean expressions that operate on the value of collected metrics. Expressions are divided into two buckets:
 
-- high_risk_if_any: If any of these expressions evaluate to `true`, the crate is flagged as high risk.
+- high_risk: All expressions must evaluate to `true`. If any evaluates to `false`, the crate is flagged as high risk.
 
 - eval: Each expression has a point value (default 1). All expressions are evaluated and a score is
   computed as `granted_points / total_points * 100`. The score is compared against configurable
@@ -199,13 +199,13 @@ language that allows you to write potentially complex boolean expressions that o
 These buckets are evaluated in order. If no expressions are defined, then all crates are considered low risk.
 
 Within these expressions, you can refer to any of the collected metrics. For example, you could write an expression that says
-"if the number of open issues is greater than 100, treat this crate as high risk":
+"the crate must have 100 or fewer open issues to avoid being flagged as high risk":
 
 ```toml
-[[high_risk_if_any]]
+[[high_risk]]
 name = "Open Issues"
-description = "Flags crates with too many open issues, which may indicate an unmaintained or low-quality crate."
-expression = "activity.open_issues > 100"   
+description = "Crate must not have too many open issues."
+expression = "activity.open_issues <= 100"   
 ```
 
 Any of the metric listed in [Collected Metrics](#collected-metrics) below can be used in these expressions, which gives you a lot of flexibility in

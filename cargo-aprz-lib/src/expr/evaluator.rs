@@ -13,9 +13,9 @@ use std::sync::Arc;
 ///
 /// # Evaluation order:
 ///
-/// 1. First, evaluate ALL `high_risk_if_any` expressions, collecting outcomes
-/// 2. If ANY high-risk expression is true, return HIGH RISK with all outcomes
-/// 3. If no high-risk expressions or none are true, continue to eval expressions
+/// 1. First, evaluate ALL `high_risk` expressions, collecting outcomes
+/// 2. If ANY high-risk expression is false, return HIGH RISK with all outcomes
+/// 3. If no high-risk expressions or all are true, continue to eval expressions
 /// 4. Evaluate ALL `eval` expressions, summing granted vs possible points
 /// 5. Compute score = granted / possible * 100, compare against thresholds
 /// 6. If no expressions defined, returns LOW RISK with score 100
@@ -25,7 +25,7 @@ use std::sync::Arc;
 ///
 /// Expressions without explicit points default to 1 point each.
 pub fn evaluate(
-    high_risk_if_any: &[Expression],
+    high_risk: &[Expression],
     eval: &[Expression],
     metrics: impl IntoIterator<Item: core::borrow::Borrow<Metric>>,
     now: DateTime<Local>,
@@ -36,15 +36,15 @@ pub fn evaluate(
 
     // Evaluate all high-risk expressions, capturing outcomes for each
     let mut high_risk_triggered = false;
-    let mut high_risk_outcomes = Vec::with_capacity(high_risk_if_any.len());
+    let mut high_risk_outcomes = Vec::with_capacity(high_risk.len());
 
-    for expr in high_risk_if_any {
+    for expr in high_risk {
         let disposition = match evaluate_expression(expr.program(), expr.name(), &context) {
-            Ok(true) => {
+            Ok(true) => ExpressionDisposition::True,
+            Ok(false) => {
                 high_risk_triggered = true;
-                ExpressionDisposition::True
+                ExpressionDisposition::False
             }
-            Ok(false) => ExpressionDisposition::False,
             Err(e) => ExpressionDisposition::Failed(e),
         };
         high_risk_outcomes.push(ExpressionOutcome::new(
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
-    fn test_high_risk_if_any_expression_evaluation_error() {
+    fn test_high_risk_expression_evaluation_error() {
         let expr = Expression::new("bad_expr", None, "undefined_var > 100", None).unwrap();
         let metrics = vec![];
         let appraisal = evaluate(&[expr], &[], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
@@ -445,11 +445,12 @@ mod tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
-    fn test_high_risk_if_any_true_no_description() {
+    fn test_high_risk_true_no_description() {
+        // Expression is true => crate passes this high-risk check => not high risk
         let expr = Expression::new("high_stars", None, "stars > 100", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[expr], &[], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
-        assert_eq!(outcome.risk, Risk::High);
+        assert_eq!(outcome.risk, Risk::Low);
         assert!(outcome.expression_outcomes[0].name.contains("high_stars"));
         assert!(matches!(outcome.expression_outcomes[0].disposition, ExpressionDisposition::True));
     }
@@ -468,11 +469,12 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_high_risk_false_with_empty_eval() {
+        // Expression is false => crate fails this high-risk check => high risk
         let high_risk_expr = Expression::new("d", None, "stars > 200", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
 
         let outcome = evaluate(&[high_risk_expr], &[], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
-        assert_eq!(outcome.risk, Risk::Low);
+        assert_eq!(outcome.risk, Risk::High);
         assert_eq!(outcome.expression_outcomes.len(), 1);
         assert!(matches!(outcome.expression_outcomes[0].disposition, ExpressionDisposition::False));
     }
@@ -648,7 +650,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_points_high_risk_triggered_returns_zero_points() {
-        let expr = Expression::new("hr", None, "stars > 100", None).unwrap();
+        // Expression is false => high risk triggered
+        let expr = Expression::new("hr", None, "stars > 200", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[expr], &[], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
         assert_eq!(outcome.risk, Risk::High);
@@ -660,7 +663,8 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_points_high_risk_triggered_skips_eval_expressions() {
-        let hr = Expression::new("hr", None, "stars > 100", None).unwrap();
+        // hr expression is false => high risk triggered, eval expressions skipped
+        let hr = Expression::new("hr", None, "stars > 200", None).unwrap();
         let ev = Expression::new("ev", None, "stars > 0", Some(5)).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[hr], &[ev], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
@@ -814,15 +818,15 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_points_high_risk_false_outcomes_appear_with_eval_outcomes() {
-        // When high-risk expressions are all false, their outcomes should be combined with eval outcomes
-        let hr = Expression::new("hr1", None, "stars > 200", None).unwrap();
+        // When high-risk expressions are all true (passed), their outcomes should be combined with eval outcomes
+        let hr = Expression::new("hr1", None, "stars > 100", None).unwrap();
         let ev = Expression::new("ev1", None, "stars > 100", Some(5)).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[hr], &[ev], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
         assert_eq!(outcome.risk, Risk::Low);
         assert_eq!(outcome.expression_outcomes.len(), 2);
         assert_eq!(&*outcome.expression_outcomes[0].name, "hr1");
-        assert!(matches!(outcome.expression_outcomes[0].disposition, ExpressionDisposition::False));
+        assert!(matches!(outcome.expression_outcomes[0].disposition, ExpressionDisposition::True));
         assert_eq!(&*outcome.expression_outcomes[1].name, "ev1");
         assert!(matches!(outcome.expression_outcomes[1].disposition, ExpressionDisposition::True));
         assert_eq!(outcome.available_points, 5);
@@ -832,9 +836,9 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_points_high_risk_only_no_eval_false_is_low_with_perfect_score() {
-        // High-risk expressions that are all false and no eval => Low risk, score 100
-        let hr1 = Expression::new("hr1", None, "stars > 200", None).unwrap();
-        let hr2 = Expression::new("hr2", None, "stars > 300", None).unwrap();
+        // High-risk expressions that are all true (passed) and no eval => Low risk, score 100
+        let hr1 = Expression::new("hr1", None, "stars > 100", None).unwrap();
+        let hr2 = Expression::new("hr2", None, "stars > 50", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];
         let outcome = evaluate(&[hr1, hr2], &[], &metrics, test_timestamp(), MEDIUM_THRESHOLD, LOW_THRESHOLD);
         assert_eq!(outcome.risk, Risk::Low);
@@ -847,7 +851,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_points_multiple_high_risk_one_triggers() {
-        // Multiple high-risk expressions, only one true — still High risk, all outcomes captured
+        // Multiple high-risk expressions, only one false — still High risk, all outcomes captured
         let hr1 = Expression::new("hr1", None, "stars > 200", None).unwrap();
         let hr2 = Expression::new("hr2", None, "stars > 100", None).unwrap();
         let metrics = vec![Metric::with_value(&STARS_DEF, MetricValue::UInt(150))];

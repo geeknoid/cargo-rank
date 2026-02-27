@@ -1,10 +1,9 @@
 ---
 source: cargo-aprz-lib/src/commands/validate.rs
-assertion_line: 189
 expression: snapshot_content
 ---
-TOML parse error at line 3, column 20
+TOML parse error at line 3, column 13
   |
-3 | [[high_risk_if_any]
-  |                    ^
+3 | [[high_risk]
+  |             ^
 unclosed array table, expected `]`

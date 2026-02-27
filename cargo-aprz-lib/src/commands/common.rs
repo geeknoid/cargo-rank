@@ -327,7 +327,7 @@ impl<'a, H: super::Host> Common<'a, H> {
 
         // Flatten crate facts into metrics and optionally evaluate, creating ReportableCrate instances
         let has_expressions =
-            !self.config.high_risk_if_any.is_empty() || !self.config.eval.is_empty();
+            !self.config.high_risk.is_empty() || !self.config.eval.is_empty();
         let should_eval = has_expressions || self.error_if_high_risk || self.error_if_medium_risk;
 
         let mut reportable_crates: Vec<ReportableCrate> = if should_eval {
@@ -336,7 +336,7 @@ impl<'a, H: super::Host> Common<'a, H> {
                 .map(|facts| {
                     let metrics: Vec<_> = flatten(&facts).collect();
                     let evaluation = evaluate(
-                        &self.config.high_risk_if_any,
+                        &self.config.high_risk,
                         &self.config.eval,
                         &metrics,
                         Local::now(),
