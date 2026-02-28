@@ -30,23 +30,23 @@ pub struct Config {
     pub low_risk_threshold: f64,
 
     /// Duration to keep crates.io cache data before re-downloading
-    #[serde(default = "default_crates_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
     pub crates_cache_ttl: Duration,
 
     /// Duration to keep hosting cache data before re-fetching
-    #[serde(default = "default_hosting_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
     pub hosting_cache_ttl: Duration,
 
     /// Duration to keep cached codebases before re-fetching
-    #[serde(default = "default_codebase_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
     pub codebase_cache_ttl: Duration,
 
     /// Duration to keep cached coverage data before re-fetching
-    #[serde(default = "default_coverage_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
     pub coverage_cache_ttl: Duration,
 
     /// Duration to keep the advisory database cached before re-downloading
-    #[serde(default = "default_advisories_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
     pub advisories_cache_ttl: Duration,
 }
 
@@ -58,23 +58,7 @@ const fn default_low_risk_threshold() -> f64 {
     70.0
 }
 
-const fn default_crates_cache_ttl() -> Duration {
-    Duration::from_hours(24 * 7)
-}
-
-const fn default_hosting_cache_ttl() -> Duration {
-    Duration::from_hours(24 * 7)
-}
-
-const fn default_codebase_cache_ttl() -> Duration {
-    Duration::from_hours(24 * 7)
-}
-
-const fn default_coverage_cache_ttl() -> Duration {
-    Duration::from_hours(24 * 7)
-}
-
-const fn default_advisories_cache_ttl() -> Duration {
+const fn default_cache_ttl() -> Duration {
     Duration::from_hours(24 * 7)
 }
 

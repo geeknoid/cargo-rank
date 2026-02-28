@@ -10,7 +10,7 @@ use crate::reports::ReportableCrate;
 use crate::reports::{ConsoleOutputMode, generate_console, generate_csv, generate_html, generate_json, generate_xlsx};
 use camino::Utf8PathBuf;
 use cargo_metadata::MetadataCommand;
-use chrono::{Local, Utc};
+use chrono::Local;
 use clap::Args;
 use clap::ValueEnum;
 use core::time::Duration;
@@ -258,7 +258,7 @@ impl<'a, H: super::Host> Common<'a, H> {
     }
 
     pub async fn process_crates(&self, crates: &[CrateRef], suggestions: bool) -> Result<Vec<CrateFacts>> {
-        let results = self.collector.collect(Utc::now(), crates, suggestions).await;
+        let results = self.collector.collect(crates, suggestions).await;
 
         match results {
             Ok(facts_iter) => Ok(facts_iter.collect()),

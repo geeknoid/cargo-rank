@@ -37,33 +37,7 @@ pub fn init_config<H: Host>(host: &mut H, args: &InitArgs) -> Result<()> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use std::io::Cursor;
-
-    struct TestHost {
-        output_buf: Vec<u8>,
-        error_buf: Vec<u8>,
-    }
-
-    impl TestHost {
-        fn new() -> Self {
-            Self {
-                output_buf: Vec::new(),
-                error_buf: Vec::new(),
-            }
-        }
-    }
-
-    impl Host for TestHost {
-        fn output(&mut self) -> impl Write {
-            Cursor::new(&mut self.output_buf)
-        }
-
-        fn error(&mut self) -> impl Write {
-            Cursor::new(&mut self.error_buf)
-        }
-
-        fn exit(&mut self, _code: i32) {}
-    }
+    use crate::commands::host::TestHost;
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetModuleFileNameW")]
