@@ -6,7 +6,7 @@ use super::progress::Progress;
 use super::request_tracker::RequestTracker;
 use super::{CrateRef, CratesData, ProviderResult};
 use crate::Result;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use core::time::Duration;
 use ohno::IntoAppError;
 use crate::{HashMap, HashSet};
@@ -91,7 +91,6 @@ impl Collector {
     /// Collect facts for multiple crates
     pub async fn collect(
         &self,
-        _now: DateTime<Utc>,
         crate_refs: &[CrateRef],
         suggestions: bool,
     ) -> Result<impl Iterator<Item = CrateFacts>> {

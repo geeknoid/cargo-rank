@@ -76,36 +76,7 @@ fn validate_config_inner(config_path: &Utf8Path) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::init::{InitArgs, init_config};
-    use std::io::Cursor;
-
-    /// Test host that captures output to in-memory buffers
-    struct TestHost {
-        output_buf: Vec<u8>,
-        error_buf: Vec<u8>,
-    }
-
-    impl TestHost {
-        fn new() -> Self {
-            Self {
-                output_buf: Vec::new(),
-                error_buf: Vec::new(),
-            }
-        }
-    }
-
-    impl Host for TestHost {
-        fn output(&mut self) -> impl Write {
-            Cursor::new(&mut self.output_buf)
-        }
-
-        fn error(&mut self) -> impl Write {
-            Cursor::new(&mut self.error_buf)
-        }
-
-        fn exit(&mut self, _code: i32) {
-            // In tests, don't actually exit
-        }
-    }
+    use crate::commands::host::TestHost;
 
     #[test]
     #[cfg_attr(miri, ignore = "Miri cannot call GetTempPathW")]

@@ -139,42 +139,27 @@ async fn process_packages<'a, H: Host>(
     resolve_index: &HashMap<&'a PackageId, &'a Node>,
     target_packages: impl Iterator<Item = &'a Package>,
 ) -> Result<()> {
-    let should_process_std = args
-        .dependency_types
-        .as_ref()
-        .is_none_or(|d| d.is_empty() || d.contains(&DependencyType::Standard));
-    let should_process_dev = args
-        .dependency_types
-        .as_ref()
-        .is_none_or(|d| d.is_empty() || d.contains(&DependencyType::Dev));
-    let should_process_build = args
-        .dependency_types
-        .as_ref()
-        .is_none_or(|d| d.is_empty() || d.contains(&DependencyType::Build));
+    let should_process = |dep_type: &DependencyType| {
+        args.dependency_types
+            .as_ref()
+            .is_none_or(|d| d.is_empty() || d.contains(dep_type))
+    };
 
     // Collect all (CrateId, dependency_type) pairs, preserving duplicates
     let mut crate_dep_pairs: Vec<(CrateRef, DependencyType)> = Vec::new();
 
+    let active_dep_types: Vec<_> = [DependencyType::Standard, DependencyType::Dev, DependencyType::Build]
+        .into_iter()
+        .filter(|dt| should_process(dt))
+        .collect();
+
     for package in target_packages {
-        if should_process_std {
+        for &dep_type in &active_dep_types {
             crate_dep_pairs.extend(build_transitive_deps(
                 all_packages,
                 resolve_index,
                 &package.id,
-                DependencyType::Standard,
-            ));
-        }
-
-        if should_process_dev {
-            crate_dep_pairs.extend(build_transitive_deps(all_packages, resolve_index, &package.id, DependencyType::Dev));
-        }
-
-        if should_process_build {
-            crate_dep_pairs.extend(build_transitive_deps(
-                all_packages,
-                resolve_index,
-                &package.id,
-                DependencyType::Build,
+                dep_type,
             ));
         }
     }
