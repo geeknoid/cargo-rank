@@ -40,7 +40,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: taiki-e/upload-rust-binary-action@v1.27.0
+      - uses: taiki-e/upload-rust-binary-action@v1.28.0
         with:
           bin: cargo-aprz
           token: ${{ secrets.GITHUB_TOKEN }}
