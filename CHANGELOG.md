@@ -1,5 +1,11 @@
 # cargo-aprz
 
+## Future
+
+### Changed
+
+- Switched from humantime to jiff for duration parsing
+
 ## 0.13.0 - 2026-03-01
 
 ### Added

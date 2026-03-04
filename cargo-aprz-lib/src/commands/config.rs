@@ -8,6 +8,59 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
 
+/// Serde module that (de)serializes `std::time::Duration` via jiff's friendly duration format.
+///
+/// Deserialization parses human-readable strings like "1 week" or "2h 30m" through
+/// `jiff::Span`, then converts to `Duration` using nominal unit values
+/// (1 year = 365 days, 1 month = 30 days).
+///
+/// Serialization formats the duration using jiff's friendly compact notation.
+mod friendly_duration {
+    use core::time::Duration;
+    use serde::{self, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let sdur = jiff::SignedDuration::try_from(*duration).map_err(serde::ser::Error::custom)?;
+        serializer.collect_str(&format_args!("{sdur:#}"))
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let span: jiff::Span = s.parse().map_err(serde::de::Error::custom)?;
+        span_to_duration(span).map_err(serde::de::Error::custom)
+    }
+
+    fn span_to_duration(span: jiff::Span) -> Result<Duration, String> {
+        let total_nanos: i128 = i128::from(span.get_years()) * 365 * 86_400 * 1_000_000_000
+            + i128::from(span.get_months()) * 30 * 86_400 * 1_000_000_000
+            + i128::from(span.get_weeks()) * 7 * 86_400 * 1_000_000_000
+            + i128::from(span.get_days()) * 86_400 * 1_000_000_000
+            + i128::from(span.get_hours()) * 3_600 * 1_000_000_000
+            + i128::from(span.get_minutes()) * 60 * 1_000_000_000
+            + i128::from(span.get_seconds()) * 1_000_000_000
+            + i128::from(span.get_milliseconds()) * 1_000_000
+            + i128::from(span.get_microseconds()) * 1_000
+            + i128::from(span.get_nanoseconds());
+
+        if total_nanos < 0 {
+            return Err("duration must not be negative".into());
+        }
+
+        let secs = u64::try_from(total_nanos / 1_000_000_000)
+            .map_err(|_err| "duration overflow".to_string())?;
+        let nanos = u32::try_from(total_nanos % 1_000_000_000)
+            .map_err(|_err| "duration overflow".to_string())?;
+
+        Ok(Duration::new(secs, nanos))
+    }
+}
+
 /// The default configuration TOML content, embedded from `default_config.toml`
 pub const DEFAULT_CONFIG_TOML: &str = include_str!("../../default_config.toml");
 
@@ -55,23 +108,23 @@ pub struct Config {
     pub low_risk_threshold: f64,
 
     /// Duration to keep crates.io cache data before re-downloading
-    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "friendly_duration")]
     pub crates_cache_ttl: Duration,
 
     /// Duration to keep hosting cache data before re-fetching
-    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "friendly_duration")]
     pub hosting_cache_ttl: Duration,
 
     /// Duration to keep cached codebases before re-fetching
-    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "friendly_duration")]
     pub codebase_cache_ttl: Duration,
 
     /// Duration to keep cached coverage data before re-fetching
-    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "friendly_duration")]
     pub coverage_cache_ttl: Duration,
 
     /// Duration to keep the advisory database cached before re-downloading
-    #[serde(default = "default_cache_ttl", with = "humantime_serde")]
+    #[serde(default = "default_cache_ttl", with = "friendly_duration")]
     pub advisories_cache_ttl: Duration,
 }
 

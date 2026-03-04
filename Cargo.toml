@@ -106,10 +106,10 @@ flate2 = { version = "1.1.9", default-features = false, features = ["zlib-rs"] }
 fs4 = { version = "0.13.1", default-features = false, features = ["sync"] }
 futures = { version = "0.3.32", default-features = false }
 futures-util = { version = "0.3.32", default-features = false }
-humantime-serde = { version = "1.1.1", default-features = false }
 indicatif = { version = "0.18.4", default-features = false }
 insta = { version = "1.46.3", default-features = false }
 itertools = { version = "0.14.0", default-features = false, features = ["use_std"] }
+jiff = { version = "0.2.21", default-features = false, features = ["std", "serde"] }
 layered = { version = "0.3.0", default-features = false }
 log = { version = "0.4.29", default-features = false }
 mmap-rs = { version = "0.7.0", default-features = false }
