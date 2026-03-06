@@ -3,7 +3,7 @@ members = ["cargo-aprz", "cargo-aprz-lib"]
 resolver = "2"
 
 [workspace.package]
-version = "0.13.0"
+version = "0.14.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/geeknoid/cargo-aprz"
@@ -93,10 +93,10 @@ missing-panics-doc = "allow"
 [workspace.dependencies]
 bytes = { version = "1.11.1", default-features = false }
 camino = { version = "1.2.2", default-features = false }
-cargo-aprz-lib = { version = "0.13.0", path = "cargo-aprz-lib", default-features = false }
+cargo-aprz-lib = { version = "0.14.0", path = "cargo-aprz-lib", default-features = false }
 cargo_metadata = { version = "0.23.1", default-features = false }
 cel-interpreter = { version = "0.10.0", default-features = false, features = ["chrono"] }
-chrono = { version = "0.4.43", default-features = false, features = ["serde", "clock", "std", "now"] }
+chrono = { version = "0.4.44", default-features = false, features = ["serde", "clock", "std", "now"] }
 clap = { version = "4.5.60", default-features = false, features = ["std", "derive", "color", "help", "error-context", "usage", "suggestions", "env", "wrap_help"] }
 compact_str = { version = "0.9.0", default-features = false, features = ["std", "serde"] }
 csv = { version = "1.4.0", default-features = false }
@@ -114,13 +114,13 @@ layered = { version = "0.3.0", default-features = false }
 log = { version = "0.4.29", default-features = false }
 mmap-rs = { version = "0.7.0", default-features = false }
 ohno = { version = "0.3.1", default-features = false, features = ["app-err"] }
-owo-colors = { version = "4.2.3", default-features = false }
+owo-colors = { version = "4.3.0", default-features = false }
 pastey = { version = "0.2.1", default-features = false }
 percent-encoding = { version = "2.3.2", default-features = false, features = ["alloc"] }
-ra_ap_syntax = { version = "0.0.320", default-features = false }
+ra_ap_syntax = { version = "0.0.322", default-features = false }
 regex = { version = "1.12.3", default-features = false, features = ["std", "unicode-perl"] }
 reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "stream"] }
-rust_xlsxwriter = { version = "0.93.0", default-features = false, features = ["zlib"] }
+rust_xlsxwriter = { version = "0.94.0", default-features = false, features = ["zlib"] }
 rustc-hash = { version = "2.1.1", default-features = false, features = ["std"] }
 rustdoc-types-v50 = { package = "rustdoc-types", version = "0.50.0", default-features = false }
 rustdoc-types-v51 = { package = "rustdoc-types", version = "0.51.0", default-features = false }
@@ -131,18 +131,18 @@ rustdoc-types-v55 = { package = "rustdoc-types", version = "0.55.0", default-fea
 rustdoc-types-v56 = { package = "rustdoc-types", version = "0.56.0", default-features = false }
 rustdoc-types-v57 = { package = "rustdoc-types", version = "0.57.0", default-features = false }
 rustsec = { version = "0.32.0", default-features = false }
-seatbelt = { version = "0.3.0", default-features = false, features = ["retry", "timeout"] }
+seatbelt = { version = "0.4.0", default-features = false, features = ["retry", "timeout"] }
 semver = { version = "1.0.27", default-features = false, features = ["serde"] }
 serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "1.0.149", default-features = false, features = ["std"] }
 strsim = { version = "0.11.1", default-features = false }
-strum = { version = "0.27.2", default-features = false, features = ["derive"] }
+strum = { version = "0.28.0", default-features = false, features = ["derive"] }
 tar = { version = "0.4.44", default-features = false }
-tempfile = { version = "3.25.0", default-features = false }
+tempfile = { version = "3.26.0", default-features = false }
 terminal_size = { version = "0.4.3", default-features = false }
-tick = { version = "0.2.0", default-features = false, features = ["tokio"] }
-tokio = { version = "1.49.0", default-features = false, features = ["macros", "rt-multi-thread", "sync", "process", "time"] }
-toml = { version = "1.0.3", default-features = false, features = ["parse", "serde", "display"] }
+tick = { version = "0.2.1", default-features = false, features = ["tokio"] }
+tokio = { version = "1.50.0", default-features = false, features = ["macros", "rt-multi-thread", "sync", "process", "time"] }
+toml = { version = "1.0.4", default-features = false, features = ["parse", "serde", "display"] }
 url = { version = "2.5.8", default-features = false }
 vlen = { version = "0.3.0", default-features = false }
 walkdir = { version = "2.5.0", default-features = false }

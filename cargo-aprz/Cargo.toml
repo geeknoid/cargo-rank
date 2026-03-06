@@ -17,7 +17,7 @@ ohno.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
-mutants = "0.0.3"
+mutants = "0.0.4"
 
 [lints]
 workspace = true
